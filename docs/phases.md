@@ -55,8 +55,14 @@ Locked decisions for v1 (from PRD §13):
 
 ---
 
-## Phase 3 — Prove modularity
+## Phase 3 — Prove modularity ✅
 
-11. Second indicator (e.g. AKI) via rule bundle only — no changes to ingest, Kafka, or governance core
+11. [x] Second indicator (AKI / KDIGO-inspired) via rule bundle + scorer plugin
+    - Bundle: `streaming/rule-registry/bundles/aki-kdigo.v0.1.0.json`
+    - Scorer: `eval/aki/` (no Kafka / ingest / governance-core changes)
+    - Shared governance reused via `eval.replay_harness.governance.evaluate`
+    - Replay: `make replay-aki`
 
 **Exit criteria:** New indicator reuses governance; alert-reduction metric reported for it.
+
+**Phase 3 headline metric (AKI T2 library):** naive=4, governed=1, **alert_reduction_ratio = 0.25**.

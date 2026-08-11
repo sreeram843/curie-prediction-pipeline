@@ -206,6 +206,33 @@ def seed_demo_alerts(store: AlertStore) -> None:
             acknowledged_at=now - timedelta(hours=2),
             acknowledge_note="Reviewed — trending down",
         ),
+        AlertRecord(
+            alert_id="alert-demo-aki-urgent-004",
+            patient_id="Patient/synthea-icu-004",
+            encounter_id="Encounter/enc-004",
+            indicator="aki",
+            event_time=now - timedelta(minutes=40),
+            ingest_time=now - timedelta(minutes=39),
+            score=4,
+            completeness="complete",
+            tier="urgent",
+            component_breakdown=[
+                ComponentBreakdown(
+                    name="creatinine",
+                    points=4,
+                    evidence_ids=["Observation/cr-aki-now"],
+                ),
+                ComponentBreakdown(
+                    name="baseline_creatinine",
+                    points=0,
+                    evidence_ids=["Observation/cr-aki-base"],
+                ),
+            ],
+            evidence_ids=["Observation/cr-aki-now", "Observation/cr-aki-base"],
+            rule_bundle_id="aki-kdigo",
+            rule_version="0.1.0",
+            governance_path="governed",
+        ),
     ]
     for alert in demos:
         store.upsert(alert)

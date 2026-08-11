@@ -79,7 +79,7 @@ function renderList() {
         <span class="patient">${alert.patient_id}</span>
         <span class="tier ${alert.tier}">${alert.tier}</span>
       </div>
-      <div class="meta">Score ${alert.score ?? "—"} · ${fmtTime(alert.event_time)}${
+      <div class="meta">${alert.indicator || "sepsis"} · Score ${alert.score ?? "—"} · ${fmtTime(alert.event_time)}${
         alert.acknowledged ? " · acknowledged" : ""
       }</div>
     `;
@@ -145,6 +145,7 @@ function renderDetail(alert) {
     <div class="meta">${alert.alert_id}</div>
     <div class="badges">
       <span class="badge tier ${alert.tier}">${alert.tier}</span>
+      <span class="badge">${alert.indicator || "sepsis"}</span>
       <span class="badge">score ${alert.score ?? "—"}</span>
       <span class="badge">${alert.completeness}</span>
       <span class="badge">${alert.governance_path}</span>

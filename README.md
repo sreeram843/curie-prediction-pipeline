@@ -132,7 +132,7 @@ Tracked in detail in [`docs/phases.md`](docs/phases.md).
 | **0** Scaffolding | Repo layout, Docker Compose (Kafka + Flink), Synthea script, CI | Done |
 | **1** Deterministic vertical slice | Envelope → replay → SOFA Flink job → governance → API/dashboard → alert-reduction metric | Done |
 | **2** LLM layer | Text→FHIR extraction + Guarded Reasoning Pipeline (additive only) | Done |
-| **3** Modularity proof | Second indicator (e.g. AKI) via rule bundle only | Next |
+| **3** Modularity proof | Second indicator (e.g. AKI) via rule bundle only | Done |
 
 ## Getting started (Phase 0)
 
@@ -171,6 +171,7 @@ make api
 
 # Alert-reduction metric on T2 scenarios
 make replay
+make replay-aki
 ```
 
 Useful Make targets: `up`, `down`, `logs`, `topics`, `test`, `lint`, `synthea`.
@@ -194,4 +195,4 @@ Lower-risk positioning order if this becomes a company: (1) synthetic replay / e
 
 ## Status
 
-**Phases 0–2 complete.** Next: Phase 3 (second indicator via rule bundle). Plan: [`docs/phases.md`](docs/phases.md).
+**Phases 0–3 complete.** AKI plugin reuses shared governance; see `make replay-aki`. Plan: [`docs/phases.md`](docs/phases.md).

@@ -57,3 +57,18 @@ def test_explain_is_additive() -> None:
     assert updated["tier"] == before_tier
     assert updated["narrative_status"] == "pass"
     assert updated["narrative"]
+
+
+def test_indicators_include_aki_and_sepsis() -> None:
+    client = TestClient(app)
+    indicators = {i["indicator"] for i in client.get("/indicators").json()}
+    assert "sepsis" in indicators
+    assert "aki" in indicators
+
+
+def test_aki_demo_alert_present() -> None:
+    client = TestClient(app)
+    alerts = client.get("/alerts").json()
+    aki = [a for a in alerts if a["indicator"] == "aki"]
+    assert len(aki) >= 1
+    assert aki[0]["rule_bundle_id"] == "aki-kdigo"

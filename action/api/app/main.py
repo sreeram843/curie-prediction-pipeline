@@ -134,6 +134,14 @@ def extract_endpoint(body: ExtractRequest) -> ExtractionResult:
     )
 
 
+@app.get("/indicators")
+def list_indicator_bundles() -> list[dict[str, str]]:
+    """Registered rule bundles (sepsis, aki, …) — plugin surface for Phase 3+."""
+    from eval.indicators.registry import list_indicators
+
+    return list_indicators()
+
+
 @app.get("/metrics", response_model=MetricsSummary)
 def metrics() -> MetricsSummary:
     return STORE.metrics()

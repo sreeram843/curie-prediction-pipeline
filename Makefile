@@ -1,4 +1,4 @@
-.PHONY: help up down logs topics test lint synthea rules flink-test api replay
+.PHONY: help up down logs topics test lint synthea rules flink-test api replay replay-aki
 
 help:
 	@echo "Targets:"
@@ -12,7 +12,8 @@ help:
 	@echo "  rules       - publish sepsis-sofa rule bundle to Kafka"
 	@echo "  flink-test  - compile/test Flink modules via Maven Docker image"
 	@echo "  api         - run alert API + dashboard on :8000"
-	@echo "  replay      - run T2 replay harness (alert-reduction metric)"
+	@echo "  replay      - run sepsis T2 replay harness (alert-reduction metric)"
+	@echo "  replay-aki  - run AKI T2 replay harness (alert-reduction metric)"
 
 up:
 	docker compose -f infra/docker-compose.yml up -d
@@ -50,3 +51,6 @@ api:
 
 replay:
 	python -m eval.replay_harness.runner
+
+replay-aki:
+	python -m eval.replay_harness.aki_runner
