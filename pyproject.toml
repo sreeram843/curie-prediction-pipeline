@@ -26,7 +26,7 @@ kafka = [
 ]
 
 [tool.pytest.ini_options]
-testpaths = ["eval", "ingestion", "action"]
+testpaths = ["eval", "ingestion", "action", "reasoning"]
 pythonpath = ["."]
 
 [tool.ruff]
@@ -42,4 +42,4 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["ingestion*", "eval*", "action*"]
+include = ["ingestion*", "eval*", "action*", "reasoning*"]

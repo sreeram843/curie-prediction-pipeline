@@ -93,6 +93,38 @@ function renderList() {
   }
 }
 
+function renderNarrative(alert) {
+  const status = alert.narrative_status || "none";
+  if (status === "pass" && alert.narrative) {
+    const claims = (alert.narrative_claims || [])
+      .map(
+        (c) =>
+          `<li>${c.text} <span class="meta">[${(c.evidence_ids || []).join(", ")}]</span></li>`
+      )
+      .join("");
+    return `
+      <div class="narrative pass">
+        <p>${alert.narrative}</p>
+        <ul class="evidence">${claims}</ul>
+        <div class="meta">model ${alert.grp_model_name || "—"} · score unchanged</div>
+      </div>`;
+  }
+  if (status === "quarantine" || status === "abstain" || status === "error") {
+    return `
+      <div class="narrative ${status}">
+        <strong>${status}</strong>
+        <p>${alert.quarantine_reason || "No narrative attached."}</p>
+        <div class="meta">Deterministic alert still valid · score unchanged</div>
+        <button type="button" id="explainBtn" class="secondary">Retry explanation</button>
+      </div>`;
+  }
+  return `
+    <div class="narrative none">
+      <p class="meta">No LLM narrative yet. GRP is additive and feature-flagged — it cannot change the score.</p>
+      <button type="button" id="explainBtn">Generate explanation</button>
+    </div>`;
+}
+
 function renderDetail(alert) {
   detailEmpty.classList.add("hidden");
   detailEl.classList.remove("hidden");
@@ -123,6 +155,8 @@ function renderDetail(alert) {
     <ul class="breakdown">${components || "<li class='missing'>No components</li>"}</ul>
     <div class="section-label">Evidence IDs</div>
     <ul class="evidence">${evidence || "<li class='missing'>None</li>"}</ul>
+    <div class="section-label">Guarded explanation (additive)</div>
+    ${renderNarrative(alert)}
     ${
       alert.acknowledged
         ? `<div class="ack-note">Acknowledged ${fmtTime(alert.acknowledged_at)}${
@@ -135,6 +169,29 @@ function renderDetail(alert) {
           </div>`
     }
   `;
+
+  const explainBtn = document.getElementById("explainBtn");
+  if (explainBtn) {
+    explainBtn.addEventListener("click", async () => {
+      explainBtn.disabled = true;
+      try {
+        const updated = await fetchJson(`/alerts/${alert.alert_id}/explain`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ force: true }),
+        });
+        state.alerts = state.alerts.map((a) =>
+          a.alert_id === updated.alert_id ? updated : a
+        );
+        renderList();
+        renderDetail(updated);
+      } catch (err) {
+        explainBtn.disabled = false;
+        console.error(err);
+        window.alert(`Explain failed: ${err.message}`);
+      }
+    });
+  }
 
   const ackBtn = document.getElementById("ackBtn");
   if (ackBtn) {

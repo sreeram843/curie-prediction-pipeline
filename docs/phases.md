@@ -29,7 +29,7 @@ Locked decisions for v1 (from PRD §13):
 
 ---
 
-## Phase 1 — Deterministic vertical slice (in progress)
+## Phase 1 — Deterministic vertical slice ✅
 
 1. [x] Canonical event envelope + SOFA input contract (versioned schemas) + T0 fixtures
 2. [x] Synthea → Kafka replay producer (dry-run + produce; delay injection hooks TBD)
@@ -45,11 +45,11 @@ Locked decisions for v1 (from PRD §13):
 
 ---
 
-## Phase 2 — LLM layer (after Phase 1 metrics look good)
+## Phase 2 — LLM layer ✅
 
-8. Text→FHIR extraction adapter (feature-flagged) against labeled notes (T4)
-9. Guarded Reasoning Pipeline: context → model → claim validator → policy gate → quarantine
-10. Wire GRP as strictly additive (§6.4); feature-flagged
+8. [x] Text→FHIR extraction adapter (feature-flagged) + T4 fixtures
+9. [x] Guarded Reasoning Pipeline: context → model → claim validator → policy gate → quarantine
+10. [x] Wire GRP as strictly additive (§6.4); feature-flagged (`CURIE_ENABLE_GRP`, dashboard force for demo)
 
 **Exit criteria:** Deterministic alert still ships if LLM fails; ungrounded claims hard-fail.
 

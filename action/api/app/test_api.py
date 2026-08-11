@@ -41,3 +41,19 @@ def test_metrics() -> None:
     m = client.get("/metrics").json()
     assert m["total_alerts"] >= 3
     assert "critical" in m["by_tier"]
+
+
+def test_explain_is_additive() -> None:
+    client = TestClient(app)
+    alerts = client.get("/alerts").json()
+    target = next(a for a in alerts if a["tier"] == "critical")
+    before_score = target["score"]
+    before_tier = target["tier"]
+    updated = client.post(
+        f"/alerts/{target['alert_id']}/explain",
+        json={"force": True},
+    ).json()
+    assert updated["score"] == before_score
+    assert updated["tier"] == before_tier
+    assert updated["narrative_status"] == "pass"
+    assert updated["narrative"]

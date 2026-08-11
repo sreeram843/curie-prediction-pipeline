@@ -36,6 +36,14 @@ class AlertRecord(BaseModel):
     acknowledged: bool = False
     acknowledged_at: datetime | None = None
     acknowledge_note: str | None = None
+    # Phase 2 GRP — additive only; never changes score/tier
+    narrative_status: (
+        Literal["none", "pass", "quarantine", "abstain", "disabled", "error"] | None
+    ) = "none"
+    narrative: str | None = None
+    narrative_claims: list[dict[str, Any]] = Field(default_factory=list)
+    quarantine_reason: str | None = None
+    grp_model_name: str | None = None
 
 
 class AcknowledgeRequest(BaseModel):

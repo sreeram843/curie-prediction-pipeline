@@ -73,6 +73,32 @@ class AlertStore:
             by_tier=by_tier,
         )
 
+    def attach_narrative(
+        self,
+        alert_id: str,
+        *,
+        status: str,
+        narrative: str | None,
+        claims: list[dict],
+        quarantine_reason: str | None,
+        model_name: str | None,
+    ) -> AlertRecord | None:
+        with self._lock:
+            alert = self._alerts.get(alert_id)
+            if alert is None:
+                return None
+            updated = alert.model_copy(
+                update={
+                    "narrative_status": status,
+                    "narrative": narrative,
+                    "narrative_claims": claims,
+                    "quarantine_reason": quarantine_reason,
+                    "grp_model_name": model_name,
+                }
+            )
+            self._alerts[alert_id] = updated
+            return updated
+
     def clear(self) -> None:
         with self._lock:
             self._alerts.clear()
