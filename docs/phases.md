@@ -35,11 +35,13 @@ Locked decisions for v1 (from PRD §13):
 2. [x] Synthea → Kafka replay producer (dry-run + produce; delay injection hooks TBD)
 3. [x] Flink SOFA score + alert job; thresholds via broadcast JSON rule bundle
 4. [x] Governance operators (trajectory, baseline, suppression, dedup, tiering)
-5. [ ] Alerts → `alerts` topic + minimal read/acknowledge API
-6. [ ] Replay/backtest harness + alert-reduction-ratio metric (naive vs governance)
-7. [ ] Minimal dashboard: list alerts, evidence, acknowledge
+5. [x] Alerts → `alerts` topic + minimal read/acknowledge API
+6. [x] Replay/backtest harness + alert-reduction-ratio metric (naive vs governance)
+7. [x] Minimal dashboard: list alerts, evidence, acknowledge
 
 **Exit criteria:** Same replay twice → identical alerts; governance reduces alert volume vs threshold-only; dashboard shows evidence-backed alerts.
+
+**Phase 1 headline metric (T2 built-in library):** naive=6, governed=1, **alert_reduction_ratio ≈ 0.17**.
 
 ---
 

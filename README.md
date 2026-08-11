@@ -130,8 +130,8 @@ Tracked in detail in [`docs/phases.md`](docs/phases.md).
 | Phase | Goal | Status |
 |---|---|---|
 | **0** Scaffolding | Repo layout, Docker Compose (Kafka + Flink), Synthea script, CI | Done |
-| **1** Deterministic vertical slice | Envelope → replay → SOFA Flink job → governance → API/dashboard → alert-reduction metric | In progress |
-| **2** LLM layer | Text→FHIR extraction + Guarded Reasoning Pipeline (additive only) | Later |
+| **1** Deterministic vertical slice | Envelope → replay → SOFA Flink job → governance → API/dashboard → alert-reduction metric | Done |
+| **2** LLM layer | Text→FHIR extraction + Guarded Reasoning Pipeline (additive only) | Next |
 | **3** Modularity proof | Second indicator (e.g. AKI) via rule bundle only | Later |
 
 ## Getting started (Phase 0)
@@ -163,6 +163,14 @@ python -m ingestion.adapters.synthea.replay_producer --fhir-dir data/synthea/fhi
 # Seed rule bundle + Flink unit tests
 make rules
 make flink-test
+
+# Alert API + dashboard
+pip install -e ".[api]"
+make api
+# open http://127.0.0.1:8000
+
+# Alert-reduction metric on T2 scenarios
+make replay
 ```
 
 Useful Make targets: `up`, `down`, `logs`, `topics`, `test`, `lint`, `synthea`.
@@ -186,4 +194,4 @@ Lower-risk positioning order if this becomes a company: (1) synthetic replay / e
 
 ## Status
 
-**Phase 0 done. Phase 1 in progress** (Flink SOFA job + rule broadcast done; governance next). Plan: [`docs/phases.md`](docs/phases.md).
+**Phase 1 vertical slice complete.** Alert-reduction on T2 library ≈ 0.17 (6→1). Next: Phase 2 LLM layer. Plan: [`docs/phases.md`](docs/phases.md).

@@ -1,4 +1,4 @@
-.PHONY: help up down logs topics test lint synthea rules flink-test
+.PHONY: help up down logs topics test lint synthea rules flink-test api replay
 
 help:
 	@echo "Targets:"
@@ -11,6 +11,8 @@ help:
 	@echo "  synthea     - generate synthetic FHIR (default 10 patients)"
 	@echo "  rules       - publish sepsis-sofa rule bundle to Kafka"
 	@echo "  flink-test  - compile/test Flink modules via Maven Docker image"
+	@echo "  api         - run alert API + dashboard on :8000"
+	@echo "  replay      - run T2 replay harness (alert-reduction metric)"
 
 up:
 	docker compose -f infra/docker-compose.yml up -d
@@ -42,3 +44,9 @@ flink-test:
 		-w /w \
 		maven:3.9.9-eclipse-temurin-17 \
 		mvn -B -q test
+
+api:
+	uvicorn action.api.app.main:app --reload --host 127.0.0.1 --port 8000
+
+replay:
+	python -m eval.replay_harness.runner

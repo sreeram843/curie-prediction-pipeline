@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Curie — Alert Review</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=IBM+Plex+Sans:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <div class="atmosphere" aria-hidden="true"></div>
+    <header class="top">
+      <div class="brand-block">
+        <p class="eyebrow">Prototype · synthetic data only</p>
+        <h1>Curie</h1>
+        <p class="tagline">Clinical deterioration alerts with evidence you can audit.</p>
+      </div>
+      <div class="metrics" id="metrics" aria-live="polite"></div>
+    </header>
+
+    <main class="layout">
+      <section class="panel list-panel" aria-labelledby="alerts-heading">
+        <div class="panel-head">
+          <h2 id="alerts-heading">Alerts</h2>
+          <label class="filter">
+            <input type="checkbox" id="hideAck" />
+            Hide acknowledged
+          </label>
+        </div>
+        <ul id="alertList" class="alert-list"></ul>
+      </section>
+
+      <section class="panel detail-panel" aria-labelledby="detail-heading">
+        <h2 id="detail-heading">Evidence</h2>
+        <div id="detailEmpty" class="empty">Select an alert to inspect score breakdown and evidence IDs.</div>
+        <article id="detail" class="detail hidden"></article>
+      </section>
+    </main>
+
+    <footer class="foot">
+      Not clinically validated · Not for patient care · SOFA prototype scoring
+    </footer>
+    <script src="/static/app.js"></script>
+  </body>
+</html>
