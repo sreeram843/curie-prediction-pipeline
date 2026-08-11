@@ -1,0 +1,32 @@
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+dist/
+build/
+
+# Java / Maven
+streaming/flink-jobs/**/target/
+.idea/
+*.iml
+.classpath
+.project
+.settings/
+
+# Local data & tooling (large / regenerable)
+.tools/
+data/
+*.log
+
+# Env / secrets
+.env
+.env.*
+!.env.example
+
+# OS / editor
+.DS_Store
+.vscode/
+*.swp

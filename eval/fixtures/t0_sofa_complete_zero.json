@@ -1,0 +1,10 @@
+{
+  "fixture_id": "t0-sofa-complete-zero",
+  "description": "All six SOFA components present and normal → score 0",
+  "expected": {
+    "completeness": "complete",
+    "total_score": 0,
+    "missing_components": [],
+    "tier": "none"
+  }
+}

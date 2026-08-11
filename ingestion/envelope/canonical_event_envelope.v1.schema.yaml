@@ -1,0 +1,66 @@
+# Canonical clinical event envelope (v1 draft)
+# Every Kafka message carries at least these fields.
+
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: https://curie.local/schemas/canonical-event-envelope.v1.json
+title: CanonicalEventEnvelope
+type: object
+additionalProperties: false
+required:
+  - schema_version
+  - patient_id
+  - resource_type
+  - resource
+  - event_time
+  - ingest_time
+  - source
+  - idempotency_key
+  - provenance
+properties:
+  schema_version:
+    type: string
+    const: "1.0.0"
+  patient_id:
+    type: string
+    minLength: 1
+  encounter_id:
+    type: ["string", "null"]
+  resource_type:
+    type: string
+    enum:
+      - Observation
+      - Condition
+      - MedicationAdministration
+      - MedicationRequest
+      - Procedure
+      - Encounter
+      - Patient
+      - DiagnosticReport
+  resource:
+    type: object
+    description: Full FHIR R4 resource payload
+  event_time:
+    type: string
+    format: date-time
+    description: Clinical occurrence time (event time for Flink watermarks)
+  ingest_time:
+    type: string
+    format: date-time
+    description: Pipeline arrival time (kept distinct from event_time)
+  source:
+    type: string
+    description: Synthea, adapter name, or vendor tag
+  idempotency_key:
+    type: string
+    minLength: 1
+  provenance:
+    type: object
+    required: [adapter, adapter_version]
+    additionalProperties: true
+    properties:
+      adapter:
+        type: string
+      adapter_version:
+        type: string
+      raw_ref:
+        type: ["string", "null"]
