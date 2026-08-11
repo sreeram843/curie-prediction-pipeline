@@ -116,8 +116,9 @@ curie-prediction-pipeline/
     dashboard/           # minimal UI
   eval/
     scenario-library/    # T2 scenarios + expected outcomes
-    replay-harness/      # backtest runner, metrics
+    replay_harness/      # backtest runner, governance metrics
     fixtures/            # T0 contract fixtures
+    sofa/                # reference SOFA scorer (aligned with Flink)
   docs/
     prd.md
 ```
@@ -158,6 +159,10 @@ make lint
 pip install -e ".[kafka]"
 python -m ingestion.adapters.synthea.replay_producer --fhir-dir data/synthea/fhir --dry-run
 python -m ingestion.adapters.synthea.replay_producer --fhir-dir data/synthea/fhir
+
+# Seed rule bundle + Flink unit tests
+make rules
+make flink-test
 ```
 
 Useful Make targets: `up`, `down`, `logs`, `topics`, `test`, `lint`, `synthea`.
@@ -181,4 +186,4 @@ Lower-risk positioning order if this becomes a company: (1) synthetic replay / e
 
 ## Status
 
-**Phase 0 done. Phase 1 in progress** (SOFA contract + T0 fixtures + Synthea replay producer). Plan: [`docs/phases.md`](docs/phases.md).
+**Phase 0 done. Phase 1 in progress** (Flink SOFA job + rule broadcast done; governance next). Plan: [`docs/phases.md`](docs/phases.md).

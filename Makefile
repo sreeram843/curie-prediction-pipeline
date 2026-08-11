@@ -1,14 +1,16 @@
-.PHONY: help up down logs topics test lint synthea
+.PHONY: help up down logs topics test lint synthea rules flink-test
 
 help:
 	@echo "Targets:"
-	@echo "  up       - start Kafka + Flink (Docker Compose)"
-	@echo "  down     - stop local stack"
-	@echo "  logs     - tail compose logs"
-	@echo "  topics   - list Kafka topics"
-	@echo "  test     - run Python tests"
-	@echo "  lint     - run ruff"
-	@echo "  synthea  - generate synthetic FHIR (default 10 patients)"
+	@echo "  up          - start Kafka + Flink (Docker Compose)"
+	@echo "  down        - stop local stack"
+	@echo "  logs        - tail compose logs"
+	@echo "  topics      - list Kafka topics"
+	@echo "  test        - run Python tests"
+	@echo "  lint        - run ruff"
+	@echo "  synthea     - generate synthetic FHIR (default 10 patients)"
+	@echo "  rules       - publish sepsis-sofa rule bundle to Kafka"
+	@echo "  flink-test  - compile/test Flink modules via Maven Docker image"
 
 up:
 	docker compose -f infra/docker-compose.yml up -d
@@ -30,3 +32,13 @@ lint:
 
 synthea:
 	./scripts/generate_synthea.sh $${N:-10}
+
+rules:
+	./scripts/publish_rules.sh
+
+flink-test:
+	docker run --rm \
+		-v "$(CURDIR)/streaming/flink-jobs:/w" \
+		-w /w \
+		maven:3.9.9-eclipse-temurin-17 \
+		mvn -B -q test

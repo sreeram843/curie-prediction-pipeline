@@ -33,8 +33,8 @@ Locked decisions for v1 (from PRD §13):
 
 1. [x] Canonical event envelope + SOFA input contract (versioned schemas) + T0 fixtures
 2. [x] Synthea → Kafka replay producer (dry-run + produce; delay injection hooks TBD)
-3. [ ] Flink SOFA score + alert job; thresholds via broadcast JSON rule bundle
-4. [ ] Governance operators (trajectory, baseline, suppression, dedup, tiering)
+3. [x] Flink SOFA score + alert job; thresholds via broadcast JSON rule bundle
+4. [x] Governance operators (trajectory, baseline, suppression, dedup, tiering)
 5. [ ] Alerts → `alerts` topic + minimal read/acknowledge API
 6. [ ] Replay/backtest harness + alert-reduction-ratio metric (naive vs governance)
 7. [ ] Minimal dashboard: list alerts, evidence, acknowledge

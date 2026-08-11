@@ -31,4 +31,4 @@ jobs:
           cache: maven
       - name: Compile Flink modules
         working-directory: streaming/flink-jobs
-        run: mvn -B -q -DskipTests compile
+        run: mvn -B -q test
