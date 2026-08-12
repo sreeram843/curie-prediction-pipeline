@@ -88,7 +88,9 @@ Implement reproducible label pipelines (cite methods papers; version the code):
 - Single snapshot (~24h), not streaming event-time replay  
 - Demo cohort size only  
 
-Stage B needs a **MIMIC evaluation harness** (new work): stay-level timeline → scorer → governance → compare to labels.
+Stage B streaming path: **`make mimic-harness`** (CURIE-015) replays demo-schema
+fixtures in availability-time order with leakage tests and content hashes. Full
+PhysioNet extract wiring remains after DUA access.
 
 ---
 

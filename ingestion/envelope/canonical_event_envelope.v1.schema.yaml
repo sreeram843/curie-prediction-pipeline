@@ -47,6 +47,13 @@ properties:
     type: string
     format: date-time
     description: Pipeline arrival time (kept distinct from event_time)
+  availability_time:
+    type: ["string", "null"]
+    format: date-time
+    description: >
+      When the fact became knowable (e.g. MIMIC lab storetime). Optional in v1
+      for backward compatibility; when null, consumers treat event_time as
+      availability. CURIE-015 replay orders by this clock.
   source:
     type: string
     description: Synthea, adapter name, or vendor tag

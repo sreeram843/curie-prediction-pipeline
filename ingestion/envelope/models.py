@@ -35,6 +35,13 @@ class CanonicalEventEnvelope(BaseModel):
     resource: dict[str, Any]
     event_time: datetime
     ingest_time: datetime
+    # When the fact became knowable to the system (CURIE-015 / protocol order key).
+    # Optional for backward compatibility; when absent, treat as event_time.
+    availability_time: datetime | None = None
     source: str
     idempotency_key: str = Field(min_length=1)
     provenance: Provenance
+
+    def effective_availability_time(self) -> datetime:
+        """Availability clock used for leakage-safe replay ordering."""
+        return self.availability_time if self.availability_time is not None else self.event_time

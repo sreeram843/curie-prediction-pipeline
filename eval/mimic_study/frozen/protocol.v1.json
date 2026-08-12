@@ -230,7 +230,7 @@
       "claim_id": "C4",
       "claim": "Availability-time replay does not use future information.",
       "required_evidence": ["CURIE-015 leakage tests", "identical output hashes on repeat"],
-      "status": "pending_curie_015"
+      "status": "engineering_done_demo_schema"
     },
     {
       "claim_id": "NON",

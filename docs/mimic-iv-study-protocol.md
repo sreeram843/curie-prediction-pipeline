@@ -123,7 +123,7 @@ Tie-breakers: lower interruptive NNA → higher sensitivity → lexicographic `c
 | C1 | Governance cuts interruptive volume while preserving in-window detection | PE-1 + PE-2 on test + CIs | pending Stage B |
 | C2 | Episode arbitration → one actionable episode | Episode vs alert rates; CURIE-012; concurrent-signal subgroup | eng. done / clinical pending |
 | C3 | New indicator = plugin/bundle, not new platform | CURIE-010/011/013 gates | eng. done |
-| C4 | Availability-time replay has no future leakage | CURIE-015 leakage tests + hash identity | pending CURIE-015 |
+| C4 | Availability-time replay has no future leakage | CURIE-015 leakage tests + hash identity | eng. done (demo schema) |
 | NON | Clinical validation / FDA / NEWS superiority / SaMD | Out of scope until Stages C–F | **non-claim** |
 
 ---
@@ -134,4 +134,5 @@ Tie-breakers: lower interruptive NNA → higher sensitivity → lexicographic `c
 - Claiming clinical validity from demo or Challenge alone  
 - Committing PhysioNet patient extracts to git  
 
-Next implementation: **CURIE-015** leakage-safe timeline harness (demo schema first).
+Next implementation: **CURIE-015** leakage-safe timeline harness — see
+[`mimic-timeline-harness.md`](./mimic-timeline-harness.md) (`make mimic-harness`).

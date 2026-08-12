@@ -1,0 +1,153 @@
+{
+  "schema_version": "1.0.0",
+  "description": "Synthetic MIMIC-IV-shaped stays for CURIE-015 demo-schema harness. No PhysioNet patient data.",
+  "dataset_pin": {
+    "name": "demo-schema-fixtures",
+    "version": "1.0.0",
+    "note": "Local fixtures only — replace with PhysioNet MIMIC-IV extract hash for Stage B"
+  },
+  "derived_concept_sql_pin": "pending-mimic-code-sha",
+  "stays": [
+    {
+      "stay_id": "stay-demo-001",
+      "subject_id": "10001",
+      "hadm_id": "20001",
+      "split_id": "development",
+      "intime": "2015-06-01 08:00:00",
+      "outtime": "2015-06-03 08:00:00",
+      "labels": {
+        "sepsis3_onset": null,
+        "aki_kdigo_stage_ge_1": false
+      },
+      "labs": [
+        {
+          "itemid": 51265,
+          "code": "777-3",
+          "display": "Platelets",
+          "valuenum": 180,
+          "unit": "10*9/L",
+          "charttime": "2015-06-01 10:00:00",
+          "storetime": "2015-06-01 11:30:00",
+          "evidence_id": "lab/plt-1"
+        },
+        {
+          "itemid": 50912,
+          "code": "2160-0",
+          "display": "Creatinine",
+          "valuenum": 0.9,
+          "unit": "mg/dL",
+          "charttime": "2015-06-01 10:00:00",
+          "storetime": "2015-06-01 12:00:00",
+          "evidence_id": "lab/cr-1"
+        }
+      ],
+      "charts": [
+        {
+          "itemid": 220052,
+          "code": "8478-0",
+          "display": "MAP",
+          "valuenum": 75,
+          "unit": "mmHg",
+          "charttime": "2015-06-01 09:00:00",
+          "evidence_id": "chart/map-1"
+        }
+      ],
+      "conditions": []
+    },
+    {
+      "stay_id": "stay-demo-002",
+      "subject_id": "10002",
+      "hadm_id": "20002",
+      "split_id": "calibration",
+      "intime": "2018-03-10 12:00:00",
+      "outtime": "2018-03-12 12:00:00",
+      "labels": {
+        "sepsis3_onset": "2018-03-10T18:00:00",
+        "aki_kdigo_stage_ge_1": true
+      },
+      "labs": [
+        {
+          "itemid": 51265,
+          "code": "777-3",
+          "valuenum": 45,
+          "unit": "10*9/L",
+          "charttime": "2018-03-10 14:00:00",
+          "storetime": "2018-03-10 16:00:00",
+          "evidence_id": "lab/plt-low"
+        },
+        {
+          "itemid": 50885,
+          "code": "1975-2",
+          "valuenum": 3.2,
+          "unit": "mg/dL",
+          "charttime": "2018-03-10 14:00:00",
+          "storetime": "2018-03-10 15:30:00",
+          "evidence_id": "lab/bili-high"
+        },
+        {
+          "itemid": 50912,
+          "code": "2160-0",
+          "valuenum": 2.4,
+          "unit": "mg/dL",
+          "charttime": "2018-03-10 14:00:00",
+          "storetime": "2018-03-10 17:00:00",
+          "evidence_id": "lab/cr-high"
+        }
+      ],
+      "charts": [
+        {
+          "itemid": 220052,
+          "code": "8478-0",
+          "valuenum": 58,
+          "unit": "mmHg",
+          "charttime": "2018-03-10 13:00:00",
+          "evidence_id": "chart/map-low"
+        }
+      ],
+      "conditions": [
+        {
+          "code": "A41.9",
+          "display": "Sepsis, unspecified",
+          "onset": "2018-03-10 12:00:00",
+          "availability_time": "2018-03-12 10:00:00",
+          "is_discharge_diagnosis": true,
+          "evidence_id": "dx/sepsis-discharge"
+        }
+      ]
+    },
+    {
+      "stay_id": "stay-demo-003",
+      "subject_id": "10003",
+      "hadm_id": "20003",
+      "split_id": "test",
+      "intime": "2019-05-01 08:00:00",
+      "outtime": "2019-05-02 20:00:00",
+      "labels": {
+        "sepsis3_onset": null,
+        "aki_kdigo_stage_ge_1": false
+      },
+      "labs": [
+        {
+          "itemid": 51265,
+          "code": "777-3",
+          "valuenum": 220,
+          "unit": "10*9/L",
+          "charttime": "2019-05-01 09:00:00",
+          "storetime": "2019-05-01 10:00:00",
+          "evidence_id": "lab/plt-ok"
+        }
+      ],
+      "charts": [
+        {
+          "itemid": 220052,
+          "code": "8478-0",
+          "valuenum": 85,
+          "unit": "mmHg",
+          "charttime": "2019-05-01 08:30:00",
+          "evidence_id": "chart/map-ok"
+        }
+      ],
+      "conditions": []
+    }
+  ]
+}

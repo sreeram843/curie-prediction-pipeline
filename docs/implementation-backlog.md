@@ -330,9 +330,12 @@ margin, ablations, subgroup analyses, bootstrap unit, and missing-data analyses.
 
 **Acceptance criteria**
 
-- [ ] A demo-schema run completes end to end before full access arrives.
-- [ ] Automated leakage tests fail when future information is introduced.
-- [ ] Repeated runs produce identical output hashes.
+- [x] A demo-schema run completes end to end before full access arrives.
+- [x] Automated leakage tests fail when future information is introduced.
+- [x] Repeated runs produce identical output hashes.
+
+**Artifacts:** [`docs/mimic-timeline-harness.md`](./mimic-timeline-harness.md),
+`python -m eval.mimic_harness.runner` / `make mimic-harness`.
 
 ### CURIE-016 — Run the locked MIMIC ablation and robustness study [P1]
 
