@@ -1,4 +1,4 @@
-.PHONY: help up up-full down logs topics test lint synthea rules flink-test api replay replay-aki mimic-demo challenge-2019 challenge-2019-sweep challenge-2019-robustness
+.PHONY: help up up-full down logs topics test lint synthea rules flink-test api replay replay-aki mimic-demo challenge-2019 challenge-2019-sweep challenge-2019-robustness parity
 
 help:
 	@echo "Targets:"
@@ -9,8 +9,9 @@ help:
 	@echo "  topics      - list Kafka topics"
 	@echo "  test        - run Python tests"
 	@echo "  lint        - run ruff"
+	@echo "  parity      - CURIE-007 cross-runtime parity gate (Python + Java fixtures)"
 	@echo "  synthea     - generate synthetic FHIR (default 10 patients)"
-	@echo "  rules       - publish sepsis-sofa rule bundle to Kafka"
+	@echo "  rules       - publish active rule bundles (requires parity gate)"
 	@echo "  flink-test  - compile/test Flink modules via Maven Docker image"
 	@echo "  api         - run alert API + dashboard on :8000 (host; use up-full for container)"
 	@echo "  replay      - run sepsis T2 replay harness (alert-reduction metric)"
@@ -40,6 +41,10 @@ test:
 
 lint:
 	ruff check .
+
+parity:
+	python -m eval.parity.gate
+	$(MAKE) flink-test
 
 synthea:
 	./scripts/generate_synthea.sh $${N:-10}

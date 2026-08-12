@@ -187,8 +187,8 @@ of Kafka arrival order.
 
 **Acceptance criteria**
 
-- [ ] CI reports fixture count and zero mismatches.
-- [ ] v0.3.1 cannot be published unless the parity job passes.
+- [x] CI reports fixture count and zero mismatches.
+- [x] v0.3.1 cannot be published unless the parity job passes.
 
 ---
 

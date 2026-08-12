@@ -1,11 +1,19 @@
 #!/usr/bin/env bash
 # Publish rule bundles to the Kafka `rules` topic.
 # Default: versions from streaming/rule-registry/activation.json (not lexical "latest").
+# Requires CURIE-007 parity gate unless SKIP_PARITY=1 (emergency only).
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BUNDLES_DIR="$ROOT/streaming/rule-registry/bundles"
 ACTIVATION="$ROOT/streaming/rule-registry/activation.json"
+
+if [[ "${SKIP_PARITY:-}" != "1" ]]; then
+  echo "Running cross-runtime parity gate (CURIE-007)…"
+  (cd "$ROOT" && python -m eval.parity.gate)
+else
+  echo "WARNING: SKIP_PARITY=1 — publishing without parity gate" >&2
+fi
 
 if ! docker ps --format '{{.Names}}' | grep -q '^curie-kafka$'; then
   echo "curie-kafka container not running. Start with: make up" >&2

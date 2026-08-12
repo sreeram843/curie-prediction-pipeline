@@ -1,0 +1,148 @@
+{
+  "schema_version": "1.0.0",
+  "id": "cross-runtime-parity-v1",
+  "description": "CURIE-007: fixtures both Python and Java must pass with zero mismatches.",
+  "sofa_cases_ref": "sofa_cases.v0.2.json",
+  "governance_config_ref": "governance_parity.v1.json",
+  "aki_cases": [
+    {
+      "id": "aki-stage2-ratio",
+      "inputs": {
+        "creatinine_mg_dl": 2.2,
+        "baseline_creatinine_mg_dl": 1.0
+      },
+      "expect": {
+        "stage": 2,
+        "total_score": 4,
+        "completeness": "complete",
+        "creatinine_stage": 2
+      }
+    },
+    {
+      "id": "aki-absolute-no-baseline",
+      "inputs": {
+        "creatinine_mg_dl": 4.2
+      },
+      "expect": {
+        "stage": 3,
+        "total_score": 6,
+        "completeness": "partial",
+        "missing_components": ["baseline_creatinine"]
+      }
+    },
+    {
+      "id": "aki-urine-oliguria",
+      "inputs": {
+        "creatinine_mg_dl": 1.0,
+        "baseline_creatinine_mg_dl": 1.0,
+        "urine_ml_kg_h": 0.4,
+        "urine_duration_hours": 14.0
+      },
+      "expect": {
+        "stage": 2,
+        "total_score": 4,
+        "completeness": "complete",
+        "creatinine_stage": 0,
+        "urine_stage": 2
+      }
+    }
+  ],
+  "governance_decisions": [
+    {
+      "id": "gov-trajectory-block",
+      "config": {
+        "trajectory_persistence_minutes": 30,
+        "min_crossings": 2,
+        "baseline_enabled": false,
+        "refractory_minutes": 180,
+        "page_gate_enabled": false
+      },
+      "alerts": [
+        {
+          "score": 4,
+          "tier": "urgent",
+          "event_time": "2024-02-01T09:00:00+00:00",
+          "patient_id": "Patient/parity",
+          "positive_components": 2
+        }
+      ],
+      "expect": [
+        {
+          "emit": false,
+          "reason": "trajectory_not_met",
+          "routing": "none"
+        }
+      ]
+    },
+    {
+      "id": "gov-page-gate-passive",
+      "config": {
+        "trajectory_persistence_minutes": 0,
+        "min_crossings": 1,
+        "baseline_enabled": false,
+        "refractory_minutes": 0,
+        "page_gate_enabled": true,
+        "page_min_crossings": 2,
+        "page_trajectory_persistence_minutes": 0,
+        "page_min_score_delta": 0,
+        "page_min_positive_components": 0
+      },
+      "alerts": [
+        {
+          "score": 4,
+          "tier": "urgent",
+          "event_time": "2024-01-01T00:00:00+00:00",
+          "patient_id": "Patient/parity",
+          "positive_components": 2
+        },
+        {
+          "score": 5,
+          "tier": "urgent",
+          "event_time": "2024-01-01T00:10:00+00:00",
+          "patient_id": "Patient/parity",
+          "positive_components": 2
+        }
+      ],
+      "expect": [
+        {
+          "emit": true,
+          "reason": "pass_watch:page_crossings",
+          "routing": "passive"
+        },
+        {
+          "emit": true,
+          "reason": "pass",
+          "routing": "interruptive"
+        }
+      ]
+    },
+    {
+      "id": "gov-comfort-suppressed",
+      "config": {
+        "trajectory_persistence_minutes": 0,
+        "min_crossings": 1,
+        "baseline_enabled": false,
+        "refractory_minutes": 0,
+        "page_gate_enabled": false,
+        "suppression_flags": ["comfort_care"]
+      },
+      "alerts": [
+        {
+          "score": 6,
+          "tier": "critical",
+          "event_time": "2024-01-01T00:00:00+00:00",
+          "patient_id": "Patient/parity",
+          "context_flags": ["comfort_care"],
+          "positive_components": 3
+        }
+      ],
+      "expect": [
+        {
+          "emit": false,
+          "reason": "context:comfort_care",
+          "routing": "none"
+        }
+      ]
+    }
+  ]
+}
