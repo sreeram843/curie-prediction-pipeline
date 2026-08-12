@@ -5,7 +5,7 @@
 MIMIC-IV evaluation before expanding the product surface.
 
 This is the working engineering backlog. The clinical study design remains in
-[`clinical-validation.md`](clinical-validation.md).
+`[clinical-validation.md](clinical-validation.md)`.
 
 ## How to use this backlog
 
@@ -16,6 +16,8 @@ This is the working engineering backlog. The clinical study design remains in
 - Mark a task complete only after its acceptance criteria and verification commands pass.
 - Every clinical-rule change needs Python tests, Java tests when applicable, and a replay result.
 
+
+
 ## Definition of done for every code task
 
 - [ ] Behavior is covered by positive, negative, boundary, missing-data, and replay tests.
@@ -25,6 +27,8 @@ This is the working engineering backlog. The clinical study design remains in
 - [ ] Documentation and benchmark claims are updated without overstating clinical validity.
 
 ---
+
+
 
 ## Milestone 0 — Benchmark integrity and determinism
 
@@ -37,12 +41,12 @@ These tasks block publication claims, MIMIC threshold tuning, and additional ind
 **Work**
 
 - Generate a fully resolved, immutable rule bundle from
-  `eval/challenge2019/frozen/p1_setA_winner.json`, including score, alert, governance, page-gate,
-  and missing-data settings.
+`eval/challenge2019/frozen/p1_setA_winner.json`, including score, alert, governance, page-gate,
+and missing-data settings.
 - Keep the general product bundle separate from the study-specific resolved artifact.
 - Store the resolved artifact's SHA-256 in every evaluation report.
 - Remove or qualify any statement that `sepsis-sofa.v0.3.0` exactly matches the frozen study
-  configuration unless all fields match, including `min_components_required`.
+configuration unless all fields match, including `min_components_required`.
 - Add a test that fails when the resolved study artifact drifts from its recorded hash.
 
 **Likely files**
@@ -60,6 +64,8 @@ These tasks block publication claims, MIMIC threshold tuning, and additional ind
 - [x] Loading the resolved artifact needs no implicit profile override.
 - [x] Product and study configurations cannot be confused in API or report output.
 
+
+
 ### CURIE-002 — Require explicit semantic rule versions [P0]
 
 **Objective:** Eliminate silent or lexicographically incorrect "latest bundle" selection.
@@ -70,7 +76,7 @@ These tasks block publication claims, MIMIC threshold tuning, and additional ind
 - Require an explicit version in production/runtime entry points.
 - If development code supports `latest`, resolve it through a versioned activation manifest.
 - Reject duplicate versions, invalid versions, unknown schemas, and version rollback unless an
-  explicit rollback command is used.
+explicit rollback command is used.
 - Add tests covering `0.9.0` versus `0.10.0` and an invalid bundle.
 
 **Likely files**
@@ -85,6 +91,8 @@ These tasks block publication claims, MIMIC threshold tuning, and additional ind
 - [x] No evaluation or runtime silently selects a bundle by lexical filename order.
 - [x] Every alert contains the exact rule version and bundle hash.
 - [x] An older broadcast cannot accidentally replace an active newer version.
+
+
 
 ### CURIE-003 — Correct alert metrics and naming [P0]
 
@@ -111,6 +119,8 @@ These tasks block publication claims, MIMIC threshold tuning, and additional ind
 - [x] Metric labels state their unit of analysis.
 - [x] Bootstrap output uses the corrected metric.
 
+
+
 ### CURIE-004 — Make bounded time-to-onset metrics primary [P0]
 
 **Objective:** Stop counting arbitrarily early first alerts as successful detection.
@@ -129,6 +139,8 @@ These tasks block publication claims, MIMIC threshold tuning, and additional ind
 - [x] No primary metric rewards an alert with unlimited early lead time.
 - [x] Timing definitions are frozen before MIMIC holdout evaluation.
 
+
+
 ### CURIE-005 — Complete Python/Java governance configuration parity [P0]
 
 **Objective:** Ensure every runtime consumes the same bundle fields and defaults.
@@ -136,7 +148,7 @@ These tasks block publication claims, MIMIC threshold tuning, and additional ind
 **Work**
 
 - Extend `governance_config_from_bundle` to include page gates, baseline lookback, resolution gap,
-  and any remaining Java-supported fields.
+and any remaining Java-supported fields.
 - Remove hard-coded replay overrides unless the scenario explicitly declares them.
 - Include `positive_components` in AKI and SOFA replay alerts when page gates use it.
 - Build one shared parity fixture containing all governance fields.
@@ -153,6 +165,8 @@ These tasks block publication claims, MIMIC threshold tuning, and additional ind
 - [x] Python and Java derive identical governance configs from the same JSON.
 - [x] AKI and SOFA replays exercise v0.3 page gates by default.
 - [x] Missing bundle fields have documented, identical defaults.
+
+
 
 ### CURIE-006 — Implement deterministic event-time ordering [P0]
 
@@ -174,6 +188,8 @@ of Kafka arrival order.
 - [x] Events beyond allowed lateness have a deterministic disposition and reason.
 - [x] Restart/replay produces the same state and outputs as uninterrupted processing.
 
+
+
 ### CURIE-007 — Add a cross-runtime parity gate to CI [P0]
 
 **Objective:** Prevent Python reference behavior and Java production behavior from drifting.
@@ -192,7 +208,11 @@ of Kafka arrival order.
 
 ---
 
+
+
 ## Milestone 1 — Clinically defensible indicator definitions
+
+
 
 ### CURIE-008 — Separate SOFA deterioration from sepsis identification [P0]
 
@@ -210,6 +230,8 @@ of Kafka arrival order.
 
 - [x] No screen or API labels SOFA threshold alone as confirmed sepsis.
 - [x] Sepsis phenotype logic has versioned positive, negative, boundary, and missing-data cases.
+
+
 
 ### CURIE-009 — Implement stateful KDIGO timelines [P0]
 
@@ -229,6 +251,8 @@ of Kafka arrival order.
 - [x] Restart, duplicate, and out-of-order tests preserve staging.
 - [x] The algorithm does not infer a reassuring stage when required inputs are missing.
 
+
+
 ### CURIE-010 — Define a common clinical-signal output contract [P1]
 
 **Objective:** Standardize outputs before adding more conditions.
@@ -244,7 +268,11 @@ version/hash, and resolution state.
 
 ---
 
+
+
 ## Milestone 2 — Genuine multi-indicator platform
+
+
 
 ### CURIE-011 — Create an indicator plugin SDK [P1]
 
@@ -253,15 +281,17 @@ version/hash, and resolution state.
 **Plugin contract**
 
 - Required clinical concepts, codes, units, windows, eligibility, exclusions, scorer, tiers,
-  missing-data policy, resolution rule, fixtures, and bundle schema.
+missing-data policy, resolution rule, fixtures, and bundle schema.
 - Explicit runtime implementation mapping; a JSON bundle alone must not claim to implement a
-  scorer that does not exist.
+scorer that does not exist.
 
 **Acceptance criteria**
 
 - [x] SOFA/sepsis and AKI are registered and dispatched through the same interface.
 - [x] Listing an indicator proves that a compatible scorer is installed.
 - [x] Unsupported score types fail at activation rather than during patient processing.
+
+
 
 ### CURIE-012 — Add patient episode aggregation and cross-condition arbitration [P1]
 
@@ -281,6 +311,8 @@ version/hash, and resolution state.
 - [x] Passive updates remain visible without generating repeat pages.
 - [x] Resolution and re-deterioration behavior is deterministic and tested.
 
+
+
 ### CURIE-013 — Add respiratory deterioration as indicator three [P2]
 
 **Dependency:** CURIE-010 through CURIE-012.
@@ -295,6 +327,8 @@ this as another bespoke job.
 - [x] It participates in the shared episode arbiter and governance layer.
 
 ---
+
+
 
 ## Milestone 3 — MIMIC-IV retrospective study
 
@@ -314,8 +348,8 @@ margin, ablations, subgroup analyses, bootstrap unit, and missing-data analyses.
 - [x] The test split cannot be used by sweep/tuning commands.
 - [x] Product claims are mapped to the evidence required to support them.
 
-**Artifacts:** [`docs/mimic-iv-study-protocol.md`](./mimic-iv-study-protocol.md),
-[`eval/mimic_study/frozen/protocol.v1.json`](../eval/mimic_study/frozen/protocol.v1.json),
+**Artifacts:** `[docs/mimic-iv-study-protocol.md](./mimic-iv-study-protocol.md)`,
+`[eval/mimic_study/frozen/protocol.v1.json](../eval/mimic_study/frozen/protocol.v1.json)`,
 `python -m eval.mimic_study.sweep`.
 
 ### CURIE-015 — Build a leakage-safe MIMIC timeline harness [P0]
@@ -334,7 +368,7 @@ margin, ablations, subgroup analyses, bootstrap unit, and missing-data analyses.
 - [x] Automated leakage tests fail when future information is introduced.
 - [x] Repeated runs produce identical output hashes.
 
-**Artifacts:** [`docs/mimic-timeline-harness.md`](./mimic-timeline-harness.md),
+**Artifacts:** `[docs/mimic-timeline-harness.md](./mimic-timeline-harness.md)`,
 `python -m eval.mimic_harness.runner` / `make mimic-harness`.
 
 ### CURIE-016 — Run the locked MIMIC ablation and robustness study [P1]
@@ -353,12 +387,16 @@ performance, and patient-level confidence intervals.
 - [x] The locked temporal holdout is executed once for the primary result.
 - [x] All tables can be regenerated from one versioned command or manifest.
 
-**Artifacts:** [`docs/mimic-ablation-study.md`](./mimic-ablation-study.md),
+**Artifacts:** `[docs/mimic-ablation-study.md](./mimic-ablation-study.md)`,
 `make mimic-study` / `python -m eval.mimic_study.study run`.
 
 ---
 
+
+
 ## Milestone 4 — Durable shadow-mode product
+
+
 
 ### CURIE-017 — Replace the in-memory alert store [P1]
 
@@ -372,7 +410,7 @@ tests, retention rules, and bounded query pagination.
 - [x] Duplicate Kafka delivery cannot create a duplicate alert or episode transition.
 - [x] Metrics are not silently truncated at 10,000 records.
 
-**Artifacts:** [`docs/durable-alert-store.md`](./durable-alert-store.md),
+**Artifacts:** `[docs/durable-alert-store.md](./durable-alert-store.md)`,
 `CURIE_ALERT_DB=… make api`.
 
 ### CURIE-018 — Add production security and observability boundaries [P1]
@@ -387,7 +425,7 @@ metrics, DLQ monitoring, rule-activation audit, alert-volume alarms, and kill sw
 - [x] Operators can identify the active bundle, processing lag, missing-data rate, and alert rate.
 - [x] A rule or alert lane can be disabled without redeploying code.
 
-**Artifacts:** [`docs/security-observability.md`](./security-observability.md),
+**Artifacts:** `[docs/security-observability.md](./security-observability.md)`,
 `GET /ops/status`, `POST /ops/kill-switches`.
 
 ### CURIE-019 — Add standards-based integration boundary [P2]
@@ -401,20 +439,24 @@ boundary. Keep EHR-specific integration outside the scoring and governance core.
 - [x] CDS Hooks discovery + `patient-view` cards expose governed alerts without rescoring.
 - [x] CDS Hooks feedback maps to acknowledge and cannot change score/tier.
 
-**Artifacts:** [`docs/cds-hooks-integration.md`](./cds-hooks-integration.md),
+**Artifacts:** `[docs/cds-hooks-integration.md](./cds-hooks-integration.md)`,
 `GET /cds-services`, `GET /alerts/{id}/fhir-evidence`.
 
 ---
 
+
+
 ## Milestone 5 — Paper and VC deliverables
+
+
 
 ### CURIE-020 — Produce the research manuscript package [P1]
 
 - Methods and protocol with exact code/data versions.
 - Cohort flow diagram, operating-point/Pareto plot, timing plot, calibration plot where relevant,
-  ablation table, subgroup table, and failure analysis.
+ablation table, subgroup table, and failure analysis.
 - Clear separation of retrospective detection, alert-policy utility, and unproven clinical outcome
-  effects.
+effects.
 - Reproducibility manifest that does not expose protected MIMIC data.
 
 **Acceptance criteria**
@@ -424,7 +466,7 @@ boundary. Keep EHR-specific integration outside the scoring and governance core.
 - [x] Claim tiers separate retrospective detection, alert-policy utility, and unproven outcomes.
 - [x] Reproducibility manifest regenerates without embedding protected MIMIC extracts (`make manuscript` / `phi-scan`).
 
-**Artifacts:** [`docs/manuscript-package.md`](./manuscript-package.md),
+**Artifacts:** `[docs/manuscript-package.md](./manuscript-package.md)`,
 `make manuscript`, `eval/manuscript/frozen/reproducibility_manifest.v1.json`.
 
 ### CURIE-021 — Build the investor demonstration and claims matrix [P1]
@@ -445,15 +487,17 @@ the corresponding evidence.
 - [x] Claims matrix uses demonstrated / under_evaluation / not_claimed and forbids diagnosis,
   outcome, clinical-validation, and regulatory claims without evidence.
 
-**Artifacts:** [`docs/investor-demo.md`](./investor-demo.md),
-[`docs/claims-matrix.md`](./claims-matrix.md), `make investor-demo`.
+**Artifacts:** `[docs/investor-demo.md](./investor-demo.md)`,
+`[docs/claims-matrix.md](./claims-matrix.md)`, `make investor-demo`.
 
 ---
+
+
 
 ## Milestone 6 — Cross-project LLM workflows
 
 Detailed designs, safety boundaries, and metrics are in
-[`llm-workflows.md`](llm-workflows.md). `curie-fhir` owns normalization, candidate extraction,
+`[llm-workflows.md](llm-workflows.md)`. `curie-fhir` owns normalization, candidate extraction,
 validation, and interface review; this project owns deterministic surveillance, episode state,
 alert routing, and post-decision explanation.
 
@@ -469,7 +513,7 @@ Reject or quarantine candidate facts, unknown schemas, failed validation, and mi
 - [x] LLM-derived and deterministic facts are distinguishable in audit output.
 - [x] Only trusted facts can mutate scoring state.
 
-**Artifacts:** [`docs/trusted-clinical-fact-bridge.md`](./trusted-clinical-fact-bridge.md),
+**Artifacts:** `[docs/trusted-clinical-fact-bridge.md](./trusted-clinical-fact-bridge.md)`,
 `ingestion/bridge/`, `make trusted-fact-bridge`,
 `curie-fhir` `src/curie_fhir/contracts/trusted_clinical_fact/`.
 
@@ -481,9 +525,14 @@ and prompt versions, abstention, quarantine, timeout, and prompt-injection tests
 
 **Acceptance criteria**
 
-- [ ] Narrative failure cannot delay or change alert delivery.
-- [ ] Every displayed clinical claim maps to allowed episode evidence.
-- [ ] Unsupported or malformed output is quarantined and audited.
+- [x] Narrative failure cannot delay or change alert delivery.
+- [x] Every displayed clinical claim maps to allowed episode evidence.
+- [x] Unsupported or malformed output is quarantined and audited.
+
+**Artifacts:** [`docs/episode-narratives.md`](./episode-narratives.md),
+`POST /episodes/{id}/explain`, `reasoning/episode_*.py`.
+
+
 
 ### CURIE-024 — Add LLM feedback classification for alert stewardship [P2]
 
@@ -496,6 +545,8 @@ proposals only; never mutate active rules.
 - [ ] Classification performance is measured against dual-reviewed feedback.
 - [ ] Every suggested rule change is evaluated through a frozen replay manifest.
 - [ ] Human approval is required before activation.
+
+
 
 ### CURIE-025 — Evaluate uncertainty-band contextual reasoning [P2]
 
@@ -510,6 +561,8 @@ LLM from suppressing or escalating deterministic alerts.
 - [ ] No interruptive routing depends on the LLM during retrospective or shadow evaluation.
 
 ---
+
+
 
 ## Recommended first five Cursor tasks
 

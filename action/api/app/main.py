@@ -47,7 +47,7 @@ from action.api.app.store import STORE
 from ingestion.extraction.adapter import extract_note_to_fhir
 from ingestion.extraction.models import ExtractionResult
 from ingestion.extraction.settings import settings
-from reasoning.pipeline import explain_alert
+from reasoning.pipeline import explain_alert, explain_episode
 
 logger = logging.getLogger(__name__)
 
@@ -487,6 +487,41 @@ def get_episode(
     if episode is None:
         raise HTTPException(status_code=404, detail="Episode not found")
     return episode.to_public_dict()
+
+
+@app.post("/episodes/{episode_id}/explain")
+def explain_episode_endpoint(
+    episode_id: str,
+    body: ExplainRequest | None = None,
+    _auth: Principal | None = Depends(require_auth),
+) -> dict:
+    """Additive episode GRP narrative. Never changes routing, scores, or delivery."""
+    if not KILL_SWITCHES.get().explain_lane:
+        raise HTTPException(status_code=503, detail="explain_lane disabled by kill switch")
+    episode = STORE.get_episode(episode_id)
+    if episode is None:
+        raise HTTPException(status_code=404, detail="Episode not found")
+    before = episode.model_dump(mode="json")
+    force = body.force if body else False
+    decision = explain_episode(episode, force=force)
+    claims = [c.model_dump(mode="json") for c in decision.claims]
+    updated = STORE.attach_episode_narrative(
+        episode_id,
+        status=decision.status,
+        narrative=decision.narrative,
+        claims=claims,
+        quarantine_reason=decision.quarantine_reason,
+        model_name=decision.model_name,
+        prompt_version=decision.prompt_version,
+        snapshot_hash=decision.snapshot_hash,
+    )
+    assert updated is not None
+    assert updated.status.value == before["status"] or updated.status == before["status"]
+    assert updated.page_count == before["page_count"]
+    assert updated.dominant_signal_type == before["dominant_signal_type"]
+    assert decision.score_unchanged is True
+    assert decision.routing_unchanged is True
+    return updated.to_public_dict()
 
 
 @app.get("/metrics", response_model=MetricsSummary)

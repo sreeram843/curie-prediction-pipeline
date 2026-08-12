@@ -382,6 +382,56 @@ class DurableAlertStore:
             return self.arbiter.get(episode_id)
         return Episode.model_validate_json(row["payload_json"])
 
+    def attach_episode_narrative(
+        self,
+        episode_id: str,
+        *,
+        status: str,
+        narrative: str | None,
+        claims: list[dict],
+        quarantine_reason: str | None,
+        model_name: str | None,
+        prompt_version: str | None = None,
+        snapshot_hash: str | None = None,
+    ) -> Episode | None:
+        with self._lock:
+            episode = self.get_episode(episode_id)
+            if episode is None:
+                return None
+            before = (
+                episode.status,
+                episode.page_count,
+                episode.dominant_signal_type,
+                episode.dominant_severity,
+            )
+            updated = episode.model_copy(
+                update={
+                    "narrative_status": status,
+                    "narrative": narrative,
+                    "narrative_claims": claims,
+                    "quarantine_reason": quarantine_reason,
+                    "grp_model_name": model_name,
+                    "prompt_version": prompt_version,
+                    "narrative_snapshot_hash": snapshot_hash,
+                }
+            )
+            assert (
+                updated.status,
+                updated.page_count,
+                updated.dominant_signal_type,
+                updated.dominant_severity,
+            ) == before
+            self.arbiter._episodes[episode_id] = updated  # noqa: SLF001
+            self._persist_episodes()
+            self._audit(
+                "attach_episode_narrative",
+                "episode",
+                episode_id,
+                {"status": status, "snapshot_hash": snapshot_hash},
+            )
+            self._conn.commit()
+            return updated
+
     def record_rule_version(
         self,
         bundle_id: str,

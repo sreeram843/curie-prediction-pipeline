@@ -34,8 +34,12 @@ class GateDecision(BaseModel):
     quarantine_reason: str | None = None
     model_name: str | None = None
     alert_id: str
-    # Explicit: GRP never mutates score/tier
+    episode_id: str | None = None
+    prompt_version: str | None = None
+    snapshot_hash: str | None = None
+    # Explicit: GRP never mutates score/tier/routing
     score_unchanged: bool = True
+    routing_unchanged: bool = True
 
 
 class AlertContext(BaseModel):

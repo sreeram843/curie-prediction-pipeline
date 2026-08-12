@@ -165,6 +165,44 @@ class MemoryAlertStore:
     def get_episode(self, episode_id: str):
         return self.arbiter.get(episode_id)
 
+    def attach_episode_narrative(
+        self,
+        episode_id: str,
+        *,
+        status: str,
+        narrative: str | None,
+        claims: list[dict],
+        quarantine_reason: str | None,
+        model_name: str | None,
+        prompt_version: str | None = None,
+        snapshot_hash: str | None = None,
+    ):
+        """Additive episode narrative — never changes routing/status/signals."""
+        with self._lock:
+            episode = self.arbiter.get(episode_id)
+            if episode is None:
+                return None
+            before_status = episode.status
+            before_page = episode.page_count
+            before_dom = episode.dominant_signal_type
+            updated = episode.model_copy(
+                update={
+                    "narrative_status": status,
+                    "narrative": narrative,
+                    "narrative_claims": claims,
+                    "quarantine_reason": quarantine_reason,
+                    "grp_model_name": model_name,
+                    "prompt_version": prompt_version,
+                    "narrative_snapshot_hash": snapshot_hash,
+                }
+            )
+            # Preserve deterministic episode state
+            assert updated.status == before_status
+            assert updated.page_count == before_page
+            assert updated.dominant_signal_type == before_dom
+            self.arbiter._episodes[episode_id] = updated  # noqa: SLF001
+            return updated
+
 
 # Backward-compatible name
 AlertStore = MemoryAlertStore

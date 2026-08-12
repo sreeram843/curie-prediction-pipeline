@@ -11,6 +11,9 @@ def apply_policy_gate(
     draft: NarrativeDraft,
     validated: list[ValidatedClaim],
     fail_closed: bool = True,
+    episode_id: str | None = None,
+    prompt_version: str | None = None,
+    snapshot_hash: str | None = None,
 ) -> GateDecision:
     if draft.abstain:
         return GateDecision(
@@ -21,6 +24,9 @@ def apply_policy_gate(
             or "Insufficient grounded evidence for a narrative explanation.",
             model_name=draft.model_name,
             alert_id=alert_id,
+            episode_id=episode_id,
+            prompt_version=prompt_version,
+            snapshot_hash=snapshot_hash,
         )
 
     bad = [c for c in validated if not c.grounded]
@@ -33,6 +39,9 @@ def apply_policy_gate(
             quarantine_reason=f"grounding_failure: {reasons}",
             model_name=draft.model_name,
             alert_id=alert_id,
+            episode_id=episode_id,
+            prompt_version=prompt_version,
+            snapshot_hash=snapshot_hash,
         )
 
     if not validated and fail_closed:
@@ -43,6 +52,9 @@ def apply_policy_gate(
             quarantine_reason="Insufficient grounded evidence for a narrative explanation.",
             model_name=draft.model_name,
             alert_id=alert_id,
+            episode_id=episode_id,
+            prompt_version=prompt_version,
+            snapshot_hash=snapshot_hash,
         )
 
     claim_lines = " ".join(c.text for c in validated)
@@ -53,4 +65,7 @@ def apply_policy_gate(
         claims=validated,
         model_name=draft.model_name,
         alert_id=alert_id,
+        episode_id=episode_id,
+        prompt_version=prompt_version,
+        snapshot_hash=snapshot_hash,
     )

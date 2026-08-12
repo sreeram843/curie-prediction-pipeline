@@ -1,8 +1,10 @@
-"""Claim validator — every claim must trace to ingested evidence IDs on the alert."""
+"""Claim validator — every claim must trace to allowed evidence IDs."""
 
 from __future__ import annotations
 
-from reasoning.models import AlertContext, NarrativeDraft, ValidatedClaim
+from typing import Protocol
+
+from reasoning.models import NarrativeDraft, ValidatedClaim
 
 FORBIDDEN_PATTERNS = (
     "start antibiotics",
@@ -13,8 +15,21 @@ FORBIDDEN_PATTERNS = (
     "treatment recommendation",
 )
 
+# Prompt-injection markers that must never become clinical claims.
+INJECTION_PATTERNS = (
+    "ignore previous instructions",
+    "ignore all instructions",
+    "system prompt",
+    "disregard grounding",
+    "you are now",
+)
 
-def validate_draft(draft: NarrativeDraft, ctx: AlertContext) -> list[ValidatedClaim]:
+
+class EvidenceContext(Protocol):
+    evidence_ids: list[str]
+
+
+def validate_draft(draft: NarrativeDraft, ctx: EvidenceContext) -> list[ValidatedClaim]:
     allowed = set(ctx.evidence_ids)
     validated: list[ValidatedClaim] = []
     for claim in draft.claims:
@@ -26,6 +41,16 @@ def validate_draft(draft: NarrativeDraft, ctx: AlertContext) -> list[ValidatedCl
                     evidence_ids=claim.evidence_ids,
                     grounded=False,
                     failure_reason="policy:treatment_instruction",
+                )
+            )
+            continue
+        if any(p in text_l for p in INJECTION_PATTERNS):
+            validated.append(
+                ValidatedClaim(
+                    text=claim.text,
+                    evidence_ids=claim.evidence_ids,
+                    grounded=False,
+                    failure_reason="policy:prompt_injection",
                 )
             )
             continue

@@ -104,6 +104,16 @@ class Episode(BaseModel):
     last_action: EpisodeAction = EpisodeAction.NONE
     last_action_reason: str = ""
     audit: list[EpisodeAuditEntry] = Field(default_factory=list)
+    # Additive GRP episode narrative (CURIE-023) — never drives routing
+    narrative_status: (
+        Literal["none", "pass", "quarantine", "abstain", "disabled", "error"] | None
+    ) = "none"
+    narrative: str | None = None
+    narrative_claims: list[dict[str, Any]] = Field(default_factory=list)
+    quarantine_reason: str | None = None
+    grp_model_name: str | None = None
+    prompt_version: str | None = None
+    narrative_snapshot_hash: str | None = None
 
     def to_public_dict(self) -> dict[str, Any]:
         return self.model_dump(mode="json")
