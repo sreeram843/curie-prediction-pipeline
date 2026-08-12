@@ -188,6 +188,38 @@ class EpisodeArbiter:
                 dominant_signal_type=episode.dominant_signal_type,
             )
         )
+        episode.audit.sort(
+            key=lambda e: (e.at, e.signal_id or "", e.action.value, e.reason)
+        )
+
+    def _canonicalize_signals(self, episode: Episode) -> None:
+        episode.signals.sort(key=lambda s: (s.event_time, s.signal_id))
+
+    def _touch_updated_at(self, episode: Episode, at: datetime) -> None:
+        """Monotonic updated_at — older OOO signals must not move time backward."""
+        episode.updated_at = max(episode.updated_at, at)
+
+    def _rebase_open_identity(self, episode: Episode) -> None:
+        """Canonical open identity from chronologically first signal (CURIE-028)."""
+        if not episode.signals:
+            return
+        opener = min(episode.signals, key=lambda s: (s.event_time, s.signal_id))
+        new_id = deterministic_episode_id(
+            episode.patient_id,
+            episode.encounter_id,
+            opener.event_time,
+            opener.signal_id,
+        )
+        episode.opened_at = opener.event_time
+        if new_id == episode.episode_id:
+            return
+        old_id = episode.episode_id
+        episode.episode_id = new_id
+        self._episodes.pop(old_id, None)
+        self._episodes[new_id] = episode
+        key = self._key(episode.patient_id, episode.encounter_id)
+        if self._active.get(key) == old_id:
+            self._active[key] = new_id
 
     def _refresh_dominance(self, episode: Episode) -> None:
         dominant = select_dominant(
@@ -301,9 +333,11 @@ class EpisodeArbiter:
         if episode is None:
             return self._open_new(ref, patient_id=pid, encounter_id=enc)
 
-        # Window membership
-        gap = ref.event_time - episode.updated_at
-        if gap > timedelta(minutes=self.config.window_minutes):
+        # Window membership (OOO-safe): join if within window of [opened_at, updated_at]
+        window = timedelta(minutes=self.config.window_minutes)
+        lo = episode.opened_at - window
+        hi = episode.updated_at + window
+        if not (lo <= ref.event_time <= hi):
             # Close prior as resolved if still open-ish, then open new
             if episode.status not in {
                 EpisodeStatus.RESOLVED,
@@ -325,7 +359,9 @@ class EpisodeArbiter:
 
     def _reopen(self, episode: Episode, ref: SignalRef) -> ArbiterResult:
         episode.signals.append(ref)
-        episode.updated_at = ref.event_time
+        self._canonicalize_signals(episode)
+        self._rebase_open_identity(episode)
+        self._touch_updated_at(episode, ref.event_time)
         episode.resolved_at = None
         episode.status = EpisodeStatus.REOPENED
         prev_sev = _rank(episode.dominant_severity)
@@ -371,7 +407,7 @@ class EpisodeArbiter:
     def _update(self, episode: Episode, ref: SignalRef) -> ArbiterResult:
         # Dedup identical signal_id
         if any(s.signal_id == ref.signal_id for s in episode.signals):
-            episode.updated_at = max(episode.updated_at, ref.event_time)
+            self._touch_updated_at(episode, ref.event_time)
             episode.last_action = EpisodeAction.NONE
             episode.last_action_reason = "duplicate_signal_id"
             self._append_audit(
@@ -392,7 +428,9 @@ class EpisodeArbiter:
         prev_sev = _rank(episode.dominant_severity)
         prev_dom = episode.dominant_signal_type
         episode.signals.append(ref)
-        episode.updated_at = ref.event_time
+        self._canonicalize_signals(episode)
+        self._rebase_open_identity(episode)
+        self._touch_updated_at(episode, ref.event_time)
         self._refresh_dominance(episode)
         new_sev = _rank(episode.dominant_severity)
         escalated = new_sev > prev_sev
@@ -468,7 +506,7 @@ class EpisodeArbiter:
         episode = self._episodes[episode_id]
         episode.status = EpisodeStatus.ACKNOWLEDGED
         episode.acknowledged_at = at
-        episode.updated_at = at
+        self._touch_updated_at(episode, at)
         episode.last_action = EpisodeAction.ACK
         episode.last_action_reason = note or "acknowledged"
         self._append_audit(
@@ -485,7 +523,7 @@ class EpisodeArbiter:
         episode = self._episodes[episode_id]
         episode.status = EpisodeStatus.RESOLVED
         episode.resolved_at = at
-        episode.updated_at = at
+        self._touch_updated_at(episode, at)
         episode.last_action = EpisodeAction.RESOLVE
         episode.last_action_reason = reason
         self._append_audit(

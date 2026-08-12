@@ -144,5 +144,78 @@
         }
       ]
     }
+  ],
+  "resp_cases": [
+    {
+      "id": "resp-room-air-ok",
+      "inputs": {
+        "spo2_percent": 98.0,
+        "room_air": true,
+        "respiratory_rate": 16.0,
+        "oxygen_device": "none"
+      },
+      "expect": {
+        "stage": 0,
+        "total_score": 0,
+        "completeness": "complete"
+      }
+    },
+    {
+      "id": "resp-spo2-alone-insufficient",
+      "inputs": {
+        "spo2_percent": 88.0
+      },
+      "expect": {
+        "stage": null,
+        "total_score": null,
+        "completeness": "insufficient_data"
+      }
+    },
+    {
+      "id": "resp-paco2-gt-60",
+      "inputs": {
+        "spo2_percent": 98.0,
+        "room_air": true,
+        "respiratory_rate": 16.0,
+        "oxygen_device": "none",
+        "paco2_mmhg": 62.0
+      },
+      "expect": {
+        "stage": 2,
+        "total_score": 4,
+        "completeness": "complete",
+        "criteria_contains": ["paco2_gt_60"]
+      }
+    },
+    {
+      "id": "resp-paco2-gt-50",
+      "inputs": {
+        "spo2_percent": 98.0,
+        "room_air": true,
+        "respiratory_rate": 16.0,
+        "oxygen_device": "none",
+        "paco2_mmhg": 55.0
+      },
+      "expect": {
+        "stage": 1,
+        "total_score": 2,
+        "completeness": "complete",
+        "criteria_contains": ["paco2_gt_50"]
+      }
+    },
+    {
+      "id": "resp-mild-sf-ratio",
+      "inputs": {
+        "spo2_percent": 92.0,
+        "fio2_fraction": 0.28,
+        "respiratory_rate": 20.0,
+        "oxygen_device": "nasal_cannula"
+      },
+      "expect": {
+        "stage": 1,
+        "total_score": 2,
+        "completeness": "complete"
+      }
+    }
   ]
 }

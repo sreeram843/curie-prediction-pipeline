@@ -31,9 +31,12 @@ import org.apache.flink.util.OutputTag;
 
 /**
  * Keyed by patient_id. Clinical events are reordered through a checkpointed {@link
- * EventTimeBuffer} before feature mutation and scoring (CURIE-006). Deduplicates by
+ * EventTimeBuffer} before feature mutation and scoring (CURIE-006 / CURIE-026). Deduplicates by
  * idempotency_key. Emits naive alerts including below-threshold recovery signals (tier {@code
  * none}) so governance can reset trajectory.
+ *
+ * <p>Event-time timers at {@code eventTime + allowedLateness} flush the final event for a key
+ * without requiring a following arrival.
  */
 public class SofaAlertFunction
     extends KeyedBroadcastProcessFunction<String, CanonicalEvent, RuleBundle, AlertEvent> {
@@ -46,6 +49,8 @@ public class SofaAlertFunction
 
   /** Matches SofaJob bounded out-of-orderness (5 minutes). */
   public static final long DEFAULT_ALLOWED_LATENESS_MS = 5L * 60L * 1000L;
+
+  public static final String EVENT_TIME_POLICY_VERSION = EventTimeBuffer.POLICY_VERSION;
 
   private transient ValueState<PatientSofaState> patientState;
   private transient ValueState<IdempotencyCache> idempotency;
@@ -131,8 +136,30 @@ public class SofaAlertFunction
             ? event.idempotency_key
             : "";
     EventTimeBuffer.FlushResult<CanonicalEvent> flush = buffer.offer(eventTimeMs, event, tie);
+    // Timer advances watermark so a lone final event still flushes (CURIE-026).
+    ctx.timerService().registerEventTimeTimer(buffer.flushTimerTimestamp(eventTimeMs));
     eventBuffer.update(buffer);
 
+    applyFlush(flush, ctx, out);
+  }
+
+  @Override
+  public void onTimer(long timestamp, OnTimerContext ctx, Collector<AlertEvent> out)
+      throws Exception {
+    EventTimeBuffer<CanonicalEvent> buffer = eventBuffer.value();
+    if (buffer == null) {
+      return;
+    }
+    EventTimeBuffer.FlushResult<CanonicalEvent> flush = buffer.advanceWatermark(timestamp);
+    eventBuffer.update(buffer);
+    applyFlush(flush, ctx, out);
+  }
+
+  private void applyFlush(
+      EventTimeBuffer.FlushResult<CanonicalEvent> flush,
+      ReadOnlyContext ctx,
+      Collector<AlertEvent> out)
+      throws Exception {
     for (EventTimeBuffer.BufferedEvent<CanonicalEvent> late : flush.late) {
       emitDlq(ctx, late.payload, EventTimeBuffer.LATE_DISPOSITION, null, null, null);
     }

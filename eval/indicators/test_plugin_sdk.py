@@ -73,6 +73,16 @@ def test_load_bundle_requires_installed_scorer(
     assert loaded["score"]["type"] == "not_a_real_scorer"
 
 
+def test_resp_plugin_never_resolves_to_sofa_scorer() -> None:
+    plugins = {p.score_type: p for p in list_plugins()}
+    resp = plugins["resp_hypoxemia"]
+    sofa = plugins["sofa"]
+    assert resp.scorer_attr == "compute_resp_score"
+    assert "RespScorer" in (resp.runtime_impl.get("java") or "")
+    assert resp.resolve_scorer() is not sofa.resolve_scorer()
+    assert resp.scorer_module != sofa.scorer_module
+
+
 def test_validate_activation_rejects_unsupported_score_type(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

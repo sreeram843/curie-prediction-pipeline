@@ -1,8 +1,9 @@
 # Implementation backlog: research-grade deterministic prototype
 
 **Status:** Active  
-**Primary objective:** Make Curie reproducible, clinically defensible, and ready for a locked
-MIMIC-IV evaluation before expanding the product surface.
+**Primary objective:** Make Curie reproducible, clinically defensible, ready for a locked
+MIMIC-IV evaluation, and safe to operate as a commercial shadow-mode prototype before expanding
+the product surface.
 
 This is the working engineering backlog. The clinical study design remains in
 `[clinical-validation.md](clinical-validation.md)`.
@@ -15,6 +16,12 @@ This is the working engineering backlog. The clinical study design remains in
 - Never replace a frozen study artifact in place. Create a new version and retain its hash.
 - Mark a task complete only after its acceptance criteria and verification commands pass.
 - Every clinical-rule change needs Python tests, Java tests when applicable, and a replay result.
+
+Task execution labels used below:
+
+- **READY** — can be completed in this repository with synthetic, frozen, or public artifacts.
+- **ACCESS** — implementation can start, but completion requires credentialed MIMIC-IV data.
+- **PARTNER** — completion requires a hospital, clinical collaborator, or deployment environment.
 
 
 
@@ -570,24 +577,411 @@ LLM from suppressing or escalating deterministic alerts.
 
 
 
-## Recommended first five Cursor tasks
+## Milestone 7 — Close deterministic reliability gaps
 
-Run these as separate changes in this order:
+These tasks supersede the original “first five Cursor tasks,” which are complete. Finish this
+milestone before adding another clinical indicator or promoting the reliability claim.
 
-1. **CURIE-003:** Correct NNA and metric names; add regression tests.
-2. **CURIE-002:** Add semantic version parsing and explicit bundle resolution.
-3. **CURIE-001:** Generate and hash a fully resolved Challenge study bundle.
-4. **CURIE-005:** Complete Python/Java governance-config parity.
-5. **CURIE-006:** Implement deterministic event-time buffering and permutation tests.
+### CURIE-026 — Flush SOFA event-time state without a following event [P0 · READY]
 
-After each task, run:
+**Objective:** Ensure a valid event cannot remain buffered forever when it is the final event for a
+patient, encounter, partition, or replay.
+
+**Work**
+
+- Connect `EventTimeBuffer` to a real event-time timer/watermark completion mechanism; refactor to
+  a keyed pre-processing operator if the broadcast-process API cannot provide the required timer.
+- Define behavior for source idleness, bounded replay completion, equal timestamps, late events,
+  checkpoint restoration, and end-of-input.
+- Keep the allowed-lateness policy and late-data DLQ disposition versioned and observable.
+
+**Acceptance criteria**
+
+- [x] A single valid event is eventually scored without requiring a second event.
+- [x] End-of-input and idle partitions flush all eligible events exactly once.
+- [x] All within-lateness permutations produce byte-equivalent normalized alerts.
+- [x] Restart before and after timer registration produces identical output and DLQ records.
+
+**Likely files:** `SofaAlertFunction.java`, `EventTimeBuffer.java`, Flink operator tests,
+`docs/event-time-policy.md`.
+
+### CURIE-027 — Apply the same deterministic ordering policy to AKI [P0 · READY]
+
+**Objective:** Prevent arrival order from changing AKI baselines, stages, onset, evidence, or
+governance decisions.
+
+**Work**
+
+- Put AKI feature mutation behind the shared event-time reordering/late-data boundary.
+- Cover creatinine corrections, urine-output windows, duplicate observations, equal timestamps,
+  ESRD/RRT context, encounter transitions, idleness, and restart.
+- Expose AKI watermark, buffered-event, and late-event metrics through `/ops/status`.
+
+**Acceptance criteria**
+
+- [x] AKI output is invariant across all permutations within allowed lateness.
+- [x] Late corrections have a deterministic, documented disposition.
+- [x] Checkpoint/restart output matches uninterrupted processing byte-for-byte after normalization.
+- [x] SOFA and AKI report the same event-time policy version.
+
+**Likely files:** `AkiJob.java`, `AkiAlertFunction.java`, shared state package, AKI replay tests.
+
+### CURIE-028 — Make episode identity and state replay-stable [P0 · READY]
+
+**Objective:** Produce the same episode IDs, ordering, dominant signal, routing, and audit history
+for equivalent event sets regardless of arrival order or process restart.
+
+**Work**
+
+- Replace first-arrival-dependent identity inputs with a canonical episode-open identity rule.
+- Make episode timestamps monotonic; an older signal must not move `updated_at` backward.
+- Define deterministic tie-breaking for concurrent signals and encounter boundaries.
+- Strengthen chaos and durable-store tests to compare complete normalized episode payloads.
+
+**Acceptance criteria**
+
+- [x] In-order, reverse-order, duplicate, and restart replays return the same episode ID.
+- [x] `opened_at <= updated_at`, audit entries are canonically ordered, and timestamps never regress.
+- [x] A resolved/reopened episode follows the same transitions after restart.
+- [x] The investor `RELIABILITY` claim remains `under_evaluation` until these tests pass.
+
+**Likely files:** `eval/episodes/arbiter.py`, episode models, durable store, investor chaos tests.
+
+### CURIE-029 — Complete respiratory parity and runtime dispatch [P0 · READY]
+
+**Objective:** Hold respiratory deterioration to the same implementation and parity standard as
+SOFA and AKI without creating another bespoke platform path.
+
+**Work**
+
+- Resolve Python/Java boundary differences, including `PaCO2 > 60` staging.
+- Add respiratory cases to the shared cross-runtime golden fixture and parity count.
+- Prove bundle activation dispatches `resp_hypoxemia` to the respiratory scorer and fails closed
+  when no compatible runtime implementation exists.
+- Add a Kafka/Flink pipeline test through shared governance and episode arbitration.
+
+**Acceptance criteria**
+
+- [x] Python and Java match score, stage, criteria, missingness, tier, evidence, and routing.
+- [x] The parity gate contains respiratory positive, negative, boundary, and missing-data cases.
+- [x] A respiratory bundle cannot be activated against the SOFA scorer accidentally.
+- [x] Respiratory participates in one multi-signal episode without dashboard-specific code.
+
+**Likely files:** respiratory scorers, plugin registry, parity fixtures/gate, Flink job wiring.
+
+### CURIE-030 — Normalize benchmark semantics and implement miss attribution [P0 · READY]
+
+**Objective:** Make every benchmark number unambiguous, reproducible, and useful for improving the
+page lane.
+
+**Work**
+
+- Make primary `window_m12_p6` metrics the default everywhere; label legacy grace-window metrics
+  as sensitivity analyses.
+- Separate SOFA, AKI, respiratory, governed-emission, interruptive-emission, and episode-page
+  denominators instead of combining unlike counts.
+- Include scoring errors, missingness, unscoreable stays, and zero-signal indicators in reports.
+- Attribute each governed false negative to the first decisive cause: unavailable/missing input,
+  scorer threshold, persistence, baseline, context suppression, refractory, page gate, arbitration,
+  or timing-window mismatch.
+
+**Acceptance criteria**
+
+- [x] Dashboard, manuscript, docs, and frozen summaries agree on 79.5% governed sensitivity,
+  34.0% interruptive sensitivity, and 106.1 interruptive-emission NNA for the pinned primary
+  Challenge holdout artifact.
+- [x] Legacy 81.1% is never displayed as the primary timing result.
+- [x] Every false negative has one primary reason plus optional contributing reasons.
+- [x] A generated miss-analysis table reports counts, rates, representative de-identified traces,
+  and rule/config hashes.
+
+**Likely files:** `eval/benchmarks/`, `eval/challenge2019/`, `eval/mimic_study/`, manuscript output,
+benchmark dashboard.
+
+### CURIE-031 — Make the dashboard self-contained under production CSP [P1 · READY]
+
+**Objective:** Ensure the architecture, benchmark, and evidence views render when production
+content-security policy blocks inline or third-party scripts.
+
+**Work**
+
+- Vendor or bundle Mermaid locally, or replace it with a CSP-compatible static renderer.
+- Remove production dependence on CDN scripts/fonts where practical.
+- Add a browser smoke test that checks rendered diagrams and absence of permanent loading states.
+
+**Acceptance criteria**
+
+- [x] All diagrams render with the production CSP enabled and no console security errors.
+- [x] The dashboard remains usable when external network access is unavailable.
+- [x] A failed optional visualization displays readable fallback content.
+
+---
+
+## Milestone 8 — Improve alert accuracy without weakening safety
+
+### CURIE-032 — Add component-delta paging [P0 · READY]
+
+**Objective:** Page on newly worsened organ components and meaningful trajectory, not only an
+absolute total-score increase.
+
+**Work**
+
+- Persist the prior component vector and emit deterministic per-component deltas with evidence.
+- Add bundle parameters for newly worsened component count, minimum component delta, and selected
+  high-actionability components.
+- Keep total-score delta available as a separate gate; do not silently change frozen studies.
+- Add a pre-specified Challenge regression and MIMIC ablation configuration.
+
+**Acceptance criteria**
+
+- [ ] Alerts identify exactly which components newly worsened and which observations caused it.
+- [ ] Python/Java page decisions match on component-delta fixtures.
+- [ ] Existing frozen Challenge results remain reproducible under the old policy version.
+- [ ] The new policy reports sensitivity, page burden, NNA, lead time, and miss reasons.
+
+### CURIE-033 — Add deterministic page-quality and uncertainty gates [P0 · READY]
+
+**Objective:** Abstain from interruptive paging on stale, contradictory, invalid, or insufficient
+data using deterministic policy only.
+
+**Work**
+
+- Define versioned gates for freshness, missing critical inputs, unit/status validity,
+  contradictory observations, source trust, and optional out-of-distribution ranges.
+- Route ineligible cases to passive watch plus an explicit reason; never silently discard them.
+- Keep the LLM uncertainty workflow downstream and observational—it cannot suppress or escalate.
+- Evaluate each gate independently in the ablation framework.
+
+**Acceptance criteria**
+
+- [ ] Identical inputs always produce the same eligibility and routing result.
+- [ ] Every page abstention is visible, auditable, and linked to evidence/data-quality reasons.
+- [ ] No routing decision depends on an LLM response, timeout, or model availability.
+- [ ] The study reports both false-page reduction and true-positive pages lost by each gate.
+
+### CURIE-034 — Build a real shadow-mode execution harness [P0 · READY]
+
+**Objective:** Run the complete system silently and measure what would have alerted without
+delivering interruptive notifications.
+
+**Work**
+
+- Add an explicit deployment mode that executes scoring/governance normally but writes pages to a
+  `would_have_paged` audit stream/store only.
+- Record active bundles, policy hashes, processing/availability times, suppression reasons,
+  pipeline lag, missingness, DLQ counts, and kill-switch state.
+- Define import contracts for later clinician actions and local outcome labels without requiring
+  them for synthetic testing.
+- Generate a site/day/indicator shadow report with alert burden and operational reliability.
+
+**Acceptance criteria**
+
+- [ ] Shadow mode cannot call an interruptive delivery adapter.
+- [ ] The same replay in shadow and active simulation produces identical decisions before delivery.
+- [ ] Restart and duplicate delivery do not duplicate `would_have_paged` records.
+- [ ] `SHADOW-PROD` remains `under_evaluation` until partner-site evidence exists.
+
+### CURIE-035 — Add site calibration and production drift monitoring [P1 · READY]
+
+**Objective:** Detect when a site's inputs, missingness, or alert behavior differ materially from
+the development/reference population.
+
+**Work**
+
+- Separate threshold/operating-point selection from probability calibration terminology.
+- Define a versioned site profile and minimum evidence requirements before local threshold changes.
+- Monitor input ranges/distributions, units, missingness, arrival delay, completeness, score/tier
+  rates, page rates, and suppression reasons by site and indicator.
+- Add warning/critical thresholds, baseline versioning, rollback, and drift-report generation.
+
+**Acceptance criteria**
+
+- [ ] Synthetic distribution, missingness, unit, and alert-rate shifts trigger deterministic alarms.
+- [ ] A site profile cannot be selected or tuned on its locked test period.
+- [ ] Site overrides identify parent bundle, approver, evidence window, version, and rollback target.
+- [ ] Drift alarms do not automatically mutate active clinical rules.
+
+### CURIE-036 — Select and implement indicator four [P1 · READY]
+
+**Objective:** Demonstrate repeatable product expansion while avoiding unsupported diagnosis
+claims.
+
+**Work**
+
+- Score candidates using actionability, data availability, label quality, overlap with current
+  ingestion, clinical risk, and validation cost.
+- Start with one bounded surveillance signal; hemodynamic shock/hyperlactatemia is the default
+  candidate unless the documented rubric selects another.
+- Implement the rule bundle, Python and Java scorer/dispatcher, fixtures, parity, governance,
+  episode behavior, missing-data policy, and resolution logic.
+- Describe outputs as surveillance indicators/phenotypes, not confirmed diagnoses.
+
+**Acceptance criteria**
+
+- [ ] The selection rubric and rejected alternatives are documented before implementation.
+- [ ] The new indicator passes the plugin, parity, replay, and activation gates.
+- [ ] It reuses shared governance, shadow, API, and dashboard paths without bespoke condition code.
+- [ ] Clinical validity remains an explicit non-claim until evaluated on an appropriate dataset.
+
+---
+
+## Milestone 9 — Commercial prototype boundaries
+
+### CURIE-037 — Add Postgres persistence and enforce tenant isolation [P1 · READY]
+
+**Objective:** Retain SQLite for local demos while providing a production-shaped durable store with
+enforced hospital/site isolation.
+
+**Work**
+
+- Introduce a storage interface and Postgres implementation with migrations and idempotent writes.
+- Put tenant/site identity on every alert, episode, acknowledgement, audit, feedback, activation,
+  and shadow record.
+- Enforce isolation in database queries and service authorization, not only response filtering.
+- Add migration, concurrency, retry, pagination, backup/restore, and cross-tenant denial tests.
+
+**Acceptance criteria**
+
+- [ ] SQLite and Postgres pass the same store contract suite.
+- [ ] Cross-tenant reads, writes, acknowledgements, and episode joins fail closed.
+- [ ] Kafka offset commit occurs only after the idempotent database transaction succeeds.
+- [ ] Tenant-specific retention and deletion jobs have auditable dry-run modes.
+
+### CURIE-038 — Replace prototype OIDC with verified production identity [P1 · READY]
+
+**Objective:** Remove insecure JWT decoding from any production path and document a realistic
+HIPAA operational boundary without claiming compliance certification.
+
+**Work**
+
+- Verify JWT signatures through cached JWKS with issuer, audience, expiry, not-before, algorithm,
+  key-rotation, and failure-mode tests.
+- Map external groups/scopes to explicit clinician, reviewer, and operator permissions.
+- Add access/audit events for PHI-adjacent reads and mutations; prohibit raw tokens and identifiers
+  in logs.
+- Document encryption, secret rotation, backup, retention, incident response, BAA/shared
+  responsibility, and deployment-control gaps.
+
+**Acceptance criteria**
+
+- [ ] Production rejects unsigned, expired, wrong-audience, wrong-issuer, and unknown-key tokens.
+- [ ] Key rotation works without accepting a token whose signature cannot be verified.
+- [ ] Authorization tests cover tenant plus role, including privilege-escalation attempts.
+- [ ] Documentation says “production-shaped controls,” not “HIPAA compliant,” until independently
+  assessed in a real environment.
+
+### CURIE-039 — Validate the `curie-fhir` / HL7v2 integration contract [P1 · READY]
+
+**Objective:** Make the sibling project the explicit EHR normalization boundary while preserving
+deterministic trust and provenance requirements in this repository.
+
+**Work**
+
+- Add shared fixtures for HL7v2/FHIR-to-trusted-fact normalization, corrections, cancellations,
+  units, source timestamps, availability times, and provenance failures.
+- Version the compatibility matrix between both repositories and fail on unknown schemas.
+- Provide a local connector simulator that publishes trusted facts and verifies resulting alerts,
+  DLQ events, and evidence references.
+- Keep Mirth/vendor credentials and transforms outside the scoring/governance core.
+
+**Acceptance criteria**
+
+- [ ] Both repositories validate byte-equivalent trusted-fact contract fixtures.
+- [ ] Candidate, invalid, corrected, and cancelled facts have deterministic dispositions.
+- [ ] No untrusted LLM-derived fact can mutate scoring state.
+- [ ] The integration demo runs without real PHI or a hospital connection.
+
+### CURIE-040 — Maintain a sourced prior-art and product landscape [P1 · READY]
+
+**Objective:** Turn the Epic/TREWS/COMPOSER/Prenosis/eCART discussion into a defensible, dated
+research and commercial artifact.
+
+**Work**
+
+- Create a source table covering intended use, inputs, deployment setting, validation design,
+  alert workflow, adoption/burden metrics, regulatory status, and limitations.
+- Add academic work on alert fatigue, tiered routing, refractory/dedup policy, abstention,
+  distribution shift, multi-condition deterioration, and clinical CDS evaluation.
+- Separate sourced facts, project inference, and proposed differentiation.
+- Search explicitly for prior governance-policy ablations before claiming novelty.
+
+**Acceptance criteria**
+
+- [ ] Every external claim has a primary source, access date, and short evidence note.
+- [ ] Regulatory/product status is timestamped and marked for periodic re-verification.
+- [ ] The manuscript novelty statement is no stronger than the completed search supports.
+- [ ] Investor language distinguishes “different architecture” from proven clinical superiority.
+
+---
+
+## Milestone 10 — Evidence requiring external access
+
+### CURIE-041 — Execute the locked MIMIC-IV Stage B study [P0 · ACCESS]
+
+Do not begin test-set evaluation until CURIE-026 through CURIE-035 pass and the extract/version
+manifest is frozen.
+
+**Acceptance criteria**
+
+- [ ] Cohort, availability-time timeline, Sepsis-3 labels, complete SOFA inputs, KDIGO labels,
+  exclusions, and missingness match the frozen protocol and pinned `mimic-code` concepts.
+- [ ] Development sweep and calibration selection produce a new immutable operating-point artifact.
+- [ ] The temporal test split is evaluated once, with stay-level confidence intervals, subgroups,
+  miss analysis, and all pre-specified ablations.
+- [ ] No protected row-level data or identifiers enter git, logs, manuscript artifacts, or demos.
+
+### CURIE-042 — Conduct silent prospective validation [P0 · PARTNER]
+
+**Acceptance criteria**
+
+- [ ] IRB/DUA/BAA and clinical safety ownership are documented as applicable.
+- [ ] Shadow decisions are compared with local labels, clinician actions, workflow timing, and data
+  availability while no interruptive pages are delivered.
+- [ ] Uptime, lag, DLQ, missingness, drift, alert burden, subgroup, and miss reports are reviewed.
+- [ ] Activation criteria, rollback thresholds, human-factors review, and harm monitoring are agreed
+  before any interruptive pilot.
+
+### CURIE-043 — Refresh the manuscript, claims matrix, and investor package [P1 · ACCESS]
+
+**Objective:** Promote claims only after the corresponding MIMIC or shadow evidence exists.
+
+**Acceptance criteria**
+
+- [ ] The manuscript uses full study outputs rather than demo-schema placeholders.
+- [ ] The claims matrix changes status only when a pinned evidence artifact satisfies its gate.
+- [ ] The investor demo separates engineering proof, retrospective evidence, prospective evidence,
+  outcome claims, and regulatory non-claims.
+- [ ] All benchmark cards state dataset, cohort, timing window, denominator, lane, confidence
+  interval, code SHA, and rule/config hash.
+
+---
+
+## Current recommended Cursor sequence
+
+Use one branch/PR per task. The recommended order is:
+
+1. **CURIE-026** — SOFA event-time completion.
+2. **CURIE-027** — AKI event-time determinism.
+3. **CURIE-028** — replay-stable episode identity.
+4. **CURIE-029** — respiratory parity and runtime dispatch.
+5. **CURIE-030** — benchmark semantics and false-negative attribution.
+6. **CURIE-031** — CSP-safe dashboard.
+7. **CURIE-032** — component-delta paging.
+8. **CURIE-033** — deterministic page-quality gates.
+9. **CURIE-034** — shadow-mode harness.
+10. **CURIE-035** — site drift and calibration infrastructure.
+
+CURIE-036 through CURIE-040 can follow or run in parallel after the P0 reliability tasks. Keep
+CURIE-041 through CURIE-043 blocked until their stated access/evidence dependency is satisfied.
+
+After every code task, run:
 
 ```bash
-pytest -q
-ruff check .
+.venv/bin/pytest -q
+.venv/bin/ruff check .
 git diff --check
 make flink-test
 ```
 
-Then rerun the frozen configuration only as a regression report—not as another opportunity to tune
-against Challenge set B.
+Rerun frozen Challenge configurations only as regression reports—not as opportunities to retune on
+`training_setB`.

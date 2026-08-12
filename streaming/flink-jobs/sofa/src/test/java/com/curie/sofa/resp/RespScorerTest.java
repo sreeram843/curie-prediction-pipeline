@@ -2,6 +2,7 @@ package com.curie.sofa.resp;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
 
@@ -43,5 +44,33 @@ class RespScorerTest {
     assertEquals(1, r.stage);
     assertEquals(2, r.totalScore);
     assertEquals("watch", RespScorer.tierForScore(r.totalScore, 2));
+  }
+
+  @Test
+  void paco2Above60StagesTwo() {
+    RespScorer.Input in = new RespScorer.Input();
+    in.paco2Mmhg = 62.0;
+    in.respiratoryRate = 16.0;
+    in.oxygenDevice = "none";
+    in.roomAir = true;
+    in.spo2Percent = 98.0;
+    RespScorer.Result r = RespScorer.compute("Patient/1", null, 1_000L, in, "0.1.0");
+    assertEquals(2, r.stage);
+    assertEquals(4, r.totalScore);
+    assertTrue(r.criteriaMet.contains("paco2_gt_60"));
+  }
+
+  @Test
+  void paco2Between50And60StagesOne() {
+    RespScorer.Input in = new RespScorer.Input();
+    in.paco2Mmhg = 55.0;
+    in.respiratoryRate = 16.0;
+    in.oxygenDevice = "none";
+    in.roomAir = true;
+    in.spo2Percent = 98.0;
+    RespScorer.Result r = RespScorer.compute("Patient/1", null, 1_000L, in, "0.1.0");
+    assertEquals(1, r.stage);
+    assertEquals(2, r.totalScore);
+    assertTrue(r.criteriaMet.contains("paco2_gt_50"));
   }
 }

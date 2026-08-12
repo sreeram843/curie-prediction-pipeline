@@ -1,0 +1,25 @@
+{
+  "schema_version": "1.0.0",
+  "id": "miss-analysis-v1-synthetic",
+  "source": "Synthetic FN attribution for dashboard/docs (CURIE-030). No PHI.",
+  "operating_point": "eval/challenge2019/frozen/p1_setA_winner.json",
+  "primary_detection": "window_m12_p6",
+  "n_false_negatives": 6,
+  "by_primary_reason": [
+    {"reason": "missing_input", "count": 2, "rate": 0.3333},
+    {"reason": "scorer_threshold", "count": 1, "rate": 0.1667},
+    {"reason": "persistence", "count": 1, "rate": 0.1667},
+    {"reason": "page_gate", "count": 1, "rate": 0.1667},
+    {"reason": "timing_window", "count": 1, "rate": 0.1667}
+  ],
+  "examples": [
+    {"stay_id": "syn-fn-01", "primary_reason": "missing_input", "contributing": []},
+    {"stay_id": "syn-fn-02", "primary_reason": "scorer_threshold", "contributing": []},
+    {"stay_id": "syn-fn-03", "primary_reason": "timing_window", "contributing": ["arbitration"]}
+  ],
+  "rule_config_hash": "synthetic-miss-v1",
+  "notes": [
+    "Illustrative distribution only — regenerate from holdout FN stays when extract access allows.",
+    "Primary Challenge holdout metrics remain in holdout_primary_window_m12_p6.v1.json."
+  ]
+}

@@ -198,6 +198,7 @@ def _challenge_card() -> dict[str, Any]:
             "eval/challenge2019/frozen/p1_setA_winner.json",
             "eval/challenge2019/frozen/timing_primary.v1.json",
             "eval/challenge2019/frozen/holdout_primary_window_m12_p6.v1.json",
+            "eval/challenge2019/frozen/miss_analysis.v1.json",
         ],
         "reproduce": (
             "GOV_CONFIG=eval/challenge2019/frozen/p1_setA_winner.json "

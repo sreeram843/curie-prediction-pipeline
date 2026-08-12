@@ -22,9 +22,23 @@
 | Label | Challenge `SepsisLabel` begins **~6h before clinical onset**; `onset_iculos` = **label_start** |
 | Timing freeze | [`eval/challenge2019/frozen/timing_primary.v1.json`](../eval/challenge2019/frozen/timing_primary.v1.json) |
 
-### Holdout setB (n = 20,000)
+### Holdout setB (n = 20,000) — primary `window_m12_p6`
 
-> Published setB figures below used the **legacy** grace≤6h rule. Re-run with the current harness for primary `window_m12_p6` sensitivities and in-window lead times. Challenge utility remains co-primary.
+Pinned artifact:
+[`eval/challenge2019/frozen/holdout_primary_window_m12_p6.v1.json`](../eval/challenge2019/frozen/holdout_primary_window_m12_p6.v1.json).
+Miss attribution stub:
+[`eval/challenge2019/frozen/miss_analysis.v1.json`](../eval/challenge2019/frozen/miss_analysis.v1.json).
+
+| Metric | Point | Notes |
+|---|---|---|
+| **Governed sensitivity (primary)** | **79.5%** | Any governed alert in `[onset−12h, onset+6h]` |
+| **Interruptive sensitivity (emissions)** | **34.0%** | Interruptive emissions in-window — not episode pages |
+| **Interruptive NNA (emissions)** | **106.1** | Interruptive emissions / interruptive TP |
+| **In-window mean lead hours** | **5.97 h** | First in-window governed alert → onset |
+
+### Legacy grace≤6h (sensitivity analysis only)
+
+> Do **not** quote 81.1% as the primary timing result. Legacy figures remain for robustness tables.
 
 | Metric | Point | 95% CI |
 |---|---|---|
@@ -34,7 +48,7 @@
 | Legacy pages / any-governed TP | **~44** | [42, 48] |
 | Mean lead hours (governed, **unbounded first alert**) | **~42** | [38, 46] |
 
-**Goals:** primary ✓ (sens = naive); co-primary ✓ (interruptive reduction ≤ 0.25).
+**Goals:** primary window sensitivity documented above; co-primary interruptive reduction ≤ 0.25 (legacy table).
 Secondary page NNA was previously quoted as ~44 using pages / **any-governed** TP;
 the corrected definition (pages / **interruptive** TP) is **~94.2** (`41158 / 437`).
 All-alert governed NNA remains ~173 because watch volume is high by design.
@@ -190,7 +204,7 @@ Report side-by-side on **setB** with frozen winner + `strict`/`accuracy`/`dual`/
 | Mode | Frozen sens N/G | Notes |
 |---|---|---|
 | grace **0** | 56.3% / 56.3% | First alert ≤ onset |
-| grace **6** (primary) | **81.1% / 81.1%** | Holdout operating point |
+| grace **6** (legacy analysis) | **81.1% / 81.1%** | Not primary — see `window_m12_p6` |
 | grace **12** | 84.6% / 84.6% | |
 | early-only | 54.8% / 54.8% | First alert **&lt;** onset |
 | window ±12h | 83.3% / 83.3% | Any alert in [onset−12, onset+12] |

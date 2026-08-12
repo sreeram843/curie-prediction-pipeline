@@ -63,6 +63,31 @@ class EventTimeBufferTest {
     assertEquals(Arrays.asList("a", "b"), out);
   }
 
+  @Test
+  void singleEventFlushesViaWatermarkAdvanceWithoutFollower() {
+    EventTimeBuffer<String> buf = new EventTimeBuffer<>(5 * 60 * 1000L);
+    EventTimeBuffer.FlushResult<String> afterOffer = buf.offer(10_000, "only", "k1");
+    assertTrue(afterOffer.ready.isEmpty());
+    assertEquals(1, buf.pendingCount());
+    long timer = buf.flushTimerTimestamp(10_000);
+    assertEquals(10_000 + 5 * 60 * 1000L, timer);
+    EventTimeBuffer.FlushResult<String> flushed = buf.advanceWatermark(timer);
+    assertEquals(1, flushed.ready.size());
+    assertEquals("only", flushed.ready.get(0).payload);
+    assertEquals(0, buf.pendingCount());
+    assertEquals(EventTimeBuffer.POLICY_VERSION, buf.policyVersion());
+  }
+
+  @Test
+  void advanceWatermarkIsMonotonic() {
+    EventTimeBuffer<String> buf = new EventTimeBuffer<>(1_000);
+    buf.offer(5_000, "a", "a");
+    buf.advanceWatermark(5_000);
+    assertEquals(5_000, buf.watermarkMs());
+    buf.advanceWatermark(4_000);
+    assertEquals(5_000, buf.watermarkMs());
+  }
+
   private static void permute(
       List<String[]> events, int start, List<List<String>> results) {
     if (start == events.size()) {

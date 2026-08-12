@@ -705,19 +705,45 @@ let c4Ready = false;
 let c4Active = "context";
 let c4Rendered = false;
 
-async function waitForMermaid(timeoutMs = 8000) {
-  if (window.__curieMermaid) return window.__curieMermaid;
-  return new Promise((resolve, reject) => {
-    const t = setTimeout(() => reject(new Error("mermaid load timeout")), timeoutMs);
-    window.addEventListener(
-      "curie-mermaid-ready",
-      () => {
-        clearTimeout(t);
-        resolve(window.__curieMermaid);
-      },
-      { once: true }
-    );
-  });
+/** CSP-safe static C4 layout — no CDN / Mermaid dependency (CURIE-031). */
+function renderC4Static(level, view) {
+  const nodes = {
+    context: [
+      ["Clinicians / ops", "Consumers of pages + narratives"],
+      ["Curie Signal", "Deterministic scores · governance · episodes"],
+      ["Curie Connect", "FHIR / mapping · trust boundary"],
+      ["EHR / labs / devices", "Source systems"],
+      ["Copilot (LLM)", "Additive explain · never scores"],
+    ],
+    container: [
+      ["Dashboard / API", "Review · ack · benchmarks"],
+      ["Flink SOFA / AKI / Resp", "Event-time scoring"],
+      ["Governance + arbiter", "Page gate · episodes"],
+      ["Connect validation", "Trusted vs candidate"],
+      ["LLM workflows", "WF-01…WF-10 edges only"],
+    ],
+    component: [
+      ["Kafka clinical events", "Ingress"],
+      ["Score → gov → episode", "Signal core"],
+      ["Durable store", "Restart-safe IDs"],
+      ["CDS Hooks / FHIR", "Evidence surface"],
+      ["Narrative / stewardship", "Copilot add-ons"],
+    ],
+    boundary: [
+      ["LLM may assist", "Mapping · repair · narrative · classify"],
+      ["Hard boundary", "No scores · no routing · no live thresholds"],
+      ["Audit + versions", "Model/prompt · evidence IDs"],
+      ["Fail closed", "Model failure must not delay delivery"],
+    ],
+  };
+  const boxes = (nodes[level] || nodes.context)
+    .map(
+      ([title, sub]) =>
+        `<div class="c4-box"><strong>${esc(title)}</strong><span>${esc(sub)}</span></div>`
+    )
+    .join("");
+  return `<div class="c4-static" role="img" aria-label="${esc(view.caption)}">${boxes}</div>
+    <p class="c4-fallback">Static C4 view (CSP-safe). Caption and legend describe this level.</p>`;
 }
 
 async function renderC4(level) {
@@ -733,19 +759,9 @@ async function renderC4(level) {
   if (c4LegendEl) {
     c4LegendEl.innerHTML = (view.legend || []).map((item) => `<li>${esc(item)}</li>`).join("");
   }
-  c4DiagramEl.innerHTML = `<p class="c4-fallback">Rendering diagram…</p>`;
-  try {
-    const mermaid = await waitForMermaid();
-    const id = `c4-${level}-${Date.now()}`;
-    const { svg } = await mermaid.render(id, view.diagram);
-    c4DiagramEl.innerHTML = svg;
-    c4Rendered = true;
-  } catch (err) {
-    console.warn("C4 mermaid render failed", err);
-    c4DiagramEl.innerHTML = `<p class="c4-fallback">Diagram unavailable (${esc(
-      err.message || "render error"
-    )}). Captions and legend still describe this C4 level.</p>`;
-  }
+  c4DiagramEl.innerHTML = renderC4Static(level, view);
+  c4Rendered = true;
+  c4Ready = true;
 }
 
 function initC4Tabs() {

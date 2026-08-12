@@ -14,6 +14,7 @@ from eval.aki.scoring import AkiInput, compute_aki_score
 from eval.fixtures.test_golden_sofa import GOLDEN as SOFA_GOLDEN
 from eval.indicators.registry import governance_config_from_bundle, load_rule_bundle
 from eval.replay_harness.governance import GovernanceConfig, PatientGovState, evaluate
+from eval.respiratory.scoring import RespInput, compute_resp_score
 from eval.sofa.scoring import (
     SofaComponentInput,
     SofaComponentName,
@@ -38,6 +39,7 @@ def count_fixtures(data: dict | None = None) -> dict[str, int]:
     return {
         "sofa_cases": len(sofa.get("cases") or []),
         "aki_cases": len(data.get("aki_cases") or []),
+        "resp_cases": len(data.get("resp_cases") or []),
         "governance_decisions": len(data.get("governance_decisions") or []),
         "governance_config_fields": len(gov_cfg.get("expect") or {}),
     }
@@ -128,6 +130,37 @@ def check_aki(data: dict) -> list[str]:
     return mismatches
 
 
+def check_resp(data: dict) -> list[str]:
+    from datetime import UTC, datetime
+
+    mismatches: list[str] = []
+    t0 = datetime(2024, 6, 1, 12, 0, tzinfo=UTC)
+    for case in data.get("resp_cases") or []:
+        raw = case["inputs"]
+        result = compute_resp_score(
+            patient_id=f"Patient/parity-{case['id']}",
+            event_time=t0,
+            inputs=RespInput.model_validate(raw),
+            rule_bundle_id="resp-deterioration",
+            rule_version="0.1.0",
+        )
+        expect = case["expect"]
+        if result.stage != expect.get("stage"):
+            mismatches.append(
+                f"resp/{case['id']}: stage {result.stage} != {expect.get('stage')}"
+            )
+        if result.total_score != expect.get("total_score"):
+            mismatches.append(
+                f"resp/{case['id']}: score {result.total_score} != {expect.get('total_score')}"
+            )
+        if result.completeness.value != expect.get("completeness"):
+            mismatches.append(f"resp/{case['id']}: completeness mismatch")
+        for needle in expect.get("criteria_contains") or []:
+            if needle not in result.criteria_met:
+                mismatches.append(f"resp/{case['id']}: missing criterion {needle}")
+    return mismatches
+
+
 def check_governance(data: dict) -> list[str]:
     mismatches: list[str] = []
     for case in data["governance_decisions"]:
@@ -168,6 +201,7 @@ def run_parity_gate() -> dict:
     mismatches = (
         check_sofa()
         + check_aki(data)
+        + check_resp(data)
         + check_governance(data)
         + check_governance_config_parity()
     )

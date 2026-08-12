@@ -218,9 +218,14 @@ public final class RespScorer {
         r.criteriaMet.add("ph_lt_7_30");
       }
     }
-    if (in.paco2Mmhg != null && in.paco2Mmhg > 50) {
-      stage = Math.max(stage, 1);
-      r.criteriaMet.add("paco2_gt_50");
+    if (in.paco2Mmhg != null) {
+      if (in.paco2Mmhg > 60) {
+        stage = Math.max(stage, 2);
+        r.criteriaMet.add("paco2_gt_60");
+      } else if (in.paco2Mmhg > 50) {
+        stage = Math.max(stage, 1);
+        r.criteriaMet.add("paco2_gt_50");
+      }
     }
     if (r.criteriaMet.stream().noneMatch(c -> c.startsWith("ph_") || c.startsWith("paco2_"))) {
       r.criteriaMet.add("abg_ok");

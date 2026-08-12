@@ -7,6 +7,7 @@ import com.curie.sofa.model.DlqEvent;
 import com.curie.sofa.model.RuleBundle;
 import com.curie.sofa.model.RuleVersions;
 import com.curie.sofa.operators.SofaAlertFunction;
+import com.curie.sofa.state.EventTimeBuffer;
 import com.curie.sofa.state.IdempotencyCache;
 import com.fasterxml.jackson.databind.JsonNode;
 import java.time.Instant;
@@ -26,6 +27,9 @@ import org.apache.flink.util.OutputTag;
  *
  * <p>Creatinine: LOINC 2160-0 (mg/dL). Urine: LOINC 9187-6 with unit {@code mL/kg/h} plus component
  * {@code duration-hours}; anuria via code {@code anuria} / Curie {@code urine-anuria}.
+ *
+ * <p>Feature mutation is gated by the shared {@link EventTimeBuffer} (CURIE-027) with the same
+ * lateness / timer flush policy as SOFA ({@link EventTimeBuffer#POLICY_VERSION}).
  */
 public class AkiAlertFunction
     extends KeyedBroadcastProcessFunction<String, CanonicalEvent, RuleBundle, AlertEvent> {
@@ -39,11 +43,16 @@ public class AkiAlertFunction
   public static final String CURIE_ANURIA = "urine-anuria";
   public static final String COMPONENT_DURATION_HOURS = "duration-hours";
 
+  public static final long DEFAULT_ALLOWED_LATENESS_MS =
+      SofaAlertFunction.DEFAULT_ALLOWED_LATENESS_MS;
+  public static final String EVENT_TIME_POLICY_VERSION = EventTimeBuffer.POLICY_VERSION;
+
   private static final Set<String> USABLE_STATUS =
       Set.of("final", "amended", "corrected", "preliminary");
 
   private transient ValueState<PatientAkiState> patientState;
   private transient ValueState<IdempotencyCache> idempotency;
+  private transient ValueState<EventTimeBuffer<CanonicalEvent>> eventBuffer;
 
   @Override
   public void open(Configuration parameters) {
@@ -53,6 +62,10 @@ public class AkiAlertFunction
     idempotency =
         getRuntimeContext()
             .getState(new ValueStateDescriptor<>("aki-idempotency-cache", IdempotencyCache.class));
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    ValueStateDescriptor<EventTimeBuffer<CanonicalEvent>> bufDesc =
+        new ValueStateDescriptor("aki-event-time-buffer", EventTimeBuffer.class);
+    eventBuffer = getRuntimeContext().getState(bufDesc);
   }
 
   @Override
@@ -112,6 +125,48 @@ public class AkiAlertFunction
     }
     idempotency.update(cache);
 
+    EventTimeBuffer<CanonicalEvent> buffer = eventBuffer.value();
+    if (buffer == null) {
+      buffer = new EventTimeBuffer<>(DEFAULT_ALLOWED_LATENESS_MS);
+    }
+    String tie =
+        event.idempotency_key != null && !event.idempotency_key.isBlank()
+            ? event.idempotency_key
+            : "";
+    EventTimeBuffer.FlushResult<CanonicalEvent> flush = buffer.offer(eventTimeMs, event, tie);
+    ctx.timerService().registerEventTimeTimer(buffer.flushTimerTimestamp(eventTimeMs));
+    eventBuffer.update(buffer);
+    applyFlush(flush, ctx, out);
+  }
+
+  @Override
+  public void onTimer(long timestamp, OnTimerContext ctx, Collector<AlertEvent> out)
+      throws Exception {
+    EventTimeBuffer<CanonicalEvent> buffer = eventBuffer.value();
+    if (buffer == null) {
+      return;
+    }
+    EventTimeBuffer.FlushResult<CanonicalEvent> flush = buffer.advanceWatermark(timestamp);
+    eventBuffer.update(buffer);
+    applyFlush(flush, ctx, out);
+  }
+
+  private void applyFlush(
+      EventTimeBuffer.FlushResult<CanonicalEvent> flush,
+      ReadOnlyContext ctx,
+      Collector<AlertEvent> out)
+      throws Exception {
+    for (EventTimeBuffer.BufferedEvent<CanonicalEvent> late : flush.late) {
+      emitDlq(ctx, late.payload, EventTimeBuffer.LATE_DISPOSITION, null, null, null);
+    }
+    for (EventTimeBuffer.BufferedEvent<CanonicalEvent> ready : flush.ready) {
+      scoreReadyEvent(ready.payload, ready.eventTimeMs, ctx, out);
+    }
+  }
+
+  private void scoreReadyEvent(
+      CanonicalEvent event, long eventTimeMs, ReadOnlyContext ctx, Collector<AlertEvent> out)
+      throws Exception {
     JsonNode resource = event.resource;
     if (!"Observation".equals(text(resource, "resourceType"))) {
       return;
