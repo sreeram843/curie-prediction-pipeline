@@ -220,3 +220,13 @@ def test_acknowledge_sets_resolution_state() -> None:
     detail = client.get(f"/alerts/{target['alert_id']}").json()
     assert detail["resolution_state"] == "acknowledged"
     assert detail["signal"]["resolution_state"] == "acknowledged"
+
+
+def test_claims_matrix_and_investor_demo_endpoints() -> None:
+    client = TestClient(app)
+    claims = client.get("/claims-matrix").json()
+    assert "demonstrated" in claims["by_status"]
+    assert "DX-SEPSIS" in claims["by_status"]["not_claimed"]
+    demo = client.get("/investor-demo").json()
+    assert demo["timeline"]["single_episode"] is True
+    assert demo["chaos_all_passed"] is True

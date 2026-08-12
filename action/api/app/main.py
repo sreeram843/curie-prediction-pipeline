@@ -15,6 +15,15 @@ from action.api.app.alerts_consumer import (
     start_alerts_consumer_if_configured,
     stop_alerts_consumer,
 )
+from action.api.app.cds_hooks import (
+    SERVICE_ID as CDS_SERVICE_ID,
+    CdsFeedbackRequest,
+    CdsHookRequest,
+    apply_feedback,
+    cards_for_patient,
+    discovery_services,
+)
+from action.api.app.fhir_evidence import evidence_bundle_for_alert, fhir_references_for_alert
 from action.api.app.logging_config import configure_phi_safe_logging
 from action.api.app.models import (
     AcknowledgeRequest,
@@ -46,7 +55,7 @@ DASHBOARD_DIR = Path(__file__).resolve().parents[2] / "dashboard"
 
 app = FastAPI(
     title="Curie Prediction Pipeline API",
-    version="0.4.0",
+    version="0.5.0",
     description="Prototype only — synthetic data, not for clinical use.",
 )
 
@@ -320,6 +329,68 @@ def get_alert(
     return alert
 
 
+@app.get("/alerts/{alert_id}/fhir-evidence")
+def alert_fhir_evidence(
+    alert_id: str, _auth: Principal | None = Depends(require_auth)
+) -> dict:
+    """FHIR-compatible evidence references + collection Bundle (CURIE-019)."""
+    alert = STORE.get(alert_id)
+    if alert is None:
+        raise HTTPException(status_code=404, detail="Alert not found")
+    return {
+        "alert_id": alert.alert_id,
+        "patient_id": alert.patient_id,
+        "references": fhir_references_for_alert(alert),
+        "bundle": evidence_bundle_for_alert(alert),
+    }
+
+
+@app.get("/cds-services")
+def cds_services_discovery(
+    request: Request, _auth: Principal | None = Depends(require_auth)
+) -> dict:
+    """CDS Hooks service discovery — presentation boundary only."""
+    base = str(request.base_url).rstrip("/")
+    return discovery_services(base_url=base)
+
+
+@app.post(f"/cds-services/{CDS_SERVICE_ID}")
+def cds_patient_view(
+    body: CdsHookRequest,
+    include_acknowledged: bool = Query(default=False),
+    _auth: Principal | None = Depends(require_auth),
+) -> dict:
+    """patient-view hook: governed alerts → CDS Cards (no scoring)."""
+    if body.hook and body.hook != "patient-view":
+        raise HTTPException(status_code=400, detail=f"Unsupported hook: {body.hook}")
+    patient_id = str(
+        (body.context or {}).get("patientId")
+        or (body.context or {}).get("patient_id")
+        or ""
+    ).strip()
+    if not patient_id:
+        raise HTTPException(status_code=400, detail="context.patientId required")
+    encounter_id = (body.context or {}).get("encounterId") or (
+        body.context or {}
+    ).get("encounter_id")
+    encounter_id = str(encounter_id).strip() if encounter_id else None
+    alerts = STORE.list(include_acknowledged=include_acknowledged, patient_id=patient_id)
+    return cards_for_patient(
+        alerts,
+        patient_id=patient_id,
+        encounter_id=encounter_id,
+        include_acknowledged=include_acknowledged,
+    )
+
+
+@app.post(f"/cds-services/{CDS_SERVICE_ID}/feedback")
+def cds_feedback(
+    body: CdsFeedbackRequest, _auth: Principal | None = Depends(require_auth)
+) -> dict:
+    """CDS Hooks feedback → acknowledge path (does not change score/tier)."""
+    return apply_feedback(body, acknowledge_fn=STORE.acknowledge)
+
+
 @app.post("/alerts/{alert_id}/acknowledge", response_model=AcknowledgeResponse)
 def acknowledge_alert(
     alert_id: str,
@@ -421,6 +492,26 @@ def get_episode(
 @app.get("/metrics", response_model=MetricsSummary)
 def metrics(_auth: Principal | None = Depends(require_auth)) -> MetricsSummary:
     return STORE.metrics()
+
+
+@app.get("/claims-matrix")
+def get_claims_matrix(_auth: Principal | None = Depends(require_auth)) -> dict:
+    """Investor/demo claims matrix (CURIE-021) — not a regulatory matrix."""
+    from eval.investor_demo.claims import load_claims_matrix
+
+    return load_claims_matrix()
+
+
+@app.get("/investor-demo")
+def get_investor_demo(_auth: Principal | None = Depends(require_auth)) -> dict:
+    """Frozen investor demo report (timeline, volume, chaos)."""
+    from eval.investor_demo.scenario import REPORT_PATH, run_demo
+
+    if REPORT_PATH.is_file():
+        import json
+
+        return json.loads(REPORT_PATH.read_text())
+    return run_demo(write=False)
 
 
 @app.get("/")

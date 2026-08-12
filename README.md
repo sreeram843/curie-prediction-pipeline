@@ -227,6 +227,9 @@ defaults to localhost origins only. Set `CURIE_ENV=production` with `CURIE_API_K
 (and TLS at the proxy via `CURIE_TLS_TERMINATED=true`) before any non-local exposure.
 See [`docs/security-observability.md`](docs/security-observability.md). Durable alerts:
 `CURIE_ALERT_DB` / [`docs/durable-alert-store.md`](docs/durable-alert-store.md).
+CDS Hooks / FHIR evidence boundary: [`docs/cds-hooks-integration.md`](docs/cds-hooks-integration.md).
+Manuscript package: [`docs/manuscript-package.md`](docs/manuscript-package.md) (`make manuscript`).
+Investor demo + claims: [`docs/investor-demo.md`](docs/investor-demo.md) (`make investor-demo`).
 
 Lower-risk positioning order if this becomes a company: (1) synthetic replay / event infrastructure, (2) FHIR streaming integration, (3) explainable decision-support *with customer-specific validation*, (4) unstructured extraction / administrative APIs.
 

@@ -395,6 +395,15 @@ metrics, DLQ monitoring, rule-activation audit, alert-volume alarms, and kill sw
 Expose FHIR-compatible evidence references and a CDS Hooks-compatible presentation/feedback
 boundary. Keep EHR-specific integration outside the scoring and governance core.
 
+**Acceptance criteria**
+
+- [x] Alert evidence ids project to FHIR R4 Reference-shaped objects (and a collection Bundle).
+- [x] CDS Hooks discovery + `patient-view` cards expose governed alerts without rescoring.
+- [x] CDS Hooks feedback maps to acknowledge and cannot change score/tier.
+
+**Artifacts:** [`docs/cds-hooks-integration.md`](./cds-hooks-integration.md),
+`GET /cds-services`, `GET /alerts/{id}/fhir-evidence`.
+
 ---
 
 ## Milestone 5 — Paper and VC deliverables
@@ -408,6 +417,16 @@ boundary. Keep EHR-specific integration outside the scoring and governance core.
   effects.
 - Reproducibility manifest that does not expose protected MIMIC data.
 
+**Acceptance criteria**
+
+- [x] Methods pin code SHA + frozen protocol/operating-point/Challenge artifact hashes.
+- [x] Package includes cohort flow, Pareto/timing/calibration specs, ablation + subgroup tables, and failure analysis.
+- [x] Claim tiers separate retrospective detection, alert-policy utility, and unproven outcomes.
+- [x] Reproducibility manifest regenerates without embedding protected MIMIC extracts (`make manuscript` / `phi-scan`).
+
+**Artifacts:** [`docs/manuscript-package.md`](./manuscript-package.md),
+`make manuscript`, `eval/manuscript/frozen/reproducibility_manifest.v1.json`.
+
 ### CURIE-021 — Build the investor demonstration and claims matrix [P1]
 
 The demo should replay a patient timeline, show multiple signals becoming one episode, compare
@@ -417,6 +436,17 @@ out-of-order, and restart scenarios.
 Maintain a claims matrix with `demonstrated`, `under evaluation`, and `not claimed` categories.
 Do not claim diagnosis, outcome improvement, clinical validation, or regulatory clearance without
 the corresponding evidence.
+
+**Acceptance criteria**
+
+- [x] Demo replays a multi-signal timeline into one episode with naive/passive/interruptive volume.
+- [x] Evidence IDs and rule hashes are exposed on every demo step.
+- [x] Duplicate, out-of-order, and restart scenarios pass in the demo harness.
+- [x] Claims matrix uses demonstrated / under_evaluation / not_claimed and forbids diagnosis,
+  outcome, clinical-validation, and regulatory claims without evidence.
+
+**Artifacts:** [`docs/investor-demo.md`](./investor-demo.md),
+[`docs/claims-matrix.md`](./claims-matrix.md), `make investor-demo`.
 
 ---
 
