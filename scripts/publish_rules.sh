@@ -15,6 +15,9 @@ else
   echo "WARNING: SKIP_PARITY=1 — publishing without parity gate" >&2
 fi
 
+echo "Validating activation has installed scorers (CURIE-011)…"
+(cd "$ROOT" && python -c "from eval.indicators.registry import validate_activation; validate_activation(); print('activation ok')")
+
 if ! docker ps --format '{{.Names}}' | grep -q '^curie-kafka$'; then
   echo "curie-kafka container not running. Start with: make up" >&2
   exit 1

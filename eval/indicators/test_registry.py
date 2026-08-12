@@ -69,7 +69,7 @@ def test_invalid_bundle_missing_score_type(
     (bundles / "demo-bad.v0.1.0.json").write_text(json.dumps(bad))
     monkeypatch.setattr(reg, "BUNDLES_DIR", bundles)
     with pytest.raises(RuleBundleError, match="score.type"):
-        load_rule_bundle("demo-bad", "0.1.0")
+        load_rule_bundle("demo-bad", "0.1.0", require_scorer=False)
 
 
 def test_activation_latest_picks_semver_not_lexically_larger_filename(
@@ -96,5 +96,5 @@ def test_activation_latest_picks_semver_not_lexically_larger_filename(
     monkeypatch.setattr(reg, "ACTIVATION_PATH", activation)
     # Filename sort would put v0.9.0 after v0.10.0 lexicographically — activation wins
     assert sorted(bundles.glob("demo-order.v*.json"))[-1].name == "demo-order.v0.9.0.json"
-    bundle = load_rule_bundle("demo-order")
+    bundle = load_rule_bundle("demo-order", require_scorer=False)
     assert bundle["version"] == "0.10.0"

@@ -259,9 +259,9 @@ version/hash, and resolution state.
 
 **Acceptance criteria**
 
-- [ ] SOFA/sepsis and AKI are registered and dispatched through the same interface.
-- [ ] Listing an indicator proves that a compatible scorer is installed.
-- [ ] Unsupported score types fail at activation rather than during patient processing.
+- [x] SOFA/sepsis and AKI are registered and dispatched through the same interface.
+- [x] Listing an indicator proves that a compatible scorer is installed.
+- [x] Unsupported score types fail at activation rather than during patient processing.
 
 ### CURIE-012 — Add patient episode aggregation and cross-condition arbitration [P1]
 

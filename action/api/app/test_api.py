@@ -69,9 +69,19 @@ def test_explain_is_additive(monkeypatch) -> None:
 
 def test_indicators_include_aki_and_sofa_deterioration() -> None:
     client = TestClient(app)
-    indicators = {i["indicator"] for i in client.get("/indicators").json()}
+    rows = client.get("/indicators").json()
+    indicators = {i["indicator"] for i in rows}
     assert "sofa-deterioration" in indicators
     assert "aki" in indicators
+    assert all(i.get("scorer_installed") is True for i in rows)
+
+
+def test_plugins_endpoint_lists_sofa_and_aki() -> None:
+    client = TestClient(app)
+    plugins = {p["score_type"]: p for p in client.get("/plugins").json()}
+    assert "sofa" in plugins
+    assert "aki_kdigo" in plugins
+    assert plugins["sofa"]["runtime_impl"]["java"]
 
 
 def test_demo_sofa_alerts_not_labeled_sepsis() -> None:

@@ -149,11 +149,19 @@ def extract_endpoint(body: ExtractRequest) -> ExtractionResult:
 
 
 @app.get("/indicators")
-def list_indicator_bundles() -> list[dict[str, str]]:
-    """Registered rule bundles (sepsis, aki, …) — plugin surface for Phase 3+."""
+def list_indicator_bundles() -> list[dict]:
+    """Rule bundles with an installed scorer plugin (CURIE-011)."""
     from eval.indicators.registry import list_indicators
 
-    return list_indicators()
+    return list_indicators(installed_only=True)
+
+
+@app.get("/plugins")
+def list_indicator_plugins() -> list[dict]:
+    """Registered indicator plugins (score.type → runtime mapping)."""
+    from eval.indicators.plugin import list_plugins
+
+    return [p.to_public_dict() for p in list_plugins()]
 
 
 @app.get("/metrics", response_model=MetricsSummary)

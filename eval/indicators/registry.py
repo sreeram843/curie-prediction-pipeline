@@ -13,6 +13,11 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from eval.indicators.plugin import (
+    PluginError,
+    get_plugin,
+    require_plugin,
+)
 from eval.indicators.semver import compare_semver, parse_semver
 
 if TYPE_CHECKING:
@@ -69,7 +74,13 @@ def _bundle_paths(bundle_id: str) -> list[tuple[str, Path]]:
     return sorted(found.items(), key=lambda kv: parse_semver(kv[0]))
 
 
-def _validate_bundle(data: dict[str, Any], *, path: Path, expected_version: str) -> None:
+def _validate_bundle(
+    data: dict[str, Any],
+    *,
+    path: Path,
+    expected_version: str,
+    require_scorer: bool = True,
+) -> None:
     for key in ("bundle_id", "version", "indicator", "score"):
         if key not in data:
             raise RuleBundleError(f"Bundle {path} missing required field {key!r}")
@@ -82,6 +93,11 @@ def _validate_bundle(data: dict[str, Any], *, path: Path, expected_version: str)
     score = data.get("score") or {}
     if not score.get("type"):
         raise RuleBundleError(f"Bundle {path} score.type is required")
+    if require_scorer:
+        try:
+            require_plugin(str(score["type"]))
+        except PluginError as exc:
+            raise RuleBundleError(str(exc)) from exc
 
 
 def resolve_bundle_version(
@@ -128,11 +144,15 @@ def load_rule_bundle(
     *,
     allow_latest: bool | None = None,
     include_hash: bool = True,
+    require_scorer: bool = True,
 ) -> dict[str, Any]:
     """Load a versioned rule bundle.
 
     Default ``version=None`` resolves through ``activation.json`` (semver-aware),
     never by lexicographic filename sort.
+
+    When ``require_scorer=True`` (default), ``score.type`` must map to a
+    registered :class:`~eval.indicators.plugin.IndicatorPlugin` (CURIE-011).
     """
     resolved = resolve_bundle_version(bundle_id, version, allow_latest=allow_latest)
     path = BUNDLES_DIR / f"{bundle_id}.v{resolved}.json"
@@ -143,7 +163,9 @@ def load_rule_bundle(
             f"(available: {available})"
         )
     data = json.loads(path.read_text())
-    _validate_bundle(data, path=path, expected_version=resolved)
+    _validate_bundle(
+        data, path=path, expected_version=resolved, require_scorer=require_scorer
+    )
     if include_hash:
         data = dict(data)
         data["content_hash"] = content_hash(
@@ -152,8 +174,52 @@ def load_rule_bundle(
     return data
 
 
-def list_indicators() -> list[dict[str, str]]:
-    out: list[dict[str, str]] = []
+def validate_activation(path: Path | None = None) -> dict[str, Any]:
+    """Fail if any active bundle references an uninstalled score.type."""
+    active = load_activation(path)
+    report: dict[str, Any] = {"active": {}, "ok": True}
+    errors: list[str] = []
+    for bundle_id, version in sorted(active.items()):
+        try:
+            bundle = load_rule_bundle(
+                bundle_id, version, allow_latest=False, require_scorer=True
+            )
+            score_type = str((bundle.get("score") or {}).get("type"))
+            plugin = require_plugin(score_type)
+            report["active"][bundle_id] = {
+                "version": version,
+                "score_type": score_type,
+                "plugin_id": plugin.plugin_id,
+                "scorer_installed": True,
+                "runtime_impl": dict(plugin.runtime_impl),
+            }
+        except (RuleBundleError, PluginError, FileNotFoundError, ValueError) as exc:
+            report["ok"] = False
+            errors.append(f"{bundle_id}@{version}: {exc}")
+            report["active"][bundle_id] = {
+                "version": version,
+                "scorer_installed": False,
+                "error": str(exc),
+            }
+    report["errors"] = errors
+    if not report["ok"]:
+        raise RuleBundleError(
+            "Activation failed — unsupported or missing scorers:\n"
+            + "\n".join(errors)
+        )
+    return report
+
+
+def list_indicators(
+    *,
+    installed_only: bool = True,
+) -> list[dict[str, Any]]:
+    """List rule-bundle indicators.
+
+    When ``installed_only`` is True (default), only bundles whose ``score.type``
+    has a registered plugin are returned — listing proves a scorer is installed.
+    """
+    out: list[dict[str, Any]] = []
     seen: dict[str, set[str]] = {}
     for path in sorted(BUNDLES_DIR.glob("*.json")):
         m = _FILENAME_RE.match(path.name)
@@ -167,16 +233,25 @@ def list_indicators() -> list[dict[str, str]]:
         if ver in seen[bid]:
             raise RuleBundleError(f"Duplicate version {ver} for {bid}")
         seen[bid].add(ver)
-        out.append(
-            {
-                "bundle_id": bid,
-                "version": ver,
-                "indicator": data["indicator"],
-                "score_type": data.get("score", {}).get("type", ""),
-                "path": str(path),
-                "content_hash": content_hash(data),
-            }
-        )
+        score_type = str((data.get("score") or {}).get("type") or "")
+        plugin = get_plugin(score_type) if score_type else None
+        if installed_only and plugin is None:
+            continue
+        entry: dict[str, Any] = {
+            "bundle_id": bid,
+            "version": ver,
+            "indicator": data["indicator"],
+            "score_type": score_type,
+            "path": str(path),
+            "content_hash": content_hash(data),
+            "scorer_installed": plugin is not None,
+        }
+        if plugin is not None:
+            entry["plugin_id"] = plugin.plugin_id
+            entry["signal_kind"] = plugin.signal_kind
+            entry["runtime_impl"] = dict(plugin.runtime_impl)
+            entry["scorer"] = f"{plugin.scorer_module}.{plugin.scorer_attr}"
+        out.append(entry)
     out.sort(key=lambda r: (r["bundle_id"], parse_semver(r["version"])))
     return out
 
