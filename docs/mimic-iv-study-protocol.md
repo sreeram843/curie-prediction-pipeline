@@ -134,5 +134,5 @@ Tie-breakers: lower interruptive NNA → higher sensitivity → lexicographic `c
 - Claiming clinical validity from demo or Challenge alone  
 - Committing PhysioNet patient extracts to git  
 
-Next implementation: **CURIE-015** leakage-safe timeline harness — see
-[`mimic-timeline-harness.md`](./mimic-timeline-harness.md) (`make mimic-harness`).
+Next implementation after harness: **CURIE-016** ablation study — see
+[`mimic-ablation-study.md`](./mimic-ablation-study.md) (`make mimic-study`).

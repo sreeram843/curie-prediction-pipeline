@@ -1,0 +1,94 @@
+{
+  "name": "mimic_demo_schema_operating_point",
+  "schema_version": "1.0.0",
+  "study_version": "0.1.0",
+  "protocol_id": "mimic-iv-governance-study.v1",
+  "candidate_id": "full_p60_gate",
+  "selected_at": "2026-08-12T17:48:39.444537+00:00",
+  "source_splits": [
+    "development",
+    "calibration"
+  ],
+  "forbidden_selection_split": "test",
+  "goals": {
+    "primary": "governed_sensitivity >= naive_sensitivity - 0.10 OR governed_sensitivity >= 0.70",
+    "coprimary": "interruptive_reduction_ratio <= 0.25"
+  },
+  "calibration": {
+    "stays": 1,
+    "labeled_positive": 1,
+    "naive_sensitivity": 1.0,
+    "governed_sensitivity": 1.0,
+    "interruptive_sensitivity": 1.0,
+    "naive_alerts": 4,
+    "governed_alerts": 3,
+    "interruptive_alerts": 1,
+    "naive_interruptive_alerts": 3,
+    "interruptive_reduction_ratio": 0.3333333333333333,
+    "alerts_per_100_patient_days": 150.0,
+    "interruptive_per_100_patient_days": 50.0,
+    "episodes": 2,
+    "false_episodes_label_negative": 0,
+    "episode_per_100_patient_days": 100.0,
+    "interruptive_nna": 1.0,
+    "mean_in_window_lead_hours": 2.5,
+    "partial_completeness_stays": 1,
+    "patient_days": 2.0,
+    "meets_pe1": true,
+    "meets_pe2": false,
+    "detection_window": {
+      "before_hours": 12.0,
+      "after_hours": 6.0
+    },
+    "split_id": "calibration"
+  },
+  "knobs": {
+    "description": "shorter refractory",
+    "trajectory_persistence_minutes": 0,
+    "min_crossings": 1,
+    "baseline_enabled": false,
+    "baseline_delta_threshold": 2,
+    "baseline_lookback_hours": 24,
+    "refractory_minutes": 60,
+    "min_components_required": 1,
+    "naive_threshold": 2,
+    "page_gate_enabled": true,
+    "page_min_crossings": 2,
+    "page_trajectory_persistence_minutes": 30,
+    "page_min_score_delta": 1,
+    "page_min_positive_components": 1,
+    "use_episode_arbitration": true,
+    "reject_late_out_of_order": true,
+    "suppression_flags": [
+      "comfort_care",
+      "already_on_sepsis_protocol",
+      "already_on_aki_protocol"
+    ]
+  },
+  "candidates_scored": [
+    {
+      "candidate_id": "full_p90_gate",
+      "meets_pe1": true,
+      "interruptive_reduction_ratio": 0.3333333333333333,
+      "governed_sensitivity": 1.0
+    },
+    {
+      "candidate_id": "full_p60_gate",
+      "meets_pe1": true,
+      "interruptive_reduction_ratio": 0.3333333333333333,
+      "governed_sensitivity": 1.0
+    },
+    {
+      "candidate_id": "full_no_gate",
+      "meets_pe1": true,
+      "interruptive_reduction_ratio": 0.6666666666666666,
+      "governed_sensitivity": 1.0
+    },
+    {
+      "candidate_id": "strictish",
+      "meets_pe1": true,
+      "interruptive_reduction_ratio": 0.3333333333333333,
+      "governed_sensitivity": 1.0
+    }
+  ]
+}

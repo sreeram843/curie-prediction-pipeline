@@ -148,6 +148,92 @@
         }
       ],
       "conditions": []
+    },
+    {
+      "stay_id": "stay-demo-004",
+      "subject_id": "10004",
+      "hadm_id": "20004",
+      "split_id": "development",
+      "intime": "2014-02-01 08:00:00",
+      "outtime": "2014-02-03 08:00:00",
+      "labels": {
+        "sepsis3_onset": "2014-02-01T20:00:00",
+        "aki_kdigo_stage_ge_1": false
+      },
+      "labs": [
+        {
+          "itemid": 51265,
+          "code": "777-3",
+          "valuenum": 50,
+          "unit": "10*9/L",
+          "charttime": "2014-02-01 14:00:00",
+          "storetime": "2014-02-01 15:00:00",
+          "evidence_id": "lab/plt-dev"
+        },
+        {
+          "itemid": 50885,
+          "code": "1975-2",
+          "valuenum": 2.8,
+          "unit": "mg/dL",
+          "charttime": "2014-02-01 14:00:00",
+          "storetime": "2014-02-01 15:30:00",
+          "evidence_id": "lab/bili-dev"
+        }
+      ],
+      "charts": [
+        {
+          "itemid": 220052,
+          "code": "8478-0",
+          "valuenum": 55,
+          "unit": "mmHg",
+          "charttime": "2014-02-01 13:00:00",
+          "evidence_id": "chart/map-dev"
+        }
+      ],
+      "conditions": []
+    },
+    {
+      "stay_id": "stay-demo-005",
+      "subject_id": "10005",
+      "hadm_id": "20005",
+      "split_id": "test",
+      "intime": "2019-08-01 08:00:00",
+      "outtime": "2019-08-03 08:00:00",
+      "labels": {
+        "sepsis3_onset": "2019-08-01T18:00:00",
+        "aki_kdigo_stage_ge_1": true
+      },
+      "labs": [
+        {
+          "itemid": 51265,
+          "code": "777-3",
+          "valuenum": 40,
+          "unit": "10*9/L",
+          "charttime": "2019-08-01 12:00:00",
+          "storetime": "2019-08-01 13:00:00",
+          "evidence_id": "lab/plt-test"
+        },
+        {
+          "itemid": 50912,
+          "code": "2160-0",
+          "valuenum": 2.8,
+          "unit": "mg/dL",
+          "charttime": "2019-08-01 12:00:00",
+          "storetime": "2019-08-01 14:00:00",
+          "evidence_id": "lab/cr-test"
+        }
+      ],
+      "charts": [
+        {
+          "itemid": 220052,
+          "code": "8478-0",
+          "valuenum": 52,
+          "unit": "mmHg",
+          "charttime": "2019-08-01 11:00:00",
+          "evidence_id": "chart/map-test"
+        }
+      ],
+      "conditions": []
     }
   ]
 }

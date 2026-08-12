@@ -35,6 +35,8 @@ class GovernanceConfig:
     page_trajectory_persistence_minutes: int = 30
     page_min_score_delta: int = 1  # vs first crossing score in streak; 0 disables
     page_min_positive_components: int = 0  # 0 disables; uses alert["positive_components"]
+    # When False, late/out-of-order event_times are accepted (ablation: drop_late_event_buffer).
+    reject_late_out_of_order: bool = True
 
 
 @dataclass
@@ -130,11 +132,19 @@ def evaluate(alert: dict, state: PatientGovState, config: GovernanceConfig) -> D
     out["governance_path"] = "governed"
 
     # Explicit late-data policy: ignore out-of-order arrivals without mutating state.
-    if state.last_processed_event_time is not None and event_time < state.last_processed_event_time:
+    if (
+        config.reject_late_out_of_order
+        and state.last_processed_event_time is not None
+        and event_time < state.last_processed_event_time
+    ):
         out["suppressed"] = True
         out["suppression_reason"] = "late_out_of_order"
         return Decision(False, "late_out_of_order", "none", out)
-    state.last_processed_event_time = event_time
+    if (
+        state.last_processed_event_time is None
+        or event_time >= state.last_processed_event_time
+    ):
+        state.last_processed_event_time = event_time
 
     _apply_encounter_scope(state, alert.get("encounter_id"))
 

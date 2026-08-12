@@ -349,9 +349,12 @@ performance, and patient-level confidence intervals.
 
 **Acceptance criteria**
 
-- [ ] Thresholds are selected only on development/calibration data.
-- [ ] The locked temporal holdout is executed once for the primary result.
-- [ ] All tables can be regenerated from one versioned command or manifest.
+- [x] Thresholds are selected only on development/calibration data.
+- [x] The locked temporal holdout is executed once for the primary result.
+- [x] All tables can be regenerated from one versioned command or manifest.
+
+**Artifacts:** [`docs/mimic-ablation-study.md`](./mimic-ablation-study.md),
+`make mimic-study` / `python -m eval.mimic_study.study run`.
 
 ---
 
