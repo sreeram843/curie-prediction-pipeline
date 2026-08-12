@@ -12,3 +12,9 @@ def test_alert_reduction_on_t2_library() -> None:
     assert by_id["t2-noisy-flicker"]["governed_alert_count"] == 0
     # Sustained deterioration should still surface at least one governed alert
     assert by_id["t2-abrupt-deterioration"]["governed_alert_count"] >= 1
+    # Comfort care must never interrupt even when naive fires
+    assert by_id["t2-comfort-care-suppressed"]["naive_alert_count"] >= 1
+    assert by_id["t2-comfort-care-suppressed"]["governed_alert_count"] == 0
+    # Vent / urine edge paths still get through governance when sustained
+    assert by_id["t2-vent-resp-sustained"]["governed_alert_count"] >= 1
+    assert by_id["t2-urine-renal-edge"]["governed_alert_count"] >= 1

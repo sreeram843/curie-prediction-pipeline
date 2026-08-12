@@ -109,8 +109,56 @@ class SofaScorerTest {
     coag.platelets10e9L = 10.0;
     inputs.add(coag);
     ScoreResult r =
-        SofaScorer.compute("Patient/t0-insuff", null, 0L, inputs, "sepsis-sofa", "0.1.0", 3);
+        SofaScorer.compute("Patient/t0-insuff", null, 0L, inputs, "sepsis-sofa", "0.2.0", 3);
     assertEquals(Completeness.INSUFFICIENT_DATA, r.completeness);
     assertNull(r.totalScore);
+  }
+
+  @Test
+  void vasopressorLadder() {
+    ComponentInput low = new ComponentInput(Component.CARDIOVASCULAR);
+    low.vasopressorAgent = "dobutamine";
+    assertEquals(2, SofaScorer.scoreCardiovascular(low));
+
+    ComponentInput mid = new ComponentInput(Component.CARDIOVASCULAR);
+    mid.vasopressorAgent = "norepinephrine";
+    mid.vasopressorDoseUgKgMin = 0.05;
+    assertEquals(3, SofaScorer.scoreCardiovascular(mid));
+
+    ComponentInput high = new ComponentInput(Component.CARDIOVASCULAR);
+    high.vasopressorAgent = "norepinephrine";
+    high.vasopressorDoseUgKgMin = 0.2;
+    assertEquals(4, SofaScorer.scoreCardiovascular(high));
+
+    ComponentInput unknown = new ComponentInput(Component.CARDIOVASCULAR);
+    unknown.onVasopressors = true;
+    assertEquals(3, SofaScorer.scoreCardiovascular(unknown));
+  }
+
+  @Test
+  void respirationRequiresVentForHighPoints() {
+    ComponentInput noVent = new ComponentInput(Component.RESPIRATION);
+    noVent.pao2Fio2 = 80.0;
+    noVent.mechanicallyVentilated = false;
+    assertEquals(2, SofaScorer.scoreRespiration(noVent));
+
+    ComponentInput vent = new ComponentInput(Component.RESPIRATION);
+    vent.pao2Fio2 = 80.0;
+    vent.mechanicallyVentilated = true;
+    assertEquals(4, SofaScorer.scoreRespiration(vent));
+  }
+
+  @Test
+  void spo2WithoutFio2DoesNotAssumeAmbientAir() {
+    ComponentInput alone = new ComponentInput(Component.RESPIRATION);
+    alone.spo2Percent = 98.0;
+    assertNull(SofaScorer.effectiveRatio(alone));
+    assertNull(SofaScorer.scoreRespiration(alone));
+
+    ComponentInput withFio2 = new ComponentInput(Component.RESPIRATION);
+    withFio2.spo2Percent = 98.0;
+    withFio2.fio2Fraction = 0.4;
+    assertEquals(245.0, SofaScorer.effectiveRatio(withFio2));
+    assertEquals(2, SofaScorer.scoreRespiration(withFio2));
   }
 }

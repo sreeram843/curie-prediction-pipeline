@@ -158,3 +158,110 @@ def test_insufficient_data_when_too_few_components() -> None:
 )
 def test_tier_bands(score: int | None, tier: AcuityTier) -> None:
     assert tier_for_score(score) == tier
+
+
+def test_respiration_vent_gates_high_points() -> None:
+    """Points 3–4 require mechanical ventilation (Vincent SOFA)."""
+    no_vent = SofaComponentInput(
+        name=SofaComponentName.RESPIRATION,
+        pao2_fio2=80,
+        mechanically_ventilated=False,
+        evidence_ids=["Observation/pf-1"],
+    )
+    with_vent = no_vent.model_copy(update={"mechanically_ventilated": True})
+    from eval.sofa.scoring import score_respiration
+
+    assert score_respiration(no_vent) == 2
+    assert score_respiration(with_vent) == 4
+
+
+def test_spo2_fio2_proxy_used_when_pao2_absent() -> None:
+    from eval.sofa.scoring import score_respiration
+
+    inp = SofaComponentInput(
+        name=SofaComponentName.RESPIRATION,
+        spo2_fio2=250,
+        mechanically_ventilated=False,
+    )
+    assert score_respiration(inp) == 2
+
+
+def test_spo2_alone_does_not_assume_ambient_fio2() -> None:
+    from eval.sofa.scoring import effective_resp_ratio, score_respiration
+
+    alone = SofaComponentInput(name=SofaComponentName.RESPIRATION, spo2_percent=98)
+    assert effective_resp_ratio(alone) is None
+    assert score_respiration(alone) is None
+
+    with_fio2 = SofaComponentInput(
+        name=SofaComponentName.RESPIRATION, spo2_percent=98, fio2_fraction=0.4
+    )
+    assert effective_resp_ratio(with_fio2) == 245.0
+    assert score_respiration(with_fio2) == 2
+
+
+def test_cardiovascular_vasopressor_ladder() -> None:
+    from eval.sofa.scoring import score_cardiovascular
+
+    assert (
+        score_cardiovascular(
+            SofaComponentInput(
+                name=SofaComponentName.CARDIOVASCULAR,
+                vasopressor_agent="dobutamine",
+                vasopressor_dose_ug_kg_min=5.0,
+            )
+        )
+        == 2
+    )
+    assert (
+        score_cardiovascular(
+            SofaComponentInput(
+                name=SofaComponentName.CARDIOVASCULAR,
+                vasopressor_agent="norepinephrine",
+                vasopressor_dose_ug_kg_min=0.05,
+            )
+        )
+        == 3
+    )
+    assert (
+        score_cardiovascular(
+            SofaComponentInput(
+                name=SofaComponentName.CARDIOVASCULAR,
+                vasopressor_agent="norepinephrine",
+                vasopressor_dose_ug_kg_min=0.2,
+            )
+        )
+        == 4
+    )
+    assert (
+        score_cardiovascular(
+            SofaComponentInput(
+                name=SofaComponentName.CARDIOVASCULAR,
+                on_vasopressors=True,
+            )
+        )
+        == 3
+    )
+
+
+def test_renal_urine_output_only() -> None:
+    from eval.sofa.scoring import score_renal
+
+    assert (
+        score_renal(
+            SofaComponentInput(
+                name=SofaComponentName.RENAL,
+                urine_output_ml_day=150,
+            )
+        )
+        == 4
+    )
+    assert (
+        score_renal(
+            SofaComponentInput(
+                name=SofaComponentName.RENAL,
+                urine_output_ml_day=400,
+            )
+        )
+        == 3
+    )

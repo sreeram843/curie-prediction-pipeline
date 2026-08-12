@@ -25,6 +25,10 @@ class AkiEvent:
     baseline_creatinine_mg_dl: float | None
     evidence_id: str
     baseline_evidence_id: str | None = None
+    urine_ml_kg_h: float | None = None
+    urine_duration_hours: float | None = None
+    anuria: bool | None = None
+    urine_evidence_id: str | None = None
 
 
 @dataclass
@@ -34,6 +38,7 @@ class AkiScenario:
     description: str
     expected_label: str
     events: list[AkiEvent]
+    context_flags: list[str] | None = None
 
 
 def built_in_aki_scenarios() -> list[AkiScenario]:
@@ -71,14 +76,84 @@ def built_in_aki_scenarios() -> list[AkiScenario]:
                 AkiEvent(12, 1.05, 1.0, "Observation/cr-b2", "Observation/cr-base"),
             ],
         ),
+        AkiScenario(
+            scenario_id="t2-aki-absolute-no-baseline",
+            patient_id="Patient/aki-abs-001",
+            description="Cr ≥ 4.0 without baseline — absolute stage-3 escape hatch",
+            expected_label="positive",
+            events=[
+                AkiEvent(0, 4.1, None, "Observation/cr-abs0"),
+                AkiEvent(20, 4.3, None, "Observation/cr-abs1"),
+                AkiEvent(40, 4.5, None, "Observation/cr-abs2"),
+            ],
+        ),
+        AkiScenario(
+            scenario_id="t2-aki-uo-oliguria",
+            patient_id="Patient/aki-uo-001",
+            description="Oliguria path without large Cr rise",
+            expected_label="positive",
+            events=[
+                AkiEvent(
+                    0,
+                    1.0,
+                    1.0,
+                    "Observation/cr-uo0",
+                    "Observation/cr-base",
+                    urine_ml_kg_h=0.6,
+                    urine_duration_hours=4,
+                    urine_evidence_id="Observation/uo0",
+                ),
+                AkiEvent(
+                    20,
+                    1.05,
+                    1.0,
+                    "Observation/cr-uo1",
+                    "Observation/cr-base",
+                    urine_ml_kg_h=0.4,
+                    urine_duration_hours=8,
+                    urine_evidence_id="Observation/uo1",
+                ),
+                AkiEvent(
+                    40,
+                    1.1,
+                    1.0,
+                    "Observation/cr-uo2",
+                    "Observation/cr-base",
+                    urine_ml_kg_h=0.35,
+                    urine_duration_hours=14,
+                    urine_evidence_id="Observation/uo2",
+                ),
+                AkiEvent(
+                    55,
+                    1.1,
+                    1.0,
+                    "Observation/cr-uo3",
+                    "Observation/cr-base",
+                    urine_ml_kg_h=0.3,
+                    urine_duration_hours=16,
+                    urine_evidence_id="Observation/uo3",
+                ),
+            ],
+        ),
+        AkiScenario(
+            scenario_id="t2-aki-delta-borderline",
+            patient_id="Patient/aki-delta-001",
+            description="Sustained exactly ΔCr 0.3 stage-1 edge",
+            expected_label="positive",
+            events=[
+                AkiEvent(0, 1.0, 1.0, "Observation/cr-d0", "Observation/cr-base"),
+                AkiEvent(15, 1.3, 1.0, "Observation/cr-d1", "Observation/cr-base"),
+                AkiEvent(35, 1.35, 1.0, "Observation/cr-d2", "Observation/cr-base"),
+                AkiEvent(50, 1.4, 1.0, "Observation/cr-d3", "Observation/cr-base"),
+            ],
+        ),
     ]
-
 
 def replay_aki_scenario(
     scenario: AkiScenario, config: GovernanceConfig | None = None
 ) -> dict:
+    bundle = load_rule_bundle("aki-kdigo")
     if config is None:
-        bundle = load_rule_bundle("aki-kdigo")
         knobs = governance_config_from_bundle(bundle)
         # For reduction demo vs naive threshold, disable patient baseline gate
         # (trajectory/dedup still apply — the platform differentiator).
@@ -96,7 +171,7 @@ def replay_aki_scenario(
     naive_alerts: list[dict] = []
     governed_alerts: list[dict] = []
     gov_state = PatientGovState()
-    threshold = int(load_rule_bundle("aki-kdigo")["alert"]["naive_threshold"])
+    threshold = int(bundle["alert"]["naive_threshold"])
 
     for event in scenario.events:
         event_time = start + timedelta(minutes=event.offset_minutes)
@@ -106,11 +181,19 @@ def replay_aki_scenario(
             inputs=AkiInput(
                 creatinine_mg_dl=event.creatinine_mg_dl,
                 baseline_creatinine_mg_dl=event.baseline_creatinine_mg_dl,
+                urine_ml_kg_h=event.urine_ml_kg_h,
+                urine_duration_hours=event.urine_duration_hours,
+                anuria=event.anuria,
                 evidence_ids=[event.evidence_id],
                 baseline_evidence_ids=(
                     [event.baseline_evidence_id] if event.baseline_evidence_id else []
                 ),
+                urine_evidence_ids=(
+                    [event.urine_evidence_id] if event.urine_evidence_id else []
+                ),
             ),
+            rule_bundle_id=bundle["bundle_id"],
+            rule_version=bundle["version"],
         )
         tier = tier_for_aki_score(result.total_score, naive_threshold=threshold)
         if result.total_score is None or tier == AcuityTier.NONE:
@@ -125,6 +208,7 @@ def replay_aki_scenario(
             "completeness": result.completeness.value,
             "evidence_ids": result.evidence_ids,
             "governance_path": "naive",
+            "context_flags": list(scenario.context_flags or []),
             "rule_bundle_id": result.rule_bundle_id,
             "rule_version": result.rule_version,
         }

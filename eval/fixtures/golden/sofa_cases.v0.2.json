@@ -1,0 +1,143 @@
+{
+  "schema_version": "1.0.0",
+  "rule_bundle_id": "sepsis-sofa",
+  "rule_version": "0.2.0",
+  "description": "Canonical golden cases — Python and Java scorers must match.",
+  "cases": [
+    {
+      "id": "complete-zero",
+      "inputs": {
+        "respiration": { "pao2_fio2": 450 },
+        "coagulation": { "platelets_10e9_l": 200 },
+        "liver": { "bilirubin_mg_dl": 0.8 },
+        "cardiovascular": { "map_mmhg": 80 },
+        "cns": { "gcs": 15 },
+        "renal": { "creatinine_mg_dl": 0.9 }
+      },
+      "expect": {
+        "total_score": 0,
+        "completeness": "complete",
+        "tier": "none",
+        "missing": []
+      }
+    },
+    {
+      "id": "elevated-coag-liver-renal",
+      "inputs": {
+        "respiration": { "pao2_fio2": 450 },
+        "coagulation": { "platelets_10e9_l": 40 },
+        "liver": { "bilirubin_mg_dl": 2.5 },
+        "cardiovascular": { "map_mmhg": 80 },
+        "cns": { "gcs": 15 },
+        "renal": { "creatinine_mg_dl": 2.1 }
+      },
+      "expect": {
+        "total_score": 7,
+        "completeness": "complete",
+        "tier": "critical",
+        "missing": []
+      }
+    },
+    {
+      "id": "partial-three-components",
+      "inputs": {
+        "coagulation": { "platelets_10e9_l": 40 },
+        "liver": { "bilirubin_mg_dl": 2.5 },
+        "renal": { "creatinine_mg_dl": 2.1 }
+      },
+      "expect": {
+        "total_score": 7,
+        "completeness": "partial",
+        "tier": "critical",
+        "missing": ["respiration", "cardiovascular", "cns"]
+      }
+    },
+    {
+      "id": "insufficient-one-component",
+      "inputs": {
+        "coagulation": { "platelets_10e9_l": 10 }
+      },
+      "expect": {
+        "total_score": null,
+        "completeness": "insufficient_data",
+        "tier": "none",
+        "missing": ["respiration", "liver", "cardiovascular", "cns", "renal"]
+      }
+    },
+    {
+      "id": "vent-gated-resp-4",
+      "inputs": {
+        "respiration": { "pao2_fio2": 80, "mechanically_ventilated": true },
+        "coagulation": { "platelets_10e9_l": 200 },
+        "liver": { "bilirubin_mg_dl": 0.8 },
+        "cardiovascular": { "map_mmhg": 80 },
+        "cns": { "gcs": 15 },
+        "renal": { "creatinine_mg_dl": 0.9 }
+      },
+      "expect": {
+        "total_score": 4,
+        "completeness": "complete",
+        "tier": "urgent",
+        "missing": [],
+        "component_points": { "respiration": 4 }
+      }
+    },
+    {
+      "id": "no-vent-resp-capped-2",
+      "inputs": {
+        "respiration": { "pao2_fio2": 80, "mechanically_ventilated": false },
+        "coagulation": { "platelets_10e9_l": 200 },
+        "liver": { "bilirubin_mg_dl": 0.8 },
+        "cardiovascular": { "map_mmhg": 80 },
+        "cns": { "gcs": 15 },
+        "renal": { "creatinine_mg_dl": 0.9 }
+      },
+      "expect": {
+        "total_score": 2,
+        "completeness": "complete",
+        "tier": "watch",
+        "missing": [],
+        "component_points": { "respiration": 2 }
+      }
+    },
+    {
+      "id": "pressor-norepi-high",
+      "inputs": {
+        "respiration": { "pao2_fio2": 450 },
+        "coagulation": { "platelets_10e9_l": 200 },
+        "liver": { "bilirubin_mg_dl": 0.8 },
+        "cardiovascular": {
+          "vasopressor_agent": "norepinephrine",
+          "vasopressor_dose_ug_kg_min": 0.2
+        },
+        "cns": { "gcs": 15 },
+        "renal": { "creatinine_mg_dl": 0.9 }
+      },
+      "expect": {
+        "total_score": 4,
+        "completeness": "complete",
+        "tier": "urgent",
+        "missing": [],
+        "component_points": { "cardiovascular": 4 }
+      }
+    },
+    {
+      "id": "urine-only-renal-4",
+      "inputs": {
+        "respiration": { "pao2_fio2": 450 },
+        "coagulation": { "platelets_10e9_l": 200 },
+        "liver": { "bilirubin_mg_dl": 0.8 },
+        "cardiovascular": { "map_mmhg": 80 },
+        "cns": { "gcs": 15 },
+        "renal": { "urine_output_ml_day": 150 }
+      },
+      "expect": {
+        "total_score": 4,
+        "completeness": "complete",
+        "tier": "urgent",
+        "missing": [],
+        "component_points": { "renal": 4 }
+      }
+    }
+  ]
+}

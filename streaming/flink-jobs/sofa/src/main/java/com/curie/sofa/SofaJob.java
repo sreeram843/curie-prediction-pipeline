@@ -2,6 +2,7 @@ package com.curie.sofa;
 
 import com.curie.sofa.model.AlertEvent;
 import com.curie.sofa.model.CanonicalEvent;
+import com.curie.sofa.model.DlqEvent;
 import com.curie.sofa.model.RuleBundle;
 import com.curie.sofa.operators.SofaAlertFunction;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -21,6 +22,7 @@ import org.apache.flink.connector.kafka.source.KafkaSource;
 import org.apache.flink.connector.kafka.source.enumerator.initializer.OffsetsInitializer;
 import org.apache.flink.streaming.api.datastream.BroadcastStream;
 import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
 /**
@@ -70,7 +72,11 @@ public final class SofaJob {
                 clinicalSource,
                 WatermarkStrategy.<CanonicalEvent>forBoundedOutOfOrderness(Duration.ofMinutes(5))
                     .withTimestampAssigner(
-                        (e, ts) -> SofaAlertFunction.parseTimeMs(e != null ? e.event_time : null)),
+                        (e, ts) -> {
+                          Long ms =
+                              SofaAlertFunction.tryParseTimeMs(e != null ? e.event_time : null);
+                          return ms != null ? ms : 0L;
+                        }),
                 "clinical-events")
             .filter(e -> e != null && e.patient_id != null);
 
@@ -82,16 +88,19 @@ public final class SofaJob {
             .filter(r -> r != null && r.bundle_id != null)
             .broadcast(SofaAlertFunction.RULE_STATE_DESC);
 
-    DataStream<AlertEvent> naiveAlerts =
+    SingleOutputStreamOperator<AlertEvent> naiveAlerts =
         clinical
             .keyBy(e -> e.patient_id)
             .connect(rulesBroadcast)
             .process(new SofaAlertFunction())
             .name("sofa-score-alert");
 
+    DataStream<DlqEvent> dlq = naiveAlerts.getSideOutput(SofaAlertFunction.DLQ_TAG);
+
     DataStream<AlertEvent> alerts =
         naiveAlerts
             .keyBy(a -> a.patient_id)
+            .connect(rulesBroadcast)
             .process(new com.curie.sofa.operators.GovernanceFilterFunction())
             .name("alert-governance");
 
@@ -116,7 +125,26 @@ public final class SofaJob {
             .setKafkaProducerConfig(sinkProps)
             .build();
 
+    KafkaSink<DlqEvent> dlqSink =
+        KafkaSink.<DlqEvent>builder()
+            .setBootstrapServers(bootstrap)
+            .setRecordSerializer(
+                KafkaRecordSerializationSchema.builder()
+                    .setTopic("dlq")
+                    .setKeySerializationSchema(
+                        (SerializationSchema<DlqEvent>)
+                            (DlqEvent d) ->
+                                d.patient_id == null
+                                    ? null
+                                    : d.patient_id.getBytes(StandardCharsets.UTF_8))
+                    .setValueSerializationSchema(jsonSerializer(DlqEvent.class))
+                    .build())
+            .setDeliveryGuarantee(DeliveryGuarantee.AT_LEAST_ONCE)
+            .setKafkaProducerConfig(sinkProps)
+            .build();
+
     alerts.sinkTo(alertSink).name("alerts-sink");
+    dlq.sinkTo(dlqSink).name("dlq-sink");
     env.execute("curie-sofa-alert-job");
   }
 
@@ -144,6 +172,17 @@ public final class SofaJob {
         try {
           return MAPPER.readValue(message, type);
         } catch (Exception e) {
+          if (type == CanonicalEvent.class) {
+            CanonicalEvent bad = new CanonicalEvent();
+            bad.patient_id = "__malformed__";
+            bad.resource_type = "ParseError";
+            bad.parse_error = e.getClass().getSimpleName() + ": " + e.getMessage();
+            bad.idempotency_key =
+                "parse-" + java.util.UUID.nameUUIDFromBytes(message).toString();
+            @SuppressWarnings("unchecked")
+            T cast = (T) bad;
+            return cast;
+          }
           return null;
         }
       }

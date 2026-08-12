@@ -15,6 +15,8 @@ A streaming platform that ingests FHIR clinical data, computes deterioration ris
 
 **Explicit non-goal for v1:** not a cleared or clinically-validated medical device. No real patients / PHI.
 
+Clinical validation tests required before any validity claim: [`clinical-validation.md`](./clinical-validation.md).
+
 ## Stack (locked)
 
 - Kafka + Flink

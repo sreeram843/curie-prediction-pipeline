@@ -1,0 +1,65 @@
+{
+  "bundle_id": "aki-kdigo",
+  "version": "0.2.0",
+  "indicator": "aki",
+  "description": "KDIGO-inspired AKI staging with creatinine + urine-output criteria (prototype — not clinically validated). Reuses shared governance.",
+  "citations": [
+    "Kidney Disease: Improving Global Outcomes (KDIGO) Acute Kidney Injury Work Group. KDIGO Clinical Practice Guideline for Acute Kidney Injury. Kidney Int Suppl. 2012."
+  ],
+  "score": {
+    "type": "aki_kdigo",
+    "inputs": [
+      "creatinine_mg_dl",
+      "baseline_creatinine_mg_dl",
+      "urine_ml_kg_h",
+      "urine_duration_hours"
+    ],
+    "missing_policy": "partial_with_missing_components",
+    "min_components_required": 1,
+    "creatinine_stages": [
+      { "stage": 0, "score": 0, "rule": "no_aki" },
+      { "stage": 1, "score": 2, "rule": "cr_ge_1_5x_baseline_or_delta_ge_0_3" },
+      { "stage": 2, "score": 4, "rule": "cr_ge_2_0x_baseline" },
+      { "stage": 3, "score": 6, "rule": "cr_ge_3_0x_baseline_or_cr_ge_4_0" }
+    ],
+    "urine_output_stages": [
+      { "stage": 1, "rule": "urine_ml_kg_h < 0.5 for duration_hours >= 6" },
+      { "stage": 2, "rule": "urine_ml_kg_h < 0.5 for duration_hours >= 12" },
+      { "stage": 3, "rule": "urine_ml_kg_h < 0.3 for duration_hours >= 24 OR anuria >= 12h" }
+    ],
+    "combine": "max(creatinine_stage, urine_stage)",
+    "timing_notes": {
+      "delta_cr_window": "KDIGO: within 48h (prototype treats baseline vs current as given)",
+      "ratio_window": "KDIGO: within 7 days (prototype treats baseline vs current as given)"
+    }
+  },
+  "alert": {
+    "naive_threshold": 2,
+    "severity_bands": [
+      { "min": 2, "max": 3, "tier": "watch" },
+      { "min": 4, "max": 5, "tier": "urgent" },
+      { "min": 6, "max": 24, "tier": "critical" }
+    ]
+  },
+  "governance": {
+    "trajectory": {
+      "min_persistence_minutes": 30,
+      "min_crossings": 2
+    },
+    "baseline": {
+      "enabled": true,
+      "lookback_hours": 48,
+      "delta_threshold": 2
+    },
+    "suppression": {
+      "flags": ["comfort_care", "already_on_aki_protocol", "esrd_on_dialysis"]
+    },
+    "dedup": {
+      "refractory_minutes": 180
+    },
+    "tiering": {
+      "interruptive_tiers": ["urgent", "critical"],
+      "passive_tiers": ["watch"]
+    }
+  }
+}

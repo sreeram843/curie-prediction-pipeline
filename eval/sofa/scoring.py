@@ -8,6 +8,8 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, model_validator
 
+from eval.sofa.thresholds import SofaThresholds
+
 
 class SofaComponentName(StrEnum):
     RESPIRATION = "respiration"
@@ -38,9 +40,12 @@ class SofaComponentInput(BaseModel):
     """Raw clinical values available for one SOFA component at score time."""
 
     name: SofaComponentName
-    # Respiration
+    # Respiration — prefer explicit ratios; else raw SpO2/PaO2 only with FiO2 (no ambient proxy)
     pao2_fio2: float | None = None
     spo2_fio2: float | None = None
+    spo2_percent: float | None = None
+    pao2_mmhg: float | None = None
+    fio2_fraction: float | None = None
     mechanically_ventilated: bool | None = None
     # Coagulation
     platelets_10e9_l: float | None = None
@@ -49,6 +54,11 @@ class SofaComponentInput(BaseModel):
     # Cardiovascular
     map_mmhg: float | None = None
     on_vasopressors: bool | None = None
+    # Vincent SOFA pressor ladder (ug/kg/min). Agent optional when only boolean known.
+    vasopressor_agent: (
+        Literal["dopamine", "dobutamine", "epinephrine", "norepinephrine", "other"] | None
+    ) = None
+    vasopressor_dose_ug_kg_min: float | None = None
     # CNS
     gcs: int | None = Field(default=None, ge=3, le=15)
     # Renal
@@ -109,102 +119,142 @@ class AlertEvent(BaseModel):
     suppression_reason: str | None = None
 
 
-def score_respiration(inp: SofaComponentInput) -> int | None:
-    ratio = inp.pao2_fio2 if inp.pao2_fio2 is not None else inp.spo2_fio2
+def effective_resp_ratio(inp: SofaComponentInput) -> float | None:
+    """Prefer explicit ratios; else PaO2/FiO2 or SpO2/FiO2 when FiO2 known. Never assumes 0.21."""
+    if inp.pao2_fio2 is not None:
+        return inp.pao2_fio2
+    if inp.spo2_fio2 is not None:
+        return inp.spo2_fio2
+    if inp.fio2_fraction is None or inp.fio2_fraction <= 0:
+        return None
+    if inp.pao2_mmhg is not None:
+        return inp.pao2_mmhg / inp.fio2_fraction
+    if inp.spo2_percent is not None:
+        return inp.spo2_percent / inp.fio2_fraction
+    return None
+
+
+def score_respiration(
+    inp: SofaComponentInput, thresholds: SofaThresholds | None = None
+) -> int | None:
+    th = thresholds or SofaThresholds.defaults()
+    ratio = effective_resp_ratio(inp)
     if ratio is None:
         return None
     vent = bool(inp.mechanically_ventilated)
-    if ratio < 100 and vent:
+    if ratio < th.resp_p4_lt and vent:
         return 4
-    if ratio < 200 and vent:
+    if ratio < th.resp_p3_lt and vent:
         return 3
-    if ratio < 300:
+    if ratio < th.resp_p2_lt:
         return 2
-    if ratio < 400:
+    if ratio < th.resp_p1_lt:
         return 1
     return 0
 
 
-def score_coagulation(inp: SofaComponentInput) -> int | None:
+def score_coagulation(
+    inp: SofaComponentInput, thresholds: SofaThresholds | None = None
+) -> int | None:
+    th = thresholds or SofaThresholds.defaults()
     p = inp.platelets_10e9_l
     if p is None:
         return None
-    if p < 20:
-        return 4
-    if p < 50:
-        return 3
-    if p < 100:
-        return 2
-    if p < 150:
-        return 1
+    for band in th.coag:
+        if band.max_exclusive is not None and p < band.max_exclusive:
+            return band.points
+        if band.min_inclusive is not None and p >= band.min_inclusive:
+            return band.points
     return 0
 
 
-def score_liver(inp: SofaComponentInput) -> int | None:
+def score_liver(inp: SofaComponentInput, thresholds: SofaThresholds | None = None) -> int | None:
+    th = thresholds or SofaThresholds.defaults()
     b = inp.bilirubin_mg_dl
     if b is None:
         return None
-    if b >= 12.0:
-        return 4
-    if b >= 6.0:
-        return 3
-    if b >= 2.0:
-        return 2
-    if b >= 1.2:
-        return 1
+    for band in th.liver:
+        if band.min_inclusive is not None and b >= band.min_inclusive:
+            return band.points
+        if band.max_exclusive is not None and b < band.max_exclusive:
+            return band.points
     return 0
 
 
-def score_cardiovascular(inp: SofaComponentInput) -> int | None:
-    if inp.on_vasopressors is True:
-        # Prototype simplification: any vasopressor → at least 3 (full dose ladder later)
-        return 3
+def score_cardiovascular(
+    inp: SofaComponentInput, thresholds: SofaThresholds | None = None
+) -> int | None:
+    th = thresholds or SofaThresholds.defaults()
+    pressor = _vasopressor_points(inp, th)
+    if pressor is not None:
+        return pressor
     if inp.map_mmhg is None and inp.on_vasopressors is None:
         return None
-    if inp.map_mmhg is not None and inp.map_mmhg < 70:
-        return 1
+    if inp.map_mmhg is not None and inp.map_mmhg < th.map_lt:
+        return th.map_points
     if inp.map_mmhg is not None:
         return 0
     return None
 
 
-def score_cns(inp: SofaComponentInput) -> int | None:
+def _vasopressor_points(inp: SofaComponentInput, th: SofaThresholds) -> int | None:
+    agent = (inp.vasopressor_agent or "").lower() or None
+    dose = inp.vasopressor_dose_ug_kg_min
+    if agent == "dobutamine":
+        return 2
+    if agent == "dopamine" and dose is not None:
+        if dose > th.dopamine_p3_max:
+            return 4
+        if dose > th.dopamine_p2_max:
+            return 3
+        return 2
+    if agent in {"epinephrine", "norepinephrine"} and dose is not None:
+        if dose > th.epi_norepi_p3_max:
+            return 4
+        return 3
+    if agent == "other" and dose is not None:
+        return 3 if dose <= th.epi_norepi_p3_max else 4
+    if inp.on_vasopressors is True or agent is not None:
+        return th.unknown_pressor_points
+    return None
+
+
+def score_cns(inp: SofaComponentInput, thresholds: SofaThresholds | None = None) -> int | None:
+    th = thresholds or SofaThresholds.defaults()
     g = inp.gcs
     if g is None:
         return None
-    if g < 6:
-        return 4
-    if g <= 9:
-        return 3
-    if g <= 12:
-        return 2
-    if g <= 14:
-        return 1
+    for band in th.cns:
+        if band.gcs_lt is not None and g < band.gcs_lt:
+            return band.points
+        if band.gcs_le is not None and g <= band.gcs_le:
+            return band.points
+        if band.gcs_eq is not None and g == band.gcs_eq:
+            return band.points
     return 0
 
 
-def score_renal(inp: SofaComponentInput) -> int | None:
-    c = inp.creatinine_mg_dl
-    u = inp.urine_output_ml_day
+def score_renal(inp: SofaComponentInput, thresholds: SofaThresholds | None = None) -> int | None:
+    th = thresholds or SofaThresholds.defaults()
     points: list[int] = []
+    c = inp.creatinine_mg_dl
     if c is not None:
-        if c >= 5.0:
-            points.append(4)
-        elif c >= 3.5:
-            points.append(3)
-        elif c >= 2.0:
-            points.append(2)
-        elif c >= 1.2:
-            points.append(1)
-        else:
-            points.append(0)
+        for band in th.renal_cr:
+            if band.min_inclusive is not None and c >= band.min_inclusive:
+                points.append(band.points)
+                break
+            if band.max_exclusive is not None and c < band.max_exclusive:
+                points.append(band.points)
+                break
+    u = inp.urine_output_ml_day
     if u is not None:
-        if u < 200:
-            points.append(4)
-        elif u < 500:
-            points.append(3)
-        else:
-            points.append(0)
+        for band in th.renal_uo:
+            if band.max_exclusive is not None and u < band.max_exclusive:
+                points.append(band.points)
+                break
+            if band.min_inclusive is not None and u >= band.min_inclusive:
+                points.append(band.points)
+                break
     if not points:
         return None
     return max(points)
@@ -229,14 +279,22 @@ def compute_sofa_score(
     rule_version: str,
     encounter_id: str | None = None,
     min_components_required: int = 3,
+    thresholds: SofaThresholds | None = None,
+    rule_bundle: dict | None = None,
 ) -> SofaScoreResult:
+    th = thresholds
+    if th is None and rule_bundle is not None:
+        th = SofaThresholds.from_bundle(rule_bundle)
+    if th is None:
+        th = SofaThresholds.defaults()
+
     by_name = {i.name: i for i in inputs}
     components: list[SofaComponentScore] = []
     evidence: list[str] = []
 
     for name in SOFA_COMPONENTS:
         inp = by_name.get(name) or SofaComponentInput(name=name)
-        points = _SCORERS[name](inp)
+        points = _SCORERS[name](inp, th)
         missing = points is None
         components.append(
             SofaComponentScore(
@@ -284,8 +342,21 @@ def compute_sofa_score(
     )
 
 
-def tier_for_score(score: int | None, *, naive_threshold: int = 2) -> AcuityTier:
+def tier_for_score(
+    score: int | None,
+    *,
+    naive_threshold: int = 2,
+    severity_bands: list[dict] | None = None,
+) -> AcuityTier:
     if score is None or score < naive_threshold:
+        return AcuityTier.NONE
+    if severity_bands:
+        for band in severity_bands:
+            if int(band["min"]) <= score <= int(band["max"]):
+                return AcuityTier(str(band["tier"]))
+        last = severity_bands[-1]
+        if score > int(last["max"]):
+            return AcuityTier(str(last["tier"]))
         return AcuityTier.NONE
     if score >= 7:
         return AcuityTier.CRITICAL

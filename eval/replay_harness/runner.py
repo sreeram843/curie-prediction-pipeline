@@ -4,15 +4,17 @@ from __future__ import annotations
 
 import argparse
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
+from eval.indicators.registry import load_rule_bundle
 from eval.replay_harness.governance import (
     GovernanceConfig,
     PatientGovState,
     alert_reduction_ratio,
     evaluate,
+    note_below_threshold,
 )
 from eval.sofa.scoring import (
     AcuityTier,
@@ -22,7 +24,7 @@ from eval.sofa.scoring import (
     tier_for_score,
 )
 
-SCENARIO_DIR = Path(__file__).resolve().parents[1] / "scenario_library"
+SCENARIO_DIR = Path(__file__).resolve().parents[1] / "scenario-library"
 
 
 @dataclass
@@ -37,7 +39,8 @@ class Scenario:
     patient_id: str
     description: str
     events: list[ScenarioEvent]
-    expected_label: str  # positive | negative | borderline
+    expected_label: str  # positive | negative | borderline | suppressed
+    context_flags: list[str] = field(default_factory=list)
 
 
 def _inp(name: SofaComponentName, **kwargs: object) -> SofaComponentInput:
@@ -246,16 +249,281 @@ def built_in_scenarios() -> list[Scenario]:
                 ),
             ],
         ),
+        Scenario(
+            scenario_id="t2-vent-resp-sustained",
+            patient_id="Patient/t2-resp-001",
+            description="Ventilated hypoxemia sustained — respiration points 3–4 path",
+            expected_label="positive",
+            events=[
+                ScenarioEvent(
+                    0,
+                    [
+                        _inp(
+                            SofaComponentName.RESPIRATION,
+                            pao2_fio2=350,
+                            mechanically_ventilated=True,
+                            evidence_ids=base_evidence("pf-r0"),
+                        ),
+                        _inp(
+                            SofaComponentName.COAGULATION,
+                            platelets_10e9_l=180,
+                            evidence_ids=base_evidence("plt-r0"),
+                        ),
+                        _inp(
+                            SofaComponentName.RENAL,
+                            creatinine_mg_dl=1.0,
+                            evidence_ids=base_evidence("cr-r0"),
+                        ),
+                    ],
+                ),
+                ScenarioEvent(
+                    20,
+                    [
+                        _inp(
+                            SofaComponentName.RESPIRATION,
+                            pao2_fio2=150,
+                            mechanically_ventilated=True,
+                            evidence_ids=base_evidence("pf-r1"),
+                        ),
+                        _inp(
+                            SofaComponentName.COAGULATION,
+                            platelets_10e9_l=90,
+                            evidence_ids=base_evidence("plt-r1"),
+                        ),
+                        _inp(
+                            SofaComponentName.RENAL,
+                            creatinine_mg_dl=1.5,
+                            evidence_ids=base_evidence("cr-r1"),
+                        ),
+                    ],
+                ),
+                ScenarioEvent(
+                    40,
+                    [
+                        _inp(
+                            SofaComponentName.RESPIRATION,
+                            pao2_fio2=90,
+                            mechanically_ventilated=True,
+                            evidence_ids=base_evidence("pf-r2"),
+                        ),
+                        _inp(
+                            SofaComponentName.COAGULATION,
+                            platelets_10e9_l=80,
+                            evidence_ids=base_evidence("plt-r2"),
+                        ),
+                        _inp(
+                            SofaComponentName.RENAL,
+                            creatinine_mg_dl=1.6,
+                            evidence_ids=base_evidence("cr-r2"),
+                        ),
+                    ],
+                ),
+                ScenarioEvent(
+                    55,
+                    [
+                        _inp(
+                            SofaComponentName.RESPIRATION,
+                            pao2_fio2=85,
+                            mechanically_ventilated=True,
+                            evidence_ids=base_evidence("pf-r3"),
+                        ),
+                        _inp(
+                            SofaComponentName.COAGULATION,
+                            platelets_10e9_l=75,
+                            evidence_ids=base_evidence("plt-r3"),
+                        ),
+                        _inp(
+                            SofaComponentName.RENAL,
+                            creatinine_mg_dl=1.7,
+                            evidence_ids=base_evidence("cr-r3"),
+                        ),
+                    ],
+                ),
+            ],
+        ),
+        Scenario(
+            scenario_id="t2-comfort-care-suppressed",
+            patient_id="Patient/t2-comfort-001",
+            description="Same deterioration pattern as positive, but comfort_care suppresses",
+            expected_label="suppressed",
+            context_flags=["comfort_care"],
+            events=[
+                ScenarioEvent(
+                    0,
+                    [
+                        _inp(
+                            SofaComponentName.COAGULATION,
+                            platelets_10e9_l=140,
+                            evidence_ids=base_evidence("plt-c0"),
+                        ),
+                        _inp(
+                            SofaComponentName.LIVER,
+                            bilirubin_mg_dl=1.0,
+                            evidence_ids=base_evidence("bili-c0"),
+                        ),
+                        _inp(
+                            SofaComponentName.RENAL,
+                            creatinine_mg_dl=1.0,
+                            evidence_ids=base_evidence("cr-c0"),
+                        ),
+                    ],
+                ),
+                ScenarioEvent(
+                    15,
+                    [
+                        _inp(
+                            SofaComponentName.COAGULATION,
+                            platelets_10e9_l=40,
+                            evidence_ids=base_evidence("plt-c1"),
+                        ),
+                        _inp(
+                            SofaComponentName.LIVER,
+                            bilirubin_mg_dl=2.5,
+                            evidence_ids=base_evidence("bili-c1"),
+                        ),
+                        _inp(
+                            SofaComponentName.RENAL,
+                            creatinine_mg_dl=2.1,
+                            evidence_ids=base_evidence("cr-c1"),
+                        ),
+                    ],
+                ),
+                ScenarioEvent(
+                    40,
+                    [
+                        _inp(
+                            SofaComponentName.COAGULATION,
+                            platelets_10e9_l=30,
+                            evidence_ids=base_evidence("plt-c2"),
+                        ),
+                        _inp(
+                            SofaComponentName.LIVER,
+                            bilirubin_mg_dl=2.8,
+                            evidence_ids=base_evidence("bili-c2"),
+                        ),
+                        _inp(
+                            SofaComponentName.RENAL,
+                            creatinine_mg_dl=2.4,
+                            evidence_ids=base_evidence("cr-c2"),
+                        ),
+                    ],
+                ),
+            ],
+        ),
+        Scenario(
+            scenario_id="t2-urine-renal-edge",
+            patient_id="Patient/t2-uo-001",
+            description="Oliguria-dominant renal SOFA with mild other organ involvement",
+            expected_label="positive",
+            events=[
+                ScenarioEvent(
+                    0,
+                    [
+                        _inp(
+                            SofaComponentName.RENAL,
+                            urine_output_ml_day=600,
+                            evidence_ids=base_evidence("uo-u0"),
+                        ),
+                        _inp(
+                            SofaComponentName.COAGULATION,
+                            platelets_10e9_l=160,
+                            evidence_ids=base_evidence("plt-u0"),
+                        ),
+                        _inp(
+                            SofaComponentName.LIVER,
+                            bilirubin_mg_dl=1.0,
+                            evidence_ids=base_evidence("bili-u0"),
+                        ),
+                    ],
+                ),
+                ScenarioEvent(
+                    20,
+                    [
+                        _inp(
+                            SofaComponentName.RENAL,
+                            urine_output_ml_day=350,
+                            evidence_ids=base_evidence("uo-u1"),
+                        ),
+                        _inp(
+                            SofaComponentName.COAGULATION,
+                            platelets_10e9_l=95,
+                            evidence_ids=base_evidence("plt-u1"),
+                        ),
+                        _inp(
+                            SofaComponentName.LIVER,
+                            bilirubin_mg_dl=2.1,
+                            evidence_ids=base_evidence("bili-u1"),
+                        ),
+                    ],
+                ),
+                ScenarioEvent(
+                    40,
+                    [
+                        _inp(
+                            SofaComponentName.RENAL,
+                            urine_output_ml_day=150,
+                            evidence_ids=base_evidence("uo-u2"),
+                        ),
+                        _inp(
+                            SofaComponentName.COAGULATION,
+                            platelets_10e9_l=80,
+                            evidence_ids=base_evidence("plt-u2"),
+                        ),
+                        _inp(
+                            SofaComponentName.LIVER,
+                            bilirubin_mg_dl=2.3,
+                            evidence_ids=base_evidence("bili-u2"),
+                        ),
+                    ],
+                ),
+                ScenarioEvent(
+                    55,
+                    [
+                        _inp(
+                            SofaComponentName.RENAL,
+                            urine_output_ml_day=120,
+                            evidence_ids=base_evidence("uo-u3"),
+                        ),
+                        _inp(
+                            SofaComponentName.COAGULATION,
+                            platelets_10e9_l=70,
+                            evidence_ids=base_evidence("plt-u3"),
+                        ),
+                        _inp(
+                            SofaComponentName.LIVER,
+                            bilirubin_mg_dl=2.5,
+                            evidence_ids=base_evidence("bili-u3"),
+                        ),
+                    ],
+                ),
+            ],
+        ),
     ]
 
 
 def replay_scenario(scenario: Scenario, config: GovernanceConfig | None = None) -> dict:
-    config = config or GovernanceConfig(baseline_enabled=False)
+    bundle = load_rule_bundle("sepsis-sofa")
+    if config is None:
+        from eval.indicators.registry import governance_config_from_bundle
+
+        knobs = governance_config_from_bundle(bundle)
+        config = GovernanceConfig(
+            trajectory_persistence_minutes=knobs["trajectory_persistence_minutes"],
+            min_crossings=knobs["min_crossings"],
+            baseline_enabled=False,
+            refractory_minutes=knobs["refractory_minutes"],
+            suppression_flags=knobs["suppression_flags"],
+            interruptive_tiers=knobs["interruptive_tiers"],
+            passive_tiers=knobs["passive_tiers"],
+        )
     start = datetime(2024, 1, 1, 8, 0, tzinfo=UTC)
     latest: dict[SofaComponentName, SofaComponentInput] = {}
     naive_alerts: list[dict] = []
     governed_alerts: list[dict] = []
     gov_state = PatientGovState()
+    threshold = int(bundle["alert"]["naive_threshold"])
+    bands = bundle["alert"].get("severity_bands")
+    was_qualifying = False
 
     for event in scenario.events:
         for upd in event.inputs:
@@ -266,11 +534,21 @@ def replay_scenario(scenario: Scenario, config: GovernanceConfig | None = None) 
             patient_id=scenario.patient_id,
             event_time=event_time,
             inputs=inputs,
-            rule_bundle_id="sepsis-sofa",
-            rule_version="0.1.0",
+            rule_bundle_id=bundle["bundle_id"],
+            rule_version=bundle["version"],
+            rule_bundle=bundle,
+            min_components_required=int(
+                (bundle.get("score") or {}).get("min_components_required") or 3
+            ),
         )
-        tier = tier_for_score(result.total_score)
-        if result.total_score is None or tier == AcuityTier.NONE:
+        tier = tier_for_score(
+            result.total_score, naive_threshold=threshold, severity_bands=bands
+        )
+        qualifying = result.total_score is not None and tier != AcuityTier.NONE
+        if was_qualifying and not qualifying:
+            note_below_threshold(gov_state)
+        was_qualifying = qualifying
+        if not qualifying:
             continue
         alert = {
             "alert_id": f"{scenario.scenario_id}-{event.offset_minutes}",
@@ -281,6 +559,9 @@ def replay_scenario(scenario: Scenario, config: GovernanceConfig | None = None) 
             "completeness": result.completeness.value,
             "evidence_ids": result.evidence_ids,
             "governance_path": "naive",
+            "context_flags": list(scenario.context_flags),
+            "rule_bundle_id": result.rule_bundle_id,
+            "rule_version": result.rule_version,
         }
         naive_alerts.append(alert)
         decision = evaluate(alert, gov_state, config)

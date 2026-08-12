@@ -16,4 +16,8 @@ public class CanonicalEvent implements Serializable {
   public String ingest_time;
   public String source;
   public String idempotency_key;
+  /** Optional clinical/context suppression flags (e.g. comfort_care). */
+  public java.util.List<String> context_flags;
+  /** Set when Kafka JSON could not be parsed; operator should DLQ. */
+  public String parse_error;
 }

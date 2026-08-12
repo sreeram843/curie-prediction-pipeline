@@ -41,7 +41,9 @@ Locked decisions for v1 (from PRD §13):
 
 **Exit criteria:** Same replay twice → identical alerts; governance reduces alert volume vs threshold-only; dashboard shows evidence-backed alerts.
 
-**Phase 1 headline metric (T2 built-in library):** naive=6, governed=1, **alert_reduction_ratio ≈ 0.17**.
+**Phase 1 headline metric (T2 built-in library, v0.2 edge cases):** naive=14, governed=3, **alert_reduction_ratio ≈ 0.21**.
+
+**Reliability hardening (follow-on):** shared golden SOFA fixtures (Python+Java), event-time/encounter-scoped feature state + idempotency keys, bundle-driven governance + **component thresholds** in Flink/Python, FHIR unit/status validation with **DLQ** side output, Flink **AkiScorer** + **AkiJob** (Kafka → score → shared governance → alerts/dlq), richer T3 tests (late events, rule-version drift, resolution gap, checkpoint-style restart/replay). **FiO₂ policy:** SpO2/PaO2 alone do not invent a ratio — no ambient-air `÷0.21` proxy; ratio only when FiO₂ is present or an explicit ratio field is supplied. **Governance parity:** Flink forwards below-threshold (`tier=none`) recovery signals and `context_flags`; baseline `lookback_hours` expires the stored baseline. **Idempotency:** TTL + eldest-eviction cache (not full clear).
 
 ---
 
@@ -58,11 +60,12 @@ Locked decisions for v1 (from PRD §13):
 ## Phase 3 — Prove modularity ✅
 
 11. [x] Second indicator (AKI / KDIGO-inspired) via rule bundle + scorer plugin
-    - Bundle: `streaming/rule-registry/bundles/aki-kdigo.v0.1.0.json`
-    - Scorer: `eval/aki/` (no Kafka / ingest / governance-core changes)
-    - Shared governance reused via `eval.replay_harness.governance.evaluate`
+    - Bundle: `streaming/rule-registry/bundles/aki-kdigo.v0.2.0.json`
+    - Scorer: `eval/aki/` + Flink `com.curie.sofa.aki.AkiScorer` / `AkiJob`
+    - Shared governance reused via `eval.replay_harness.governance.evaluate` and Flink `GovernanceFilterFunction`
     - Replay: `make replay-aki`
+    - Flink entrypoint: `flink run -c com.curie.sofa.aki.AkiJob …` (shade jar default main remains `SofaJob`)
 
 **Exit criteria:** New indicator reuses governance; alert-reduction metric reported for it.
 
-**Phase 3 headline metric (AKI T2 library):** naive=4, governed=1, **alert_reduction_ratio = 0.25**.
+**Phase 3 headline metric (AKI T2 library, v0.2 edge cases):** naive=13, governed=4, **alert_reduction_ratio ≈ 0.31**.
