@@ -10,16 +10,49 @@
       href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,560;9..144,700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="/static/styles.css" />
+    <link rel="stylesheet" href="/static/styles.css?v=sec-1" />
+    <script type="module">
+      import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
+      mermaid.initialize({
+        startOnLoad: false,
+        securityLevel: "strict",
+        theme: "base",
+        themeVariables: {
+          primaryColor: "#eef8f6",
+          primaryTextColor: "#15222b",
+          primaryBorderColor: "#1b7f72",
+          lineColor: "#667781",
+          secondaryColor: "#e8f0fe",
+          tertiaryColor: "#ffffff",
+          fontFamily: "IBM Plex Sans, Segoe UI, sans-serif",
+        },
+      });
+      window.__curieMermaid = mermaid;
+      window.dispatchEvent(new Event("curie-mermaid-ready"));
+    </script>
   </head>
   <body>
     <div class="shell">
       <aside class="rail" aria-label="Primary">
         <div class="rail-mark" title="Curie">C</div>
         <nav class="rail-nav">
-          <button type="button" class="rail-btn active" aria-current="page" title="Alerts">
+          <button
+            type="button"
+            class="rail-btn active"
+            data-view="alerts"
+            aria-current="page"
+            title="Alerts"
+          >
             <span aria-hidden="true">◈</span>
             <span class="sr-only">Alerts</span>
+          </button>
+          <button type="button" class="rail-btn" data-view="explain" title="How Curie works">
+            <span aria-hidden="true">☰</span>
+            <span class="sr-only">How Curie works</span>
+          </button>
+          <button type="button" class="rail-btn" data-view="benchmarks" title="Benchmarks">
+            <span aria-hidden="true">▦</span>
+            <span class="sr-only">Benchmarks</span>
           </button>
         </nav>
         <p class="rail-proto">Demo</p>
@@ -29,34 +62,202 @@
         <header class="topbar">
           <div>
             <p class="eyebrow">Prototype · synthetic data only</p>
-            <h1>Curie</h1>
+            <h1 id="pageTitle">Curie</h1>
           </div>
-          <label class="filter-chip">
+          <label class="filter-chip" id="hideAckChip">
             <input type="checkbox" id="hideAck" />
             Hide acknowledged
           </label>
         </header>
 
-        <section class="summary" id="metrics" aria-live="polite" aria-label="Alert summary"></section>
-        <section class="claims" id="claims" aria-label="Claims matrix"></section>
-        <section class="investor" id="investor" aria-label="Investor demo snapshot"></section>
-        <section class="episodes" id="episodes" aria-label="Patient episodes"></section>
+        <div id="view-alerts" class="view-pane">
+          <section class="summary" id="metrics" aria-live="polite" aria-label="Alert summary"></section>
+          <section class="episodes" id="episodes" aria-label="Patient episodes"></section>
 
-        <div class="workspace-grid">
-          <section class="board" aria-labelledby="alerts-heading">
-            <div class="section-title-row">
-              <h2 id="alerts-heading">Active trackers</h2>
-              <p class="hint">Select a card to inspect score evidence</p>
-            </div>
-            <div id="alertList" class="card-grid"></div>
+          <div class="workspace-grid">
+            <section class="board" aria-labelledby="alerts-heading">
+              <div class="section-title-row">
+                <h2 id="alerts-heading">Active trackers</h2>
+                <p class="hint">Select a card to inspect score evidence</p>
+              </div>
+              <div id="alertList" class="card-grid"></div>
+            </section>
+
+            <section class="inspector" aria-labelledby="detail-heading">
+              <h2 id="detail-heading">Evidence</h2>
+              <div id="detailEmpty" class="empty-state">
+                <p>Pick an alert card to see component scores, evidence IDs, and actions.</p>
+              </div>
+              <article id="detail" class="detail hidden"></article>
+            </section>
+          </div>
+        </div>
+
+        <div id="view-explain" class="view-pane hidden" hidden>
+          <section class="explain-hero" aria-labelledby="explain-heading">
+            <p class="eyebrow">Product thesis</p>
+            <h2 id="explain-heading">LLMs at the edges. Determinism at the core.</h2>
+            <p class="explain-lead">
+              Use models for ambiguous semantic and human-workflow boundaries. Keep scoring, temporal
+              criteria, episode transitions, and interruptive routing versioned and deterministic.
+            </p>
           </section>
 
-          <section class="inspector" aria-labelledby="detail-heading">
-            <h2 id="detail-heading">Evidence</h2>
-            <div id="detailEmpty" class="empty-state">
-              <p>Pick an alert card to see component scores, evidence IDs, and actions.</p>
+          <section class="layer-strip" aria-label="Product layers">
+            <article class="layer">
+              <span class="layer-kicker">01</span>
+              <h3>Connect</h3>
+              <p>Adaptive onboarding, validation, and exception handling for hospital interfaces.</p>
+            </article>
+            <article class="layer">
+              <span class="layer-kicker">02</span>
+              <h3>Signal</h3>
+              <p>Deterministic multi-condition surveillance, episode arbitration, and alert governance.</p>
+            </article>
+            <article class="layer layer-copilot">
+              <span class="layer-kicker">03</span>
+              <h3>Copilot</h3>
+              <p>Grounded explanations, review assistance, protocol retrieval, and feedback analytics.</p>
+            </article>
+          </section>
+
+          <section class="c4-section" aria-labelledby="c4-heading">
+            <div class="section-title-row">
+              <h2 id="c4-heading">C4 architecture — LLM workflows</h2>
+              <p class="hint">Context → containers → components · LLM stays outside the scoring spine</p>
             </div>
-            <article id="detail" class="detail hidden"></article>
+            <div class="c4-tabs" role="tablist" aria-label="C4 diagram level">
+              <button type="button" class="c4-tab active" role="tab" aria-selected="true" data-c4="context">
+                1 · Context
+              </button>
+              <button type="button" class="c4-tab" role="tab" aria-selected="false" data-c4="container">
+                2 · Containers
+              </button>
+              <button type="button" class="c4-tab" role="tab" aria-selected="false" data-c4="component">
+                3 · Components
+              </button>
+              <button type="button" class="c4-tab" role="tab" aria-selected="false" data-c4="boundary">
+                LLM boundary
+              </button>
+            </div>
+            <article class="c4-panel" id="c4Panel">
+              <p class="c4-caption" id="c4Caption"></p>
+              <div class="c4-diagram" id="c4Diagram" aria-live="polite"></div>
+              <ul class="c4-legend" id="c4Legend"></ul>
+            </article>
+          </section>
+
+          <section class="flow-anim" aria-labelledby="flow-anim-heading">
+            <div class="section-title-row">
+              <h2 id="flow-anim-heading">Animated LLM workflow portfolio</h2>
+              <p class="hint">WF-01 → WF-10 · Play or step each path</p>
+            </div>
+            <div class="flow-scenario-tabs" id="flowScenarioTabs" role="tablist" aria-label="Workflow animation scenario"></div>
+            <article class="flow-stage" id="flowStage">
+              <p class="flow-narration" id="flowNarration" aria-live="polite"></p>
+              <div class="flow-canvas" id="flowCanvas" aria-hidden="true">
+                <svg class="flow-edges" id="flowEdgesSvg" viewBox="0 0 920 240" preserveAspectRatio="xMidYMid meet">
+                  <defs>
+                    <marker
+                      id="flowArrow"
+                      markerWidth="8"
+                      markerHeight="8"
+                      refX="6"
+                      refY="3"
+                      orient="auto"
+                    >
+                      <path d="M0,0 L6,3 L0,6 Z" fill="#8a9aa3"></path>
+                    </marker>
+                    <marker
+                      id="flowArrowActive"
+                      markerWidth="8"
+                      markerHeight="8"
+                      refX="6"
+                      refY="3"
+                      orient="auto"
+                    >
+                      <path d="M0,0 L6,3 L0,6 Z" fill="#1b7f72"></path>
+                    </marker>
+                  </defs>
+                  <g id="flowEdgeGroup"></g>
+                  <circle class="flow-token" id="flowToken" cx="60" cy="150" r="7"></circle>
+                </svg>
+                <div class="flow-nodes" id="flowNodes"></div>
+              </div>
+              <div class="flow-controls">
+                <button type="button" id="flowPlay" class="flow-ctrl primary">Play</button>
+                <button type="button" id="flowStep" class="flow-ctrl">Step</button>
+                <button type="button" id="flowReset" class="flow-ctrl">Reset</button>
+                <span class="flow-step-meta" id="flowStepMeta"></span>
+              </div>
+            </article>
+          </section>
+
+          <section class="safety-banner" aria-label="Hard safety boundary">
+            <h3>Hard safety boundary</h3>
+            <p>
+              An LLM must not calculate scores, open or route episodes, choose thresholds, invent
+              uncited facts, or promote candidates to trusted state. Model failure never blocks
+              deterministic delivery.
+            </p>
+            <ul class="safety-list">
+              <li>No SOFA / KDIGO / phenotype mutation</li>
+              <li>No episode open / suppress / escalate</li>
+              <li>No live threshold or rule activation</li>
+              <li>Every claim cites allowed evidence IDs</li>
+            </ul>
+          </section>
+
+          <section class="workflows" aria-labelledby="wf-heading">
+            <div class="section-title-row">
+              <h2 id="wf-heading">LLM workflow portfolio</h2>
+              <p class="hint">What runs where · try live demos below</p>
+            </div>
+            <div id="workflowList" class="wf-list"></div>
+          </section>
+
+          <section class="try-panels" aria-label="Live workflow demos">
+            <article class="try-panel">
+              <h3>WF-06 · Episode narrative</h3>
+              <p class="meta">
+                Additive copilot on immutable episode context. Score and routing stay unchanged.
+              </p>
+              <label class="section-label" for="episodePick">Episode</label>
+              <select id="episodePick"></select>
+              <button type="button" id="episodeExplainBtn">Generate episode explanation</button>
+              <div id="episodeExplainOut" class="try-out" aria-live="polite"></div>
+            </article>
+            <article class="try-panel">
+              <h3>WF-09 · Stewardship classify</h3>
+              <p class="meta">
+                Classify acknowledgement text into a governance taxonomy. Never mutates live rules.
+              </p>
+              <label class="section-label" for="stewardText">Feedback text</label>
+              <textarea id="stewardText" rows="3">Already on fluids and antibiotics; page was appropriate but not actionable right now.</textarea>
+              <button type="button" id="stewardClassifyBtn">Classify feedback</button>
+              <div id="stewardOut" class="try-out" aria-live="polite"></div>
+            </article>
+          </section>
+
+          <section class="claims" id="claims" aria-label="Claims matrix"></section>
+          <section class="investor" id="investor" aria-label="Investor demo snapshot"></section>
+        </div>
+
+        <div id="view-benchmarks" class="view-pane hidden" hidden>
+          <section class="explain-hero" aria-labelledby="bench-heading">
+            <p class="eyebrow">Evidence · frozen aggregates only</p>
+            <h2 id="bench-heading">Benchmarks, explained</h2>
+            <p class="explain-lead" id="benchDisclaimer">
+              Loading benchmark cards…
+            </p>
+          </section>
+          <section class="bench-howto" id="benchHowto" aria-label="How to use this page"></section>
+          <section class="benchmarks" aria-labelledby="bench-list-heading">
+            <div class="section-title-row">
+              <h2 id="bench-list-heading">Benchmark cards</h2>
+              <p class="hint">Expand a card for metrics, caveats, and how to read them</p>
+            </div>
+            <div id="benchmarkList" class="bench-list"></div>
           </section>
         </div>
 
@@ -65,6 +266,6 @@
         </footer>
       </div>
     </div>
-    <script src="/static/app.js"></script>
+    <script src="/static/app.js?v=sec-1"></script>
   </body>
 </html>

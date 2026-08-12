@@ -42,7 +42,7 @@ def stay_detection(
             "detected": False,
             "lead_hours": None,
         }
-    hits = [t for t in alert_times if in_detection_window(t, onset, before_hours=before_hours, after_hours=after_hours)]
+    hits = [t for t in alert_times if in_detection_window(t, onset, before_hours=before_hours, after_hours=after_hours)]  # noqa: E501
     if not hits:
         return {"labeled_positive": True, "detected": False, "lead_hours": None}
     first = min(hits)
@@ -93,7 +93,7 @@ def summarize_cohort(
         )
         det_g = stay_detection(
             labels=labels,
-            alert_times=[_parse_dt(t) for t in row.get("governed_alert_times") or [] if _parse_dt(t)],
+            alert_times=[_parse_dt(t) for t in row.get("governed_alert_times") or [] if _parse_dt(t)],  # noqa: E501
             before_hours=before,
             after_hours=after,
         )

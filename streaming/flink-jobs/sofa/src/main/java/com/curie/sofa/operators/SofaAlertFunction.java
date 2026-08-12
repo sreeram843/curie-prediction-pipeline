@@ -14,6 +14,7 @@ import com.curie.sofa.scoring.SofaScorer.ComponentInput;
 import com.curie.sofa.scoring.SofaScorer.ScoreResult;
 import com.curie.sofa.scoring.SofaScorer.Tier;
 import com.curie.sofa.scoring.SofaThresholds;
+import com.curie.sofa.state.EventTimeBuffer;
 import com.curie.sofa.state.IdempotencyCache;
 import com.curie.sofa.state.PatientSofaState;
 import java.time.Instant;
@@ -29,9 +30,10 @@ import org.apache.flink.util.Collector;
 import org.apache.flink.util.OutputTag;
 
 /**
- * Keyed by patient_id. Clinical events update timestamped SOFA feature state; rule broadcasts
- * refresh thresholds. Deduplicates by idempotency_key (TTL cache). Emits naive alerts including
- * below-threshold recovery signals (tier {@code none}) so governance can reset trajectory.
+ * Keyed by patient_id. Clinical events are reordered through a checkpointed {@link
+ * EventTimeBuffer} before feature mutation and scoring (CURIE-006). Deduplicates by
+ * idempotency_key. Emits naive alerts including below-threshold recovery signals (tier {@code
+ * none}) so governance can reset trajectory.
  */
 public class SofaAlertFunction
     extends KeyedBroadcastProcessFunction<String, CanonicalEvent, RuleBundle, AlertEvent> {
@@ -42,8 +44,12 @@ public class SofaAlertFunction
 
   public static final OutputTag<DlqEvent> DLQ_TAG = new OutputTag<>("dlq") {};
 
+  /** Matches SofaJob bounded out-of-orderness (5 minutes). */
+  public static final long DEFAULT_ALLOWED_LATENESS_MS = 5L * 60L * 1000L;
+
   private transient ValueState<PatientSofaState> patientState;
   private transient ValueState<IdempotencyCache> idempotency;
+  private transient ValueState<EventTimeBuffer<CanonicalEvent>> eventBuffer;
 
   @Override
   public void open(Configuration parameters) {
@@ -53,6 +59,10 @@ public class SofaAlertFunction
     idempotency =
         getRuntimeContext()
             .getState(new ValueStateDescriptor<>("idempotency-cache", IdempotencyCache.class));
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    ValueStateDescriptor<EventTimeBuffer<CanonicalEvent>> bufDesc =
+        new ValueStateDescriptor("event-time-buffer", EventTimeBuffer.class);
+    eventBuffer = getRuntimeContext().getState(bufDesc);
   }
 
   @Override
@@ -111,6 +121,36 @@ public class SofaAlertFunction
       return;
     }
     idempotency.update(cache);
+
+    EventTimeBuffer<CanonicalEvent> buffer = eventBuffer.value();
+    if (buffer == null) {
+      buffer = new EventTimeBuffer<>(DEFAULT_ALLOWED_LATENESS_MS);
+    }
+    String tie =
+        event.idempotency_key != null && !event.idempotency_key.isBlank()
+            ? event.idempotency_key
+            : "";
+    EventTimeBuffer.FlushResult<CanonicalEvent> flush = buffer.offer(eventTimeMs, event, tie);
+    eventBuffer.update(buffer);
+
+    for (EventTimeBuffer.BufferedEvent<CanonicalEvent> late : flush.late) {
+      emitDlq(ctx, late.payload, EventTimeBuffer.LATE_DISPOSITION, null, null, null);
+    }
+    for (EventTimeBuffer.BufferedEvent<CanonicalEvent> ready : flush.ready) {
+      scoreReadyEvent(ready.payload, ready.eventTimeMs, ctx, out);
+    }
+  }
+
+  private void scoreReadyEvent(
+      CanonicalEvent event, long eventTimeMs, ReadOnlyContext ctx, Collector<AlertEvent> out)
+      throws Exception {
+    long ingestTimeMs = eventTimeMs;
+    if (event.ingest_time != null && !event.ingest_time.isBlank()) {
+      Long ingest = tryParseTimeMs(event.ingest_time);
+      if (ingest != null) {
+        ingestTimeMs = ingest;
+      }
+    }
 
     ExtractResult extracted = FhirSofaMapper.extractValidated(event.resource);
     for (InvalidEvent inv : extracted.invalid) {

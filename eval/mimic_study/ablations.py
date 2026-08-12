@@ -5,9 +5,9 @@ from __future__ import annotations
 from copy import deepcopy
 from typing import Any
 
-from eval.replay_harness.governance import GovernanceConfig
-from eval.replay_harness.gov_profiles import apply_gov_knobs
 from eval.indicators.registry import load_rule_bundle
+from eval.replay_harness.gov_profiles import apply_gov_knobs
+from eval.replay_harness.governance import GovernanceConfig
 
 # Full governance baseline for demo-schema study (OPS selection starts from this family).
 FULL_GOVERNANCE_KNOBS: dict[str, Any] = {

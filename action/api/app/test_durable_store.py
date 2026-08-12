@@ -125,6 +125,21 @@ def test_list_pagination_bounded(tmp_path: Path) -> None:
     store.close()
 
 
+def test_restart_preserves_episode_ids(tmp_path: Path) -> None:
+    path = tmp_path / "episode-ids.db"
+    s1 = DurableAlertStore(path)
+    s1.upsert(_alert("alert-ep-1", minutes=2))
+    s1.upsert(_alert("alert-ep-2", minutes=1))
+    before = {e.episode_id for e in s1.list_episodes(patient_id="Patient/p-1")}
+    assert len(before) == 1
+    s1.close()
+
+    s2 = DurableAlertStore(path)
+    after = {e.episode_id for e in s2.list_episodes(patient_id="Patient/p-1")}
+    assert before == after
+    s2.close()
+
+
 def test_memory_metrics_also_untruncated() -> None:
     store = MemoryAlertStore()
     for i in range(120):

@@ -203,7 +203,7 @@ def build_ops_status(store: Any, security: Any) -> dict[str, Any]:
         "auth_required": security.auth_required,
         "active_bundles": bundles,
         "installed_indicators": [
-            {"indicator": r["indicator"], "bundle_id": r.get("bundle_id"), "version": r.get("version")}
+            {"indicator": r["indicator"], "bundle_id": r.get("bundle_id"), "version": r.get("version")}  # noqa: E501
             for r in list_indicators(installed_only=True)
         ],
         "alert_metrics": {

@@ -65,8 +65,8 @@ public class PatientAkiState implements Serializable {
       return true;
     }
     if (creatinineEventTimeMs != Long.MIN_VALUE && eventTimeMs < creatinineEventTimeMs) {
-      // Still accepted into timeline (OOO); legacy "current" only advances forward.
-      return true;
+      // Timeline already accepted OOO history; legacy "current" only advances forward.
+      return false;
     }
     if (baselineCreatinineMgDl == null) {
       baselineCreatinineMgDl = value;
@@ -94,7 +94,7 @@ public class PatientAkiState implements Serializable {
     timeline.ingestUrine(obs);
 
     if (urineEventTimeMs != Long.MIN_VALUE && eventTimeMs < urineEventTimeMs) {
-      return true;
+      return false;
     }
     if (mlKgH != null) {
       urineMlKgH = mlKgH;

@@ -81,7 +81,7 @@ def _deterministic_context_draft(case: dict[str, Any], *, allowed: list[str]) ->
     claims.append(
         Claim(
             text=(
-                f"Deterministic signal {case.get('indicator') or case.get('dominant_signal_type') or 'unknown'} "
+                f"Deterministic signal {case.get('indicator') or case.get('dominant_signal_type') or 'unknown'} "  # noqa: E501
                 f"at tier {case.get('tier') or case.get('dominant_severity')} "
                 f"score={case.get('score')} (completeness={case.get('completeness')})."
             ),
@@ -149,7 +149,7 @@ def assist_case(
 ) -> UncertaintyAssistResult:
     """Run passive context assist. Never mutates routing."""
     pol = policy or default_policy()
-    case_id = str(case.get("case_id") or case.get("alert_id") or case.get("episode_id") or "unknown")
+    case_id = str(case.get("case_id") or case.get("alert_id") or case.get("episode_id") or "unknown")  # noqa: E501
     routing_before = case.get("routing")
     elig = evaluate_eligibility(case, policy=pol)
 

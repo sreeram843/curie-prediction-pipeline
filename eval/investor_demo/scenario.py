@@ -258,18 +258,17 @@ def chaos_restart(tmp_db: Path) -> dict[str, Any]:
     dup = alerts[1]
     _, created_during = s1.ingest_kafka(dup, idempotency_key=f"kafka:{dup.alert_id}")
     before_ids = {a.alert_id for a in s1.list(patient_id=DEMO_PATIENT)}
-    before_ep_count = len(s1.list_episodes(patient_id=DEMO_PATIENT))
-    before_signals = (
-        len(s1.list_episodes(patient_id=DEMO_PATIENT)[0].signals)
-        if before_ep_count
-        else 0
-    )
+    before_eps = s1.list_episodes(patient_id=DEMO_PATIENT)
+    before_ep_count = len(before_eps)
+    before_ep_ids = {e.episode_id for e in before_eps}
+    before_signals = len(before_eps[0].signals) if before_ep_count else 0
     s1.close()
     # New process
     s2 = DurableAlertStore(tmp_db)
     after_ids = {a.alert_id for a in s2.list(patient_id=DEMO_PATIENT)}
     after_eps = s2.list_episodes(patient_id=DEMO_PATIENT)
     after_ep_count = len(after_eps)
+    after_ep_ids = {e.episode_id for e in after_eps}
     after_signals = len(after_eps[0].signals) if after_eps else 0
     # Duplicate again post-restart
     again, created = s2.ingest_kafka(dup, idempotency_key=f"kafka:{dup.alert_id}")
@@ -278,6 +277,7 @@ def chaos_restart(tmp_db: Path) -> dict[str, Any]:
         "scenario": "restart_plus_duplicate_kafka",
         "passed": (
             before_ids == after_ids
+            and before_ep_ids == after_ep_ids
             and before_ep_count == after_ep_count == 1
             and before_signals == after_signals
             and len(after_ids) == len(alerts)
@@ -287,12 +287,18 @@ def chaos_restart(tmp_db: Path) -> dict[str, Any]:
         ),
         "alert_count": len(after_ids),
         "episode_count": after_ep_count,
+        "episode_ids_stable": before_ep_ids == after_ep_ids,
         "signals_in_episode": after_signals,
         "duplicate_created": created,
     }
 
 
-def run_demo(*, db_path: Path | None = None, write: bool = True) -> dict[str, Any]:
+def run_demo(
+    *,
+    db_path: Path | None = None,
+    write: bool = True,
+    report_path: Path | None = None,
+) -> dict[str, Any]:
     store = MemoryAlertStore()
     timeline = replay_timeline(store)
     chaos_store_a = MemoryAlertStore()
@@ -332,6 +338,7 @@ def run_demo(*, db_path: Path | None = None, write: bool = True) -> dict[str, An
         "claims_matrix_path": "eval/investor_demo/frozen/claims_matrix.v1.json",
     }
     if write:
-        FROZEN_DIR.mkdir(parents=True, exist_ok=True)
-        REPORT_PATH.write_text(json.dumps(report, indent=2, default=str) + "\n")
+        out = report_path or REPORT_PATH
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(json.dumps(report, indent=2, default=str) + "\n")
     return report

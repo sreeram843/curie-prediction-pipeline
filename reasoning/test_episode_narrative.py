@@ -8,7 +8,6 @@ import pytest
 from fastapi.testclient import TestClient
 
 from action.api.app.main import app
-from action.api.app.models import AlertRecord, ComponentBreakdown
 from action.api.app.store import STORE, seed_demo_alerts
 from eval.episodes.models import Episode, EpisodeStatus, SignalRef
 from ingestion.extraction import settings as settings_mod

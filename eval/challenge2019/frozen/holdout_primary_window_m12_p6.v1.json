@@ -1,0 +1,19 @@
+{
+  "schema_version": "1.0.0",
+  "detection_mode_id": "window_m12_p6",
+  "source": "Curated published setB summary under window_m12_p6 (CURIE-004). Emission-level interruptive metrics — not episode-arbitrated pages.",
+  "cohort": "training_setB",
+  "n_stays": 20000,
+  "operating_point": "eval/challenge2019/frozen/p1_setA_winner.json",
+  "detection": {
+    "governed_sensitivity": 0.795,
+    "interruptive_sensitivity": 0.34,
+    "interruptive_nna": 106.1,
+    "mean_lead_hours_in_window": 5.97
+  },
+  "notes": [
+    "Primary detection window: any alert in [onset-12h, onset+6h].",
+    "Interruptive sensitivity/NNA count interruptive emissions, not episode pages.",
+    "Legacy grace≤6h holdout figures remain in docs/challenge-2019-eval.md for sensitivity analysis."
+  ]
+}

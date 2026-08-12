@@ -15,7 +15,6 @@ from typing import Any
 from eval.mimic_harness.replay import FIXTURES_DIR, stable_report_hash
 from eval.mimic_study.ablations import (
     ABLATION_KNOBS,
-    FULL_GOVERNANCE_KNOBS,
     SELECTION_CANDIDATES,
 )
 from eval.mimic_study.metrics import summarize_cohort
@@ -196,6 +195,7 @@ def run_study(
     *,
     fixtures_dir: Path | None = None,
     write_frozen: bool = True,
+    frozen_dir: Path | None = None,
 ) -> dict[str, Any]:
     stays, fixture_meta = _load_stays(fixtures_dir)
     operating_point = select_operating_point(stays)
@@ -233,11 +233,14 @@ def run_study(
     )
 
     if write_frozen:
-        FROZEN_DIR.mkdir(parents=True, exist_ok=True)
-        # Strip volatile selected_at from hash-stable OP file? Keep it but tests
-        # compare candidate_id / knobs.
-        OPERATING_POINT_PATH.write_text(json.dumps(operating_point, indent=2) + "\n")
-        MANIFEST_PATH.write_text(json.dumps(manifest, indent=2) + "\n")
+        out_dir = frozen_dir or FROZEN_DIR
+        out_dir.mkdir(parents=True, exist_ok=True)
+        (out_dir / "operating_point.v1.json").write_text(
+            json.dumps(operating_point, indent=2) + "\n"
+        )
+        (out_dir / "study_manifest.v1.json").write_text(
+            json.dumps(manifest, indent=2) + "\n"
+        )
 
     return {"report": report, "manifest": manifest, "operating_point": operating_point}
 
@@ -252,8 +255,8 @@ def main(argv: list[str] | None = None) -> int:
     p_run.add_argument("--json-out", type=Path, default=None)
     p_run.add_argument("--no-write", action="store_true")
 
-    p_show = sub.add_parser("show-manifest", help="Print frozen study manifest")
-    p_guard = sub.add_parser(
+    sub.add_parser("show-manifest", help="Print frozen study manifest")
+    sub.add_parser(
         "guard-test", help="Demonstrate that selection on test is forbidden"
     )
 

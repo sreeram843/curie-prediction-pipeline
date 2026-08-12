@@ -3,10 +3,9 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 
 from eval.manuscript.package import (
-    FROZEN_OUT,
-    GENERATED_OUT,
     ablation_table,
     build,
     claim_tiers,
@@ -14,17 +13,17 @@ from eval.manuscript.package import (
 )
 
 
-def test_build_writes_manifest_without_phi() -> None:
-    result = build(write=True)
+def test_build_writes_manifest_without_phi(tmp_path: Path) -> None:
+    result = build(write=True, frozen_out=tmp_path, generated_out=tmp_path)
     manifest = result["manifest"]
     assert manifest["manifest_version"] == "1.0.0"
     assert manifest["curie_ticket"] == "CURIE-020"
     assert manifest["phi_policy"]["commits_patient_level_mimic"] is False
     assert all(v.get("present") for v in manifest["artifact_pins"].values())
     assert scan_for_phi(json.dumps(manifest)) == []
-    assert (FROZEN_OUT / "reproducibility_manifest.v1.json").is_file()
-    assert (GENERATED_OUT / "tables.md").is_file()
-    assert (GENERATED_OUT / "figure_specs.v1.json").is_file()
+    assert (tmp_path / "reproducibility_manifest.v1.json").is_file()
+    assert (tmp_path / "tables.md").is_file()
+    assert (tmp_path / "figure_specs.v1.json").is_file()
 
 
 def test_claim_tiers_separate_outcomes() -> None:

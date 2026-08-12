@@ -36,11 +36,12 @@
     {
       "id": "RELIABILITY",
       "claim": "Duplicate delivery, out-of-order events, and process restart do not corrupt alert/episode identity",
-      "status": "demonstrated",
+      "status": "under_evaluation",
       "evidence": [
         "Replay harness chaos tests",
         "Durable SQLite store restart tests",
-        "Investor demo chaos scenarios"
+        "Investor demo chaos scenarios",
+        "Episode IDs now deterministic; strengthen chaos to assert ID equality before promoting"
       ]
     },
     {
@@ -130,11 +131,11 @@
       "DET-STREAM",
       "GOV-VOLUME",
       "EPISODE-ARB",
-      "RELIABILITY",
       "CDS-BOUNDARY",
       "OPS-SEC"
     ],
     "under_evaluation": [
+      "RELIABILITY",
       "MIMIC-STAGE-B",
       "SHADOW-PROD",
       "LLM-STEWARD"

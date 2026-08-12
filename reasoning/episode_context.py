@@ -5,7 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 from datetime import datetime
-from typing import Any, Literal
+from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -159,7 +159,7 @@ def build_episode_context(
         "signals": [s.model_dump(mode="json") for s in signals],
         "page_count": ep.page_count,
         "passive_update_count": ep.passive_update_count,
-        "last_action": ep.last_action.value if hasattr(ep.last_action, "value") else str(ep.last_action),
+        "last_action": ep.last_action.value if hasattr(ep.last_action, "value") else str(ep.last_action),  # noqa: E501
         "last_action_reason": ep.last_action_reason,
     }
     return EpisodeContext(

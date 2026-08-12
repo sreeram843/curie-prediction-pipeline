@@ -7,17 +7,15 @@ from pathlib import Path
 
 import pytest
 
+from eval.mimic_harness.replay import FIXTURES_DIR
 from eval.mimic_study.ablations import ABLATION_KNOBS
 from eval.mimic_study.protocol import ProtocolError, assert_split_allowed_for_tuning
 from eval.mimic_study.study import (
-    MANIFEST_PATH,
-    OPERATING_POINT_PATH,
     main,
     run_study,
     select_operating_point,
 )
 from eval.mimic_study.study_replay import replay_stay_ablation
-from eval.mimic_harness.replay import FIXTURES_DIR
 
 
 def test_all_protocol_ablations_defined() -> None:
@@ -68,10 +66,12 @@ def test_naive_vs_governed_replay_differs_on_positive_stay() -> None:
     assert gov["governed_alert_count"] <= naive["naive_alert_count"]
 
 
-def test_frozen_artifacts_regenerated_by_run() -> None:
-    result = run_study(write_frozen=True)
-    assert OPERATING_POINT_PATH.is_file()
-    assert MANIFEST_PATH.is_file()
-    manifest = json.loads(MANIFEST_PATH.read_text())
+def test_frozen_artifacts_regenerated_by_run(tmp_path: Path) -> None:
+    result = run_study(write_frozen=True, frozen_dir=tmp_path)
+    op_path = tmp_path / "operating_point.v1.json"
+    man_path = tmp_path / "study_manifest.v1.json"
+    assert op_path.is_file()
+    assert man_path.is_file()
+    manifest = json.loads(man_path.read_text())
     assert manifest["content_hash"] == result["manifest"]["content_hash"]
     assert manifest["module"] == "python -m eval.mimic_study.study run"

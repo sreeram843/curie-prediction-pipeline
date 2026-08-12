@@ -67,6 +67,8 @@ public final class SofaJob {
             .setValueOnlyDeserializer(jsonDeserializer(RuleBundle.class))
             .build();
 
+    // Flink watermarks alone do not reorder; SofaAlertFunction applies EventTimeBuffer
+    // (5m lateness) before feature mutation / scoring.
     DataStream<CanonicalEvent> clinical =
         env.fromSource(
                 clinicalSource,

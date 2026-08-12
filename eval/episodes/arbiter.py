@@ -10,7 +10,7 @@ Passive updates stay visible without repeat interruptive pages.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Any
 from uuid import uuid4
 
@@ -23,6 +23,20 @@ from eval.episodes.models import (
     EpisodeStatus,
     SignalRef,
 )
+from eval.sofa.alert_ids import name_uuid_from_bytes
+
+
+def deterministic_episode_id(
+    patient_id: str,
+    encounter_id: str | None,
+    opened_at: datetime,
+    first_signal_id: str,
+) -> str:
+    """Stable episode id (restart-safe; matches alert-id nameUUID style)."""
+    at = opened_at if opened_at.tzinfo is not None else opened_at.replace(tzinfo=UTC)
+    ms = int(at.timestamp() * 1000)
+    raw = f"{patient_id}|{encounter_id or ''}|{ms}|{first_signal_id}"
+    return "episode-" + str(name_uuid_from_bytes(raw))
 
 
 @dataclass
@@ -205,7 +219,9 @@ class EpisodeArbiter:
     def _open_new(
         self, ref: SignalRef, *, patient_id: str, encounter_id: str | None
     ) -> ArbiterResult:
-        episode_id = f"episode-{uuid4()}"
+        episode_id = deterministic_episode_id(
+            patient_id, encounter_id, ref.event_time, ref.signal_id
+        )
         status = EpisodeStatus.OPEN
         action = EpisodeAction.PAGE if _is_actionable(ref) else EpisodeAction.PASSIVE
         reason = (

@@ -108,7 +108,7 @@ def claim_tiers() -> dict[str, Any]:
         "retrospective_detection": {
             "status": "demonstrated_on_public_or_demo_artifacts",
             "includes": [
-                "Challenge 2019 offline detection sensitivity vs SepsisLabel (setA tune / setB holdout)",
+                "Challenge 2019 offline detection sensitivity vs SepsisLabel (setA tune / setB holdout)",  # noqa: E501
                 "Demo-schema MIMIC harness PE-1 plumbing (not Stage B clinical results)",
                 "Deterministic SOFA / governance / episode contracts via golden fixtures",
             ],
@@ -120,7 +120,7 @@ def claim_tiers() -> dict[str, Any]:
         "alert_policy_utility": {
             "status": "demonstrated_as_burden_metrics",
             "includes": [
-                "Interruptive reduction ratio vs naive thresholding (Challenge holdout + demo study)",
+                "Interruptive reduction ratio vs naive thresholding (Challenge holdout + demo study)",  # noqa: E501
                 "Ablation of governance knobs on demo-schema fixtures",
                 "Passive vs interruptive lane separation (page gate)",
             ],
@@ -329,28 +329,28 @@ def failure_analysis() -> dict[str, Any]:
         "known_failure_modes": [
             {
                 "id": "FN-partial-sofa",
-                "description": "Challenge hourly fields lack full SOFA components; scores are partial.",
-                "mitigation": "Report completeness; fail closed on missing critical inputs in streaming path.",
+                "description": "Challenge hourly fields lack full SOFA components; scores are partial.",  # noqa: E501
+                "mitigation": "Report completeness; fail closed on missing critical inputs in streaming path.",  # noqa: E501
             },
             {
                 "id": "FN-label-semantics",
-                "description": "Challenge SepsisLabel starts ~6h before clinical onset; lead time can look optimistic.",
-                "mitigation": "Frozen timing_primary.v1 treats onset as label_start; window_m12_p6 primary.",
+                "description": "Challenge SepsisLabel starts ~6h before clinical onset; lead time can look optimistic.",  # noqa: E501
+                "mitigation": "Frozen timing_primary.v1 treats onset as label_start; window_m12_p6 primary.",  # noqa: E501
             },
             {
                 "id": "FN-page-gate",
-                "description": "Interruptive sensitivity < governed sensitivity when page gate is strict.",
-                "mitigation": "Separate detection (any emit) from burden (interruptive); dual-lane reporting.",
+                "description": "Interruptive sensitivity < governed sensitivity when page gate is strict.",  # noqa: E501
+                "mitigation": "Separate detection (any emit) from burden (interruptive); dual-lane reporting.",  # noqa: E501
             },
             {
                 "id": "FN-demo-schema-n",
                 "description": "Demo MIMIC fixtures are tiny; PE-2 may fail; not Stage B evidence.",
-                "mitigation": "Label demo results as plumbing; Stage B requires PhysioNet extract under DUA.",
+                "mitigation": "Label demo results as plumbing; Stage B requires PhysioNet extract under DUA.",  # noqa: E501
             },
             {
                 "id": "FP-watch-volume",
-                "description": "Governed watch lane preserves sensitivity but can keep high all-alert NNA.",
-                "mitigation": "Primary burden metric is interruptive reduction, not all-alert volume.",
+                "description": "Governed watch lane preserves sensitivity but can keep high all-alert NNA.",  # noqa: E501
+                "mitigation": "Primary burden metric is interruptive reduction, not all-alert volume.",  # noqa: E501
             },
         ],
         "claim_boundary": (
@@ -490,7 +490,12 @@ def scan_for_phi(text: str) -> list[str]:
     return hits
 
 
-def build(*, write: bool = True) -> dict[str, Any]:
+def build(
+    *,
+    write: bool = True,
+    frozen_out: Path | None = None,
+    generated_out: Path | None = None,
+) -> dict[str, Any]:
     manifest = build_manifest()
     tables_md = render_markdown_tables(manifest)
     figures = render_figure_specs()
@@ -507,11 +512,13 @@ def build(*, write: bool = True) -> dict[str, Any]:
             raise RuntimeError(f"PHI-like patterns in {label}: {hits}")
 
     if write:
-        FROZEN_OUT.mkdir(parents=True, exist_ok=True)
-        GENERATED_OUT.mkdir(parents=True, exist_ok=True)
-        (FROZEN_OUT / "reproducibility_manifest.v1.json").write_text(manifest_text)
-        (GENERATED_OUT / "tables.md").write_text(tables_md)
-        (GENERATED_OUT / "figure_specs.v1.json").write_text(figures_json)
+        frozen_dir = frozen_out or FROZEN_OUT
+        generated_dir = generated_out or GENERATED_OUT
+        frozen_dir.mkdir(parents=True, exist_ok=True)
+        generated_dir.mkdir(parents=True, exist_ok=True)
+        (frozen_dir / "reproducibility_manifest.v1.json").write_text(manifest_text)
+        (generated_dir / "tables.md").write_text(tables_md)
+        (generated_dir / "figure_specs.v1.json").write_text(figures_json)
 
     return {
         "manifest": manifest,

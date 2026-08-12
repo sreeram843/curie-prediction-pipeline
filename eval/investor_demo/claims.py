@@ -17,7 +17,7 @@ CLAIMS_PATH = FROZEN_DIR / "claims_matrix.v1.json"
 CLAIMS: list[dict[str, Any]] = [
     {
         "id": "DET-STREAM",
-        "claim": "Deterministic multi-indicator scoring with versioned rule bundles and evidence IDs",
+        "claim": "Deterministic multi-indicator scoring with versioned rule bundles and evidence IDs",  # noqa: E501
         "status": "demonstrated",
         "evidence": [
             "Golden fixtures / parity tests",
@@ -27,7 +27,7 @@ CLAIMS: list[dict[str, Any]] = [
     },
     {
         "id": "GOV-VOLUME",
-        "claim": "Shared governance reduces interruptive volume vs naive thresholding while preserving detection on offline evals",
+        "claim": "Shared governance reduces interruptive volume vs naive thresholding while preserving detection on offline evals",  # noqa: E501
         "status": "demonstrated",
         "evidence": [
             "Challenge 2019 setA/setB operating point",
@@ -37,7 +37,7 @@ CLAIMS: list[dict[str, Any]] = [
     },
     {
         "id": "EPISODE-ARB",
-        "claim": "Multiple correlated signals aggregate into one patient episode with dominant problem + page arbitration",
+        "claim": "Multiple correlated signals aggregate into one patient episode with dominant problem + page arbitration",  # noqa: E501
         "status": "demonstrated",
         "evidence": [
             "CURIE-012 arbiter + fixtures",
@@ -47,12 +47,13 @@ CLAIMS: list[dict[str, Any]] = [
     },
     {
         "id": "RELIABILITY",
-        "claim": "Duplicate delivery, out-of-order events, and process restart do not corrupt alert/episode identity",
-        "status": "demonstrated",
+        "claim": "Duplicate delivery, out-of-order events, and process restart do not corrupt alert/episode identity",  # noqa: E501
+        "status": "under_evaluation",
         "evidence": [
             "Replay harness chaos tests",
             "Durable SQLite store restart tests",
             "Investor demo chaos scenarios",
+            "Episode IDs now deterministic; strengthen chaos to assert ID equality before promoting",  # noqa: E501
         ],
     },
     {

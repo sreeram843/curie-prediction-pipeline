@@ -23,7 +23,6 @@ from ingestion.adapters.mimic.timeline import (
     sort_by_availability,
 )
 
-
 FIXTURE = (
     Path(__file__).resolve().parents[1]
     / "fixtures"

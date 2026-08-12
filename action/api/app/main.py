@@ -17,6 +17,8 @@ from action.api.app.alerts_consumer import (
 )
 from action.api.app.cds_hooks import (
     SERVICE_ID as CDS_SERVICE_ID,
+)
+from action.api.app.cds_hooks import (
     CdsFeedbackRequest,
     CdsHookRequest,
     apply_feedback,
@@ -177,6 +179,24 @@ app.add_middleware(
     allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["Authorization", "X-API-Key", "Content-Type"],
 )
+
+
+@app.middleware("http")
+async def security_headers_middleware(request: Request, call_next):
+    response = await call_next(request)
+    response.headers.setdefault(
+        "Content-Security-Policy",
+        "default-src 'self'; "
+        "script-src 'self' https://cdn.jsdelivr.net; "
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+        "font-src 'self' https://fonts.gstatic.com data:; "
+        "img-src 'self' data:; "
+        "connect-src 'self'; "
+        "object-src 'none'; "
+        "base-uri 'self'",
+    )
+    response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    return response
 
 
 @app.middleware("http")
@@ -537,6 +557,14 @@ def get_claims_matrix(_auth: Principal | None = Depends(require_auth)) -> dict:
     return load_claims_matrix()
 
 
+@app.get("/benchmarks")
+def get_benchmarks(_auth: Principal | None = Depends(require_auth)) -> dict:
+    """Frozen benchmark cards with plain-language explanations for the dashboard."""
+    from eval.benchmarks.summary import build_benchmarks_summary
+
+    return build_benchmarks_summary()
+
+
 @app.get("/investor-demo")
 def get_investor_demo(_auth: Principal | None = Depends(require_auth)) -> dict:
     """Frozen investor demo report (timeline, volume, chaos)."""
@@ -682,7 +710,13 @@ def dashboard_index() -> FileResponse:
     index = DASHBOARD_DIR / "index.html"
     if not index.exists():
         raise HTTPException(status_code=404, detail="Dashboard not built")
-    return FileResponse(index)
+    return FileResponse(
+        index,
+        headers={
+            "Cache-Control": "no-store, no-cache, must-revalidate",
+            "Pragma": "no-cache",
+        },
+    )
 
 
 if DASHBOARD_DIR.exists():
