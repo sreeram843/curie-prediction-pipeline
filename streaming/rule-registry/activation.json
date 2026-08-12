@@ -4,6 +4,7 @@
   "active": {
     "sepsis-sofa": "0.3.0",
     "aki-kdigo": "0.4.0",
-    "resp-deterioration": "0.1.0"
+    "resp-deterioration": "0.1.0",
+    "hemo-shock": "0.1.0"
   }
 }

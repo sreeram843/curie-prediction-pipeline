@@ -279,10 +279,12 @@ def governance_config_from_bundle(bundle: dict[str, Any]) -> dict[str, Any]:
     supp = g.get("suppression") or {}
     tier = g.get("tiering") or {}
     page = g.get("page_gate") or {}
+    quality = g.get("quality_gate") or {}
     default_flags = {"comfort_care", "already_on_sepsis_protocol"}
     flags = set(supp.get("flags") or default_flags)
     interruptive = set(tier.get("interruptive_tiers") or ["urgent", "critical"])
     passive = set(tier.get("passive_tiers") or ["watch"])
+    high = page.get("high_actionability_components") or []
     return {
         "trajectory_persistence_minutes": int(traj.get("min_persistence_minutes", 30)),
         "min_crossings": int(traj.get("min_crossings", 2)),
@@ -301,6 +303,22 @@ def governance_config_from_bundle(bundle: dict[str, Any]) -> dict[str, Any]:
         ),
         "page_min_score_delta": int(page.get("min_score_delta", 1)),
         "page_min_positive_components": int(page.get("min_positive_components", 0)),
+        "page_min_newly_worsened_components": int(
+            page.get("min_newly_worsened_components", 0)
+        ),
+        "page_min_component_delta": int(page.get("min_component_delta", 0)),
+        "page_high_actionability_components": tuple(str(x) for x in high),
+        "quality_gate_enabled": bool(quality.get("enabled", False)),
+        "quality_max_data_age_minutes": int(quality.get("max_data_age_minutes", 0)),
+        "quality_require_critical_inputs": bool(
+            quality.get("require_critical_inputs", False)
+        ),
+        "quality_reject_invalid": bool(quality.get("reject_invalid", True)),
+        "quality_reject_contradictory": bool(quality.get("reject_contradictory", True)),
+        "quality_require_trusted_source": bool(
+            quality.get("require_trusted_source", False)
+        ),
+        "quality_reject_ood": bool(quality.get("reject_ood", False)),
     }
 
 
@@ -337,4 +355,16 @@ def governance_dataclass_from_bundle(
         ],
         page_min_score_delta=knobs["page_min_score_delta"],
         page_min_positive_components=knobs["page_min_positive_components"],
+        page_min_newly_worsened_components=knobs["page_min_newly_worsened_components"],
+        page_min_component_delta=knobs["page_min_component_delta"],
+        page_high_actionability_components=tuple(
+            knobs["page_high_actionability_components"]
+        ),
+        quality_gate_enabled=knobs["quality_gate_enabled"],
+        quality_max_data_age_minutes=knobs["quality_max_data_age_minutes"],
+        quality_require_critical_inputs=knobs["quality_require_critical_inputs"],
+        quality_reject_invalid=knobs["quality_reject_invalid"],
+        quality_reject_contradictory=knobs["quality_reject_contradictory"],
+        quality_require_trusted_source=knobs["quality_require_trusted_source"],
+        quality_reject_ood=knobs["quality_reject_ood"],
     )

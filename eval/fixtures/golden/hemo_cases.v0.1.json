@@ -1,0 +1,26 @@
+{
+  "schema_version": "1.0.0",
+  "id": "hemo-cases-v0.1",
+  "cases": [
+    {
+      "id": "hemo-lactate-map",
+      "inputs": {"lactate_mmol_l": 2.5, "map_mmhg": 60.0},
+      "expect": {"stage": 2, "total_score": 4, "completeness": "complete"}
+    },
+    {
+      "id": "hemo-severe-lactate",
+      "inputs": {"lactate_mmol_l": 4.2},
+      "expect": {"stage": 3, "total_score": 6, "completeness": "partial"}
+    },
+    {
+      "id": "hemo-insufficient",
+      "inputs": {},
+      "expect": {"stage": null, "total_score": null, "completeness": "insufficient_data"}
+    },
+    {
+      "id": "hemo-vaso",
+      "inputs": {"map_mmhg": 80.0, "on_vasopressor": true},
+      "expect": {"stage": 2, "total_score": 4, "completeness": "complete"}
+    }
+  ]
+}

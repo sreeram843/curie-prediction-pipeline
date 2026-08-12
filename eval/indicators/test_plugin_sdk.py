@@ -121,6 +121,8 @@ def test_validate_activation_passes_for_repo_manifest() -> None:
     assert report["active"]["sepsis-sofa"]["scorer_installed"] is True
     assert report["active"]["aki-kdigo"]["scorer_installed"] is True
     assert report["active"]["resp-deterioration"]["scorer_installed"] is True
+    assert "hemo-shock" in report["active"]
+    assert report["active"]["hemo-shock"]["scorer_installed"] is True
 
 
 def test_require_plugin_unknown() -> None:

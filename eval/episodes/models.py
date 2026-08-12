@@ -50,6 +50,7 @@ SIGNAL_PRIORITY: tuple[str, ...] = (
     "sepsis-3",
     "sofa-deterioration",
     "aki",
+    "hemodynamic-shock",
     "hypotension",
     "respiratory-deterioration",
 )

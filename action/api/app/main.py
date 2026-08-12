@@ -83,12 +83,29 @@ def _principal_from_headers(
 
 
 def _oidc_token_acceptable(token: str) -> bool:
-    """Prototype OIDC gate — full JWKS verification is a deployment concern."""
+    """OIDC gate — verifies JWT signatures via JWKS when configured (CURIE-038)."""
     import os
 
+    from action.api.app.jwt_verify import JwksCache, JwtVerificationError, verify_jwt
+
     sec = get_security_settings()
-    # Allowlisted opaque tokens still work via api_keys; here we only do a
-    # structural JWT check when insecure-dev is explicitly enabled.
+    if not sec.oidc_issuer or not sec.oidc_audience:
+        return False
+
+    # Production-shaped path: JWKS signature verification.
+    if sec.oidc_jwks_uri:
+        try:
+            claims = verify_jwt(
+                token,
+                jwks=JwksCache(sec.oidc_jwks_uri),
+                issuer=sec.oidc_issuer,
+                audience=sec.oidc_audience,
+            )
+        except JwtVerificationError:
+            return False
+        return bool(claims.sub)
+
+    # Explicit insecure-dev fallback (payload iss/aud only) — never default in prod.
     if os.getenv("CURIE_OIDC_INSECURE_DEV", "").lower() not in {"1", "true", "yes"}:
         return False
     parts = token.split(".")
@@ -102,17 +119,13 @@ def _oidc_token_acceptable(token: str) -> bool:
         payload = json.loads(base64.urlsafe_b64decode(parts[1] + pad))
     except Exception:
         return False
-    if sec.oidc_issuer and payload.get("iss") != sec.oidc_issuer:
+    if payload.get("iss") != sec.oidc_issuer:
         return False
-    if sec.oidc_audience and payload.get("aud") not in {
-        sec.oidc_audience,
-        [sec.oidc_audience],
-    }:
-        aud = payload.get("aud")
-        if aud != sec.oidc_audience and (
-            not isinstance(aud, list) or sec.oidc_audience not in aud
-        ):
-            return False
+    aud = payload.get("aud")
+    if aud != sec.oidc_audience and (
+        not isinstance(aud, list) or sec.oidc_audience not in aud
+    ):
+        return False
     return True
 
 

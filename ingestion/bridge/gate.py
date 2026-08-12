@@ -127,6 +127,10 @@ def admit_trusted_fact(
     if fact.resource_type not in KNOWN_RESOURCE_TYPES:
         return _reject("unknown_resource_type", fact=fact)
 
+    status = str((fact.resource or {}).get("status") or "").lower()
+    if status == "cancelled" or bool((fact.extensions or {}).get("cancelled")):
+        return _reject("cancelled_tombstone", fact=fact)
+
     if not fact.source.system or not fact.source.resource_id:
         return _reject("missing_provenance", fact=fact)
 

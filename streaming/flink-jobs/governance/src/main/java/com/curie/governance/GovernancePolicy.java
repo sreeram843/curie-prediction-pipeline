@@ -41,6 +41,15 @@ public final class GovernancePolicy {
     public int pageMinScoreDelta = 1;
     /** 0 disables; uses {@link AlertView#positiveComponents}. */
     public int pageMinPositiveComponents = 0;
+    /** CURIE-032: 0 disables newly-worsened component gate. */
+    public int pageMinNewlyWorsenedComponents = 0;
+    public int pageMinComponentDelta = 0;
+    public java.util.Set<String> pageHighActionabilityComponents = new java.util.HashSet<>();
+    /** CURIE-033 quality gates. */
+    public boolean qualityGateEnabled = false;
+    public int qualityMaxDataAgeMinutes = 0;
+    public boolean qualityRejectInvalid = true;
+    public boolean qualityRejectContradictory = true;
 
     public static Config fromBundleKnobs(
         int persistenceMinutes,
@@ -126,6 +135,8 @@ public final class GovernancePolicy {
     public long lastProcessedEventTimeMs = Long.MIN_VALUE;
     public String encounterId;
     public final Set<String> contextFlags = new HashSet<>();
+    /** CURIE-032 prior component points. */
+    public final java.util.Map<String, Integer> lastComponentPoints = new java.util.HashMap<>();
 
     public void resetTrajectory() {
       crossingsAboveThreshold = 0;
@@ -147,6 +158,11 @@ public final class GovernancePolicy {
     public String pageDeferredReason;
     public Integer positiveComponents;
     public Set<String> contextFlags = new HashSet<>();
+    public java.util.Map<String, Integer> componentPoints = new java.util.HashMap<>();
+    public Integer dataAgeMinutes;
+    public boolean invalidObservation;
+    public boolean contradictoryObservations;
+    public final java.util.List<String> newlyWorsenedComponents = new java.util.ArrayList<>();
   }
 
   public static final class Decision implements Serializable {
@@ -194,6 +210,7 @@ public final class GovernancePolicy {
     state.lastEmittedEventTimeMs = Long.MIN_VALUE;
     // Context flags are encounter-scoped (e.g. comfort_care must not leak).
     state.contextFlags.clear();
+    state.lastComponentPoints.clear();
     state.encounterId = newId;
   }
 
@@ -304,7 +321,12 @@ public final class GovernancePolicy {
     }
 
     String tier = tierRaw;
+    applyComponentDeltas(state, naive);
     String pageDefer = pageDeferReason(state, config, naive.score, naive, persisted);
+    String qualityDefer = qualityDeferReason(config, naive);
+    if (qualityDefer != null && pageDefer == null) {
+      pageDefer = qualityDefer;
+    }
     String routing;
     String reason = "pass";
     if (config.interruptiveTiers.contains(tier)) {
@@ -326,7 +348,42 @@ public final class GovernancePolicy {
     naive.governancePath = "governed";
     state.lastEmittedEventTimeMs = eventTimeMs;
     state.lastEmittedScore = naive.score;
+    if (naive.componentPoints != null && !naive.componentPoints.isEmpty()) {
+      state.lastComponentPoints.clear();
+      state.lastComponentPoints.putAll(naive.componentPoints);
+    }
     return new Decision(true, false, reason, routing, naive);
+  }
+
+  static void applyComponentDeltas(PatientGovState state, AlertView alert) {
+    alert.newlyWorsenedComponents.clear();
+    if (alert.componentPoints == null || alert.componentPoints.isEmpty()) {
+      return;
+    }
+    for (var e : alert.componentPoints.entrySet()) {
+      int prev = state.lastComponentPoints.getOrDefault(e.getKey(), 0);
+      if (e.getValue() != null && e.getValue() - prev > 0) {
+        alert.newlyWorsenedComponents.add(e.getKey());
+      }
+    }
+  }
+
+  static String qualityDeferReason(Config config, AlertView alert) {
+    if (!config.qualityGateEnabled) {
+      return null;
+    }
+    if (config.qualityMaxDataAgeMinutes > 0
+        && alert.dataAgeMinutes != null
+        && alert.dataAgeMinutes > config.qualityMaxDataAgeMinutes) {
+      return "quality_stale";
+    }
+    if (config.qualityRejectInvalid && alert.invalidObservation) {
+      return "quality_invalid";
+    }
+    if (config.qualityRejectContradictory && alert.contradictoryObservations) {
+      return "quality_contradictory";
+    }
+    return null;
   }
 
   /** {@code null} when page gates pass (or page gate disabled). */
@@ -350,6 +407,34 @@ public final class GovernancePolicy {
         && (alert.positiveComponents == null
             || alert.positiveComponents < config.pageMinPositiveComponents)) {
       return "page_components";
+    }
+    if (config.pageMinNewlyWorsenedComponents > 0
+        && alert.newlyWorsenedComponents.size() < config.pageMinNewlyWorsenedComponents) {
+      return "page_component_delta";
+    }
+    if (config.pageMinComponentDelta > 0 && alert.componentPoints != null) {
+      int maxDelta = 0;
+      for (var e : alert.componentPoints.entrySet()) {
+        int prev = state.lastComponentPoints.getOrDefault(e.getKey(), 0);
+        if (e.getValue() != null) {
+          maxDelta = Math.max(maxDelta, e.getValue() - prev);
+        }
+      }
+      if (maxDelta < config.pageMinComponentDelta) {
+        return "page_component_delta_min";
+      }
+    }
+    if (!config.pageHighActionabilityComponents.isEmpty()) {
+      boolean hit = false;
+      for (String name : alert.newlyWorsenedComponents) {
+        if (config.pageHighActionabilityComponents.contains(name)) {
+          hit = true;
+          break;
+        }
+      }
+      if (!hit) {
+        return "page_high_actionability";
+      }
     }
     return null;
   }

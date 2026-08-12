@@ -21,6 +21,8 @@ class SecuritySettings(BaseSettings):
     # Optional OIDC / JWT (validated when issuer set and token is Bearer JWT-shaped).
     oidc_issuer: str = ""
     oidc_audience: str = ""
+    # JWKS URI or inline JWKS JSON for signature verification (CURIE-038).
+    oidc_jwks_uri: str = ""
     # TLS is expected at the reverse proxy; API records the posture.
     tls_terminated: bool = False
     # Tenant / site boundary tags (propagated into ops + logs).

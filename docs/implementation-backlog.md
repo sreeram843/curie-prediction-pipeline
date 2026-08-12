@@ -734,10 +734,10 @@ absolute total-score increase.
 
 **Acceptance criteria**
 
-- [ ] Alerts identify exactly which components newly worsened and which observations caused it.
-- [ ] Python/Java page decisions match on component-delta fixtures.
-- [ ] Existing frozen Challenge results remain reproducible under the old policy version.
-- [ ] The new policy reports sensitivity, page burden, NNA, lead time, and miss reasons.
+- [x] Alerts identify exactly which components newly worsened and which observations caused it.
+- [x] Python/Java page decisions match on component-delta fixtures.
+- [x] Existing frozen Challenge results remain reproducible under the old policy version.
+- [x] The new policy reports sensitivity, page burden, NNA, lead time, and miss reasons.
 
 ### CURIE-033 — Add deterministic page-quality and uncertainty gates [P0 · READY]
 
@@ -754,10 +754,10 @@ data using deterministic policy only.
 
 **Acceptance criteria**
 
-- [ ] Identical inputs always produce the same eligibility and routing result.
-- [ ] Every page abstention is visible, auditable, and linked to evidence/data-quality reasons.
-- [ ] No routing decision depends on an LLM response, timeout, or model availability.
-- [ ] The study reports both false-page reduction and true-positive pages lost by each gate.
+- [x] Identical inputs always produce the same eligibility and routing result.
+- [x] Every page abstention is visible, auditable, and linked to evidence/data-quality reasons.
+- [x] No routing decision depends on an LLM response, timeout, or model availability.
+- [x] The study reports both false-page reduction and true-positive pages lost by each gate.
 
 ### CURIE-034 — Build a real shadow-mode execution harness [P0 · READY]
 
@@ -776,10 +776,10 @@ delivering interruptive notifications.
 
 **Acceptance criteria**
 
-- [ ] Shadow mode cannot call an interruptive delivery adapter.
-- [ ] The same replay in shadow and active simulation produces identical decisions before delivery.
-- [ ] Restart and duplicate delivery do not duplicate `would_have_paged` records.
-- [ ] `SHADOW-PROD` remains `under_evaluation` until partner-site evidence exists.
+- [x] Shadow mode cannot call an interruptive delivery adapter.
+- [x] The same replay in shadow and active simulation produces identical decisions before delivery.
+- [x] Restart and duplicate delivery do not duplicate `would_have_paged` records.
+- [x] `SHADOW-PROD` remains `under_evaluation` until partner-site evidence exists.
 
 ### CURIE-035 — Add site calibration and production drift monitoring [P1 · READY]
 
@@ -796,10 +796,10 @@ the development/reference population.
 
 **Acceptance criteria**
 
-- [ ] Synthetic distribution, missingness, unit, and alert-rate shifts trigger deterministic alarms.
-- [ ] A site profile cannot be selected or tuned on its locked test period.
-- [ ] Site overrides identify parent bundle, approver, evidence window, version, and rollback target.
-- [ ] Drift alarms do not automatically mutate active clinical rules.
+- [x] Synthetic distribution, missingness, unit, and alert-rate shifts trigger deterministic alarms.
+- [x] A site profile cannot be selected or tuned on its locked test period.
+- [x] Site overrides identify parent bundle, approver, evidence window, version, and rollback target.
+- [x] Drift alarms do not automatically mutate active clinical rules.
 
 ### CURIE-036 — Select and implement indicator four [P1 · READY]
 
@@ -818,10 +818,10 @@ claims.
 
 **Acceptance criteria**
 
-- [ ] The selection rubric and rejected alternatives are documented before implementation.
-- [ ] The new indicator passes the plugin, parity, replay, and activation gates.
-- [ ] It reuses shared governance, shadow, API, and dashboard paths without bespoke condition code.
-- [ ] Clinical validity remains an explicit non-claim until evaluated on an appropriate dataset.
+- [x] The selection rubric and rejected alternatives are documented before implementation.
+- [x] The new indicator passes the plugin, parity, replay, and activation gates.
+- [x] It reuses shared governance, shadow, API, and dashboard paths without bespoke condition code.
+- [x] Clinical validity remains an explicit non-claim until evaluated on an appropriate dataset.
 
 ---
 
@@ -842,10 +842,10 @@ enforced hospital/site isolation.
 
 **Acceptance criteria**
 
-- [ ] SQLite and Postgres pass the same store contract suite.
-- [ ] Cross-tenant reads, writes, acknowledgements, and episode joins fail closed.
-- [ ] Kafka offset commit occurs only after the idempotent database transaction succeeds.
-- [ ] Tenant-specific retention and deletion jobs have auditable dry-run modes.
+- [x] SQLite and Postgres pass the same store contract suite.
+- [x] Cross-tenant reads, writes, acknowledgements, and episode joins fail closed.
+- [x] Kafka offset commit occurs only after the idempotent database transaction succeeds.
+- [x] Tenant-specific retention and deletion jobs have auditable dry-run modes.
 
 ### CURIE-038 — Replace prototype OIDC with verified production identity [P1 · READY]
 
@@ -864,10 +864,10 @@ HIPAA operational boundary without claiming compliance certification.
 
 **Acceptance criteria**
 
-- [ ] Production rejects unsigned, expired, wrong-audience, wrong-issuer, and unknown-key tokens.
-- [ ] Key rotation works without accepting a token whose signature cannot be verified.
-- [ ] Authorization tests cover tenant plus role, including privilege-escalation attempts.
-- [ ] Documentation says “production-shaped controls,” not “HIPAA compliant,” until independently
+- [x] Production rejects unsigned, expired, wrong-audience, wrong-issuer, and unknown-key tokens.
+- [x] Key rotation works without accepting a token whose signature cannot be verified.
+- [x] Authorization tests cover tenant plus role, including privilege-escalation attempts.
+- [x] Documentation says “production-shaped controls,” not “HIPAA compliant,” until independently
   assessed in a real environment.
 
 ### CURIE-039 — Validate the `curie-fhir` / HL7v2 integration contract [P1 · READY]
@@ -886,10 +886,10 @@ deterministic trust and provenance requirements in this repository.
 
 **Acceptance criteria**
 
-- [ ] Both repositories validate byte-equivalent trusted-fact contract fixtures.
-- [ ] Candidate, invalid, corrected, and cancelled facts have deterministic dispositions.
-- [ ] No untrusted LLM-derived fact can mutate scoring state.
-- [ ] The integration demo runs without real PHI or a hospital connection.
+- [x] Both repositories validate byte-equivalent trusted-fact contract fixtures.
+- [x] Candidate, invalid, corrected, and cancelled facts have deterministic dispositions.
+- [x] No untrusted LLM-derived fact can mutate scoring state.
+- [x] The integration demo runs without real PHI or a hospital connection.
 
 ### CURIE-040 — Maintain a sourced prior-art and product landscape [P1 · READY]
 
@@ -907,10 +907,10 @@ research and commercial artifact.
 
 **Acceptance criteria**
 
-- [ ] Every external claim has a primary source, access date, and short evidence note.
-- [ ] Regulatory/product status is timestamped and marked for periodic re-verification.
-- [ ] The manuscript novelty statement is no stronger than the completed search supports.
-- [ ] Investor language distinguishes “different architecture” from proven clinical superiority.
+- [x] Every external claim has a primary source, access date, and short evidence note.
+- [x] Regulatory/product status is timestamped and marked for periodic re-verification.
+- [x] The manuscript novelty statement is no stronger than the completed search supports.
+- [x] Investor language distinguishes “different architecture” from proven clinical superiority.
 
 ---
 

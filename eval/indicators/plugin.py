@@ -278,6 +278,37 @@ def _register_builtins() -> None:
             ),
         )
     )
+    register_plugin(
+        IndicatorPlugin(
+            plugin_id="hemo-shock",
+            score_type="hemo_shock",
+            indicator="hemodynamic-shock",
+            signal_kind="risk",
+            display_name="Hemodynamic shock / hyperlactatemia",
+            bundle_id="hemo-shock",
+            clinical_concepts=("lactate", "mean_arterial_pressure", "vasopressor"),
+            codes=("2524-7", "8478-0", "33185-3"),
+            units=("mmol/L", "mmHg"),
+            windows={"score": "point-in-time with forward-fill per replay policy"},
+            eligibility="Encounter with lactate and/or MAP and/or vasopressor flag",
+            exclusions=("comfort_care",),
+            missing_data_policy="partial_with_missing_components; never impute lactate/MAP",
+            resolution_rule="governance refractory + resolution_gap_minutes",
+            scorer_module="eval.hemodynamic.scoring",
+            scorer_attr="compute_hemo_score",
+            tier_module="eval.hemodynamic.scoring",
+            tier_attr="tier_for_hemo_score",
+            runtime_impl={
+                "python": "eval.hemodynamic.scoring.compute_hemo_score",
+                "java": "com.curie.sofa.hemo.HemoScorer",
+            },
+            fixture_paths=("eval/fixtures/golden/hemo_cases.v0.1.json",),
+            notes=(
+                "CURIE-036 surveillance phenotype — not a shock diagnosis. "
+                "See docs/indicator-four-selection.md."
+            ),
+        )
+    )
 
 
 _register_builtins()

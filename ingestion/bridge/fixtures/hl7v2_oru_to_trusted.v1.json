@@ -1,0 +1,40 @@
+{
+  "schema_version": "1.0.0",
+  "event_id": "obs-cr-hl7-1",
+  "patient_id": "Patient/bridge-demo-1",
+  "encounter_id": "Encounter/enc-bridge-1",
+  "resource_type": "Observation",
+  "resource": {
+    "resourceType": "Observation",
+    "id": "cr-hl7-1",
+    "status": "final",
+    "code": { "coding": [{ "system": "http://loinc.org", "code": "2160-0" }] },
+    "valueQuantity": { "value": 1.8, "unit": "mg/dL" }
+  },
+  "clinical_event_time": "2026-08-12T11:55:00Z",
+  "availability_time": "2026-08-12T12:00:00Z",
+  "trust_status": "trusted",
+  "source": {
+    "system": "hl7v2-oru",
+    "resource_id": "Observation/cr-hl7-1",
+    "spans": []
+  },
+  "extraction": {
+    "method": "deterministic",
+    "model": null,
+    "prompt_version": null,
+    "confidence": null
+  },
+  "validation": {
+    "schema": "passed",
+    "terminology": "passed",
+    "provenance": "passed",
+    "semantic_review": "not_required"
+  },
+  "idempotency_key": "hl7v2-oru:MSG00001:OBX1:sha256:jkl",
+  "extensions": {
+    "hl7v2_message_type": "ORU^R01",
+    "source_message_id": "MSG00001",
+    "synthetic_hl7v2_sample": "MSH|^~\\&|LAB|HOSP|CURIE|HOSP|20240601120000||ORU^R01|MSG00001|P|2.5"
+  }
+}

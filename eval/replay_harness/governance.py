@@ -7,12 +7,21 @@ Dual-lane (optional ``page_gate_enabled``): watch/passive can fire once shared t
 baseline / refractory gates pass; interruptive (page) requires extra page gates. If the score
 tier is interruptive but page gates fail, the alert is still emitted as **passive** (watch)
 so detection recall is preserved while pages stay quieter.
+
+CURIE-032 adds optional component-delta page gates. CURIE-033 adds deterministic page-quality
+gates (never LLM-dependent).
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime
+
+from eval.replay_harness.component_delta import (
+    component_points_from_alert,
+    compute_component_deltas,
+)
+from eval.replay_harness.quality_gates import quality_defer_reason
 
 
 @dataclass
@@ -35,6 +44,18 @@ class GovernanceConfig:
     page_trajectory_persistence_minutes: int = 30
     page_min_score_delta: int = 1  # vs first crossing score in streak; 0 disables
     page_min_positive_components: int = 0  # 0 disables; uses alert["positive_components"]
+    # CURIE-032 component-delta paging (all 0 / empty = disabled)
+    page_min_newly_worsened_components: int = 0
+    page_min_component_delta: int = 0
+    page_high_actionability_components: tuple[str, ...] = ()
+    # CURIE-033 deterministic page-quality gates
+    quality_gate_enabled: bool = False
+    quality_max_data_age_minutes: int = 0  # 0 disables
+    quality_require_critical_inputs: bool = False
+    quality_reject_invalid: bool = True
+    quality_reject_contradictory: bool = True
+    quality_require_trusted_source: bool = False
+    quality_reject_ood: bool = False
     # When False, late/out-of-order event_times are accepted (ablation: drop_late_event_buffer).
     reject_late_out_of_order: bool = True
 
@@ -51,6 +72,8 @@ class PatientGovState:
     encounter_id: str | None = None
     last_processed_event_time: datetime | None = None
     context_flags: set[str] = field(default_factory=set)
+    # CURIE-032: prior component score vector for deltas
+    last_component_points: dict[str, int] = field(default_factory=dict)
 
     def reset_trajectory(self) -> None:
         self.crossings_above_threshold = 0
@@ -95,6 +118,7 @@ def _apply_encounter_scope(state: PatientGovState, encounter_id: object | None) 
     state.baseline_score = None
     state.baseline_set_at = None
     state.last_emitted_event_time = None
+    state.last_component_points = {}
     # Context flags are encounter-scoped (e.g. comfort_care must not leak).
     state.context_flags.clear()
     state.encounter_id = new_id
@@ -107,6 +131,7 @@ def _page_gates_met(
     score: int,
     alert: dict,
     persisted_min: float,
+    delta_info: dict,
 ) -> tuple[bool, str | None]:
     """Return (ok, defer_reason)."""
     if not config.page_gate_enabled:
@@ -122,6 +147,18 @@ def _page_gates_met(
         pos = alert.get("positive_components")
         if pos is None or int(pos) < config.page_min_positive_components:
             return False, "page_components"
+    if config.page_min_newly_worsened_components > 0:
+        worsened = int(delta_info.get("newly_worsened_count") or 0)
+        if worsened < config.page_min_newly_worsened_components:
+            return False, "page_component_delta"
+    if config.page_min_component_delta > 0:
+        if int(delta_info.get("max_component_delta") or 0) < config.page_min_component_delta:
+            return False, "page_component_delta_min"
+    if config.page_high_actionability_components:
+        worsened = set(delta_info.get("newly_worsened_components") or [])
+        high = set(config.page_high_actionability_components)
+        if not (worsened & high):
+            return False, "page_high_actionability"
     return True, None
 
 
@@ -222,13 +259,30 @@ def evaluate(alert: dict, state: PatientGovState, config: GovernanceConfig) -> D
             out["suppression_reason"] = "refractory"
             return Decision(False, "refractory", "none", out)
 
+    current_pts = component_points_from_alert(alert)
+    delta_info = compute_component_deltas(current_pts, state.last_component_points)
+    out.update(delta_info)
+    if current_pts:
+        # Evidence linkage: which observations drove worsened components
+        evidence_by = alert.get("component_evidence") or {}
+        out["newly_worsened_evidence"] = {
+            name: list(evidence_by.get(name) or [])
+            for name in delta_info["newly_worsened_components"]
+        }
+
     page_ok, page_defer = _page_gates_met(
         state=state,
         config=config,
         score=int(score),
         alert=alert,
         persisted_min=persisted_min,
+        delta_info=delta_info,
     )
+
+    quality_defer = quality_defer_reason(alert, config=config)
+    if quality_defer and page_ok:
+        page_ok = False
+        page_defer = quality_defer
 
     if tier in config.interruptive_tiers:
         if page_ok:
@@ -249,6 +303,8 @@ def evaluate(alert: dict, state: PatientGovState, config: GovernanceConfig) -> D
     out["suppressed"] = False
     out["suppression_reason"] = None
     state.last_emitted_event_time = event_time
+    if current_pts:
+        state.last_component_points = dict(current_pts)
     return Decision(True, reason, routing, out)
 
 

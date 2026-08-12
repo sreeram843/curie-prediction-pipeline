@@ -1,0 +1,48 @@
+{
+  "bundle_id": "hemo-shock",
+  "version": "0.1.0",
+  "indicator": "hemodynamic-shock",
+  "display_name": "Hemodynamic shock / hyperlactatemia surveillance",
+  "score": {
+    "type": "hemo_shock",
+    "min_components_required": 1
+  },
+  "alert": {
+    "naive_threshold": 2,
+    "severity_bands": [
+      {"tier": "watch", "min_score": 2, "max_score": 3},
+      {"tier": "urgent", "min_score": 4, "max_score": 5},
+      {"tier": "critical", "min_score": 6, "max_score": 99}
+    ]
+  },
+  "governance": {
+    "trajectory": {"min_persistence_minutes": 0, "min_crossings": 1},
+    "baseline": {"enabled": false, "lookback_hours": 24, "delta_threshold": 2},
+    "suppression": {"flags": ["comfort_care"]},
+    "dedup": {"refractory_minutes": 60, "resolution_gap_minutes": 60},
+    "tiering": {
+      "interruptive_tiers": ["urgent", "critical"],
+      "passive_tiers": ["watch"]
+    },
+    "page_gate": {
+      "enabled": true,
+      "min_crossings": 1,
+      "trajectory_persistence_minutes": 0,
+      "min_score_delta": 0,
+      "min_positive_components": 1,
+      "min_newly_worsened_components": 0,
+      "min_component_delta": 0
+    },
+    "quality_gate": {
+      "enabled": true,
+      "max_data_age_minutes": 180,
+      "require_critical_inputs": false,
+      "reject_invalid": true,
+      "reject_contradictory": true
+    }
+  },
+  "notes": [
+    "CURIE-036 prototype surveillance phenotype — not a shock diagnosis.",
+    "Clinical validity remains an explicit non-claim until evaluated on an appropriate dataset."
+  ]
+}

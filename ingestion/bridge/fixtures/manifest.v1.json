@@ -49,6 +49,24 @@
       "file": "unknown_schema.v1.json",
       "expect_outcome": "reject",
       "may_mutate_scoring": false
+    },
+    {
+      "id": "corrected_trusted_observation",
+      "file": "corrected_trusted_observation.v1.json",
+      "expect_outcome": "admit",
+      "may_mutate_scoring": true
+    },
+    {
+      "id": "cancelled_observation",
+      "file": "cancelled_observation.v1.json",
+      "expect_outcome": "reject",
+      "may_mutate_scoring": false
+    },
+    {
+      "id": "hl7v2_oru_to_trusted",
+      "file": "hl7v2_oru_to_trusted.v1.json",
+      "expect_outcome": "admit",
+      "may_mutate_scoring": true
     }
   ]
 }
