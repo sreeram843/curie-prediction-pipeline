@@ -14,7 +14,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from eval.aki.scoring import AkiInput, compute_aki_score, tier_for_aki_score
+from eval.aki.scoring import tier_for_aki_score
+from eval.aki.timeline import AkiTimelineState, CreatinineObs, evaluate_aki_timeline
 from eval.episodes.arbiter import EpisodeArbiter
 from eval.sofa.scoring import (
     SofaComponentInput,
@@ -167,6 +168,7 @@ def replay_stay(
     snapshots: list[dict[str, Any]] = []
     patient_id = f"Patient/{stay['subject_id']}"
     encounter_id = f"Encounter/{stay.get('hadm_id') or stay['stay_id']}"
+    aki_timeline = AkiTimelineState(patient_id=patient_id, encounter_id=encounter_id)
 
     for event in events:
         clock = event.availability_time
@@ -177,6 +179,20 @@ def replay_stay(
         except Exception as exc:  # noqa: BLE001 — capture per-event errors
             state.errors.append(f"{event.evidence_id}: {exc}")
             continue
+
+        code = event.code or ""
+        if (
+            (code == "2160-0" or event.itemid in {50912, 52546, 220615})
+            and event.valuenum is not None
+        ):
+            aki_timeline.ingest_creatinine(
+                CreatinineObs(
+                    event_time=event.event_time or clock,
+                    value_mg_dl=float(event.valuenum),
+                    evidence_id=event.evidence_id,
+                    status="final",
+                )
+            )
 
         # Score after each availability tick that updates features
         sofa_inputs = list(state.components.values())
@@ -244,20 +260,14 @@ def replay_stay(
                 }
             )
 
-        if state.creatinine_mg_dl is not None:
-            aki = compute_aki_score(
-                patient_id=patient_id,
-                event_time=clock,
-                inputs=AkiInput(
-                    creatinine_mg_dl=state.creatinine_mg_dl,
-                    evidence_ids=list(state.creatinine_evidence),
-                ),
-                encounter_id=encounter_id,
-                rule_bundle_id="aki-kdigo",
-                rule_version="0.4.0",
-            )
+        if aki_timeline.creatinine:
+            aki_tl = evaluate_aki_timeline(aki_timeline, as_of=clock)
+            aki = aki_tl.score
             aki_tier = tier_for_aki_score(aki.total_score)
-            if aki_tier.value in {"watch", "urgent", "critical"}:
+            if (
+                aki_tl.status == "scored"
+                and aki_tier.value in {"watch", "urgent", "critical"}
+            ):
                 arb.ingest(
                     {
                         "alert_id": f"mimic-aki-{stay['stay_id']}-{len(signals)}",
@@ -283,6 +293,7 @@ def replay_stay(
                         "event_time": clock.isoformat(),
                         "evidence_ids": list(aki.evidence_ids or []),
                         "completeness": aki.completeness.value,
+                        "pipeline": "aki-kdigo-timeline",
                     }
                 )
 

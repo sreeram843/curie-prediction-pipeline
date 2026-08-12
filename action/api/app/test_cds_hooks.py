@@ -82,6 +82,17 @@ def test_cds_patient_view_cards() -> None:
     assert card["indicator"] in {"info", "warning", "critical"}
     assert card["extension"]["curieAlertId"]
     assert "curieEvidence" in card["extension"]
+    about = card["suggestions"][0]["actions"][0]["resource"]["about"][0]["reference"]
+    assert about.startswith("Patient/")
+    assert "Patient/Patient/" not in about
+
+
+def test_patient_reference_no_double_prefix() -> None:
+    from action.api.app.fhir_evidence import patient_reference
+
+    assert patient_reference("Patient/abc") == "Patient/abc"
+    assert patient_reference("abc") == "Patient/abc"
+    assert patient_reference("") == "Patient/unknown"
 
 
 def test_cds_feedback_acknowledges_without_score_change() -> None:

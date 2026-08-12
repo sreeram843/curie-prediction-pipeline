@@ -265,7 +265,6 @@ def _register_builtins() -> None:
             tier_attr="tier_for_resp_score",
             runtime_impl={
                 "python": "eval.respiratory.scoring.compute_resp_score",
-                # Same shared Flink alert path as other indicators — no bespoke job.
                 "java": "com.curie.sofa.resp.RespScorer",
                 "flink_job": "com.curie.sofa.operators.SofaAlertFunction",
             },
@@ -273,8 +272,9 @@ def _register_builtins() -> None:
                 "eval/fixtures/golden/resp_cases.v0.1.json",
             ),
             notes=(
-                "CURIE-013 hypoxemic/ventilatory deterioration. Java scorer "
-                "mapping reserved; Python reference is activation proof."
+                "CURIE-013 hypoxemic/ventilatory deterioration. Java RespScorer "
+                "parity for core stages; Flink alert wiring still shares SofaAlertFunction "
+                "until a dedicated RespAlertFunction lands."
             ),
         )
     )

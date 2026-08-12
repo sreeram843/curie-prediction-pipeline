@@ -37,6 +37,16 @@ _FHIR_REF = re.compile(
 EVIDENCE_SYSTEM = "urn:curie:evidence-id"
 
 
+def patient_reference(patient_id: str | None) -> str:
+    """Return a FHIR Patient reference without doubling the ``Patient/`` prefix."""
+    raw = (patient_id or "").strip()
+    if not raw:
+        return "Patient/unknown"
+    if raw.startswith("Patient/"):
+        return raw
+    return f"Patient/{raw}"
+
+
 def parse_evidence_id(evidence_id: str) -> dict[str, Any]:
     """Return a FHIR R4 Reference-shaped dict for one evidence id."""
     raw = (evidence_id or "").strip()
@@ -112,7 +122,7 @@ def evidence_bundle_for_alert(alert: AlertRecord) -> dict[str, Any]:
                             }
                         ]
                     },
-                    "subject": {"reference": f"Patient/{alert.patient_id}"},
+                    "subject": {"reference": patient_reference(alert.patient_id)},
                     "extension": [
                         {
                             "url": "https://curie.local/fhir/StructureDefinition/evidence-reference",

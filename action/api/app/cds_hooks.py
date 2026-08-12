@@ -12,7 +12,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
-from action.api.app.fhir_evidence import fhir_references_for_alert
+from action.api.app.fhir_evidence import fhir_references_for_alert, patient_reference
 from action.api.app.models import AlertRecord
 
 SERVICE_ID = "curie-patient-view"
@@ -166,7 +166,7 @@ def alert_to_card(alert: AlertRecord) -> dict[str, Any]:
                                     "contentString": f"acknowledge:{alert.alert_id}",
                                 }
                             ],
-                            "about": [{"reference": f"Patient/{alert.patient_id}"}],
+                            "about": [{"reference": patient_reference(alert.patient_id)}],
                         },
                     }
                 ],

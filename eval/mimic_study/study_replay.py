@@ -1,11 +1,21 @@
-"""Governed stay replay for MIMIC ablation study (CURIE-016)."""
+"""Governed stay replay for MIMIC ablation study (CURIE-016).
+
+SOFA and AKI are evaluated as independent indicator pipelines on the same
+availability-time clock. AKI uses the stateful KDIGO timeline (CURIE-009),
+not a point-in-time Cr snapshot nested under a SOFA emit decision.
+"""
 
 from __future__ import annotations
 
 from datetime import datetime
 from typing import Any
 
-from eval.aki.scoring import AkiInput, compute_aki_score, tier_for_aki_score
+from eval.aki.scoring import tier_for_aki_score
+from eval.aki.timeline import (
+    AkiTimelineState,
+    CreatinineObs,
+    evaluate_aki_timeline,
+)
 from eval.episodes.arbiter import EpisodeArbiter
 from eval.mimic_harness.replay import (
     StayReplayState,
@@ -40,6 +50,11 @@ def _patient_days(stay: dict[str, Any]) -> float:
         return 1.0
 
 
+def _is_creatinine_event(event: Any) -> bool:
+    code = event.code or ""
+    return code == "2160-0" or event.itemid in {50912, 52546, 220615}
+
+
 def replay_stay_ablation(
     stay: dict[str, Any],
     *,
@@ -52,6 +67,7 @@ def replay_stay_ablation(
     state = StayReplayState()
     patient_id = f"Patient/{stay['subject_id']}"
     encounter_id = f"Encounter/{stay.get('hadm_id') or stay['stay_id']}"
+    aki_timeline = AkiTimelineState(patient_id=patient_id, encounter_id=encounter_id)
 
     gov_cfg: GovernanceConfig | None = None
     min_components = 1
@@ -61,7 +77,9 @@ def replay_stay_ablation(
             (bundle.get("score") or {}).get("min_components_required") or 1
         )
 
-    gov_state = PatientGovState()
+    # Independent governance state per indicator (no shared mute across pipelines).
+    sofa_gov = PatientGovState()
+    aki_gov = PatientGovState()
     use_episodes = uses_episode_arbitration(knobs)
     arb = EpisodeArbiter() if use_episodes else None
 
@@ -73,82 +91,26 @@ def replay_stay_ablation(
     page_alert_count = 0
     partial = False
     signal_count = 0
+    aki_signal_count = 0
 
-    for event in events:
-        clock = event.availability_time
-        try:
-            _apply_observation(state, event, clock=clock)
-        except Exception as exc:  # noqa: BLE001
-            state.errors.append(f"{event.evidence_id}: {exc}")
-            continue
-
-        sofa_inputs = list(state.components.values())
-        if state.creatinine_mg_dl is not None and SofaComponentName.RENAL not in state.components:
-            sofa_inputs.append(
-                SofaComponentInput(
-                    name=SofaComponentName.RENAL,
-                    creatinine_mg_dl=state.creatinine_mg_dl,
-                    evidence_ids=list(state.creatinine_evidence),
-                )
-            )
-        if not sofa_inputs and state.creatinine_mg_dl is None:
-            continue
-
-        sofa = compute_sofa_score(
-            patient_id=patient_id,
-            event_time=clock,
-            inputs=sofa_inputs,
-            encounter_id=encounter_id,
-            rule_bundle_id="sepsis-sofa",
-            rule_version="0.3.0",
-            min_components_required=min_components,
-        )
-        tier = tier_for_score(sofa.total_score)
-        evidence = list(sofa.evidence_ids or [])
-        if sofa.completeness.value == "partial":
-            partial = True
-        if check_leakage:
-            assert_snapshot_leakage_free(
-                events_by_id=events_by_id,
-                snapshot={
-                    "availability_clock": clock.isoformat(),
-                    "evidence_ids": evidence,
-                },
-            )
-
-        if tier.value not in {"watch", "urgent", "critical"}:
-            continue
-
-        pos = sum(1 for c in sofa.components if c.points and c.points > 0)
-        naive_times.append(clock.isoformat())
-        if tier.value in {"urgent", "critical"}:
-            naive_interruptive += 1
-
-        alert = {
-            "alert_id": f"mimic-{stay['stay_id']}-{signal_count}",
-            "patient_id": patient_id,
-            "encounter_id": encounter_id,
-            "indicator": "sofa-deterioration",
-            "tier": tier.value,
-            "score": sofa.total_score,
-            "event_time": clock.isoformat(),
-            "evidence_ids": evidence,
-            "positive_components": pos,
-        }
-        signal_count += 1
-
+    def _emit_signal(
+        *,
+        alert: dict[str, Any],
+        gov_state: PatientGovState,
+        clock: datetime,
+    ) -> None:
+        nonlocal gov_alert_count, page_alert_count
         if knobs is None or gov_cfg is None:
-            # threshold-only naive path
             gov_times.append(clock.isoformat())
             gov_alert_count += 1
-            if tier.value in {"urgent", "critical"}:
+            if alert["tier"] in {"urgent", "critical"}:
                 page_times.append(clock.isoformat())
                 page_alert_count += 1
-            continue
+            return
 
         decision = evaluate(alert, gov_state, gov_cfg)
         if not decision.emit:
-            continue
+            return
         routed = decision.routing
         out = decision.alert
         gov_times.append(clock.isoformat())
@@ -165,42 +127,107 @@ def replay_stay_ablation(
                 }
             )
 
-        # Optional AKI secondary signal under same governance clock
-        if state.creatinine_mg_dl is not None:
-            aki = compute_aki_score(
-                patient_id=patient_id,
-                event_time=clock,
-                inputs=AkiInput(
+    for event in events:
+        clock = event.availability_time
+        try:
+            _apply_observation(state, event, clock=clock)
+        except Exception as exc:  # noqa: BLE001
+            state.errors.append(f"{event.evidence_id}: {exc}")
+            continue
+
+        if _is_creatinine_event(event) and event.valuenum is not None:
+            aki_timeline.ingest_creatinine(
+                CreatinineObs(
+                    event_time=event.event_time or clock,
+                    value_mg_dl=float(event.valuenum),
+                    evidence_id=event.evidence_id,
+                    status="final",
+                )
+            )
+
+        # --- Independent SOFA pipeline ---
+        sofa_inputs = list(state.components.values())
+        if (
+            state.creatinine_mg_dl is not None
+            and SofaComponentName.RENAL not in state.components
+        ):
+            sofa_inputs.append(
+                SofaComponentInput(
+                    name=SofaComponentName.RENAL,
                     creatinine_mg_dl=state.creatinine_mg_dl,
                     evidence_ids=list(state.creatinine_evidence),
-                ),
-                encounter_id=encounter_id,
-            )
-            aki_tier = tier_for_aki_score(aki.total_score)
-            if aki_tier.value in {"watch", "urgent", "critical"} and arb is not None:
-                arb.ingest(
-                    {
-                        "alert_id": f"mimic-aki-{stay['stay_id']}-{signal_count}",
-                        "patient_id": patient_id,
-                        "encounter_id": encounter_id,
-                        "indicator": "aki",
-                        "tier": aki_tier.value,
-                        "routing": (
-                            "interruptive"
-                            if aki_tier.value in {"urgent", "critical"}
-                            else "passive"
-                        ),
-                        "score": aki.total_score,
-                        "event_time": clock,
-                        "evidence_ids": list(aki.evidence_ids or []),
-                    }
                 )
+            )
+        if sofa_inputs:
+            sofa = compute_sofa_score(
+                patient_id=patient_id,
+                event_time=clock,
+                inputs=sofa_inputs,
+                encounter_id=encounter_id,
+                rule_bundle_id="sepsis-sofa",
+                rule_version="0.3.0",
+                min_components_required=min_components,
+            )
+            tier = tier_for_score(sofa.total_score)
+            evidence = list(sofa.evidence_ids or [])
+            if sofa.completeness.value == "partial":
+                partial = True
+            if check_leakage:
+                assert_snapshot_leakage_free(
+                    events_by_id=events_by_id,
+                    snapshot={
+                        "availability_clock": clock.isoformat(),
+                        "evidence_ids": evidence,
+                    },
+                )
+            if tier.value in {"watch", "urgent", "critical"}:
+                pos = sum(1 for c in sofa.components if c.points and c.points > 0)
+                naive_times.append(clock.isoformat())
+                if tier.value in {"urgent", "critical"}:
+                    naive_interruptive += 1
+                alert = {
+                    "alert_id": f"mimic-sofa-{stay['stay_id']}-{signal_count}",
+                    "patient_id": patient_id,
+                    "encounter_id": encounter_id,
+                    "indicator": "sofa-deterioration",
+                    "tier": tier.value,
+                    "score": sofa.total_score,
+                    "event_time": clock.isoformat(),
+                    "evidence_ids": evidence,
+                    "positive_components": pos,
+                }
+                signal_count += 1
+                _emit_signal(alert=alert, gov_state=sofa_gov, clock=clock)
+
+        # --- Independent AKI timeline pipeline (not nested under SOFA emit) ---
+        if aki_timeline.creatinine:
+            aki_tl = evaluate_aki_timeline(aki_timeline, as_of=clock)
+            aki = aki_tl.score
+            aki_tier = tier_for_aki_score(aki.total_score)
+            if (
+                aki_tl.status == "scored"
+                and aki_tier.value in {"watch", "urgent", "critical"}
+            ):
+                aki_alert = {
+                    "alert_id": f"mimic-aki-{stay['stay_id']}-{aki_signal_count}",
+                    "patient_id": patient_id,
+                    "encounter_id": encounter_id,
+                    "indicator": "aki",
+                    "tier": aki_tier.value,
+                    "score": aki.total_score,
+                    "event_time": clock.isoformat(),
+                    "evidence_ids": list(aki.evidence_ids or []),
+                    "positive_components": 1 if (aki.total_score or 0) > 0 else 0,
+                }
+                aki_signal_count += 1
+                # Naive AKI count is tracked separately from SOFA naive_times.
+                _emit_signal(alert=aki_alert, gov_state=aki_gov, clock=clock)
 
     episode_count = 0
     if arb is not None:
         episode_count = len(arb.list_for_patient(patient_id))
     elif gov_alert_count:
-        episode_count = gov_alert_count  # no arbitration → each alert is an episode proxy
+        episode_count = gov_alert_count
 
     return {
         "stay_id": str(stay["stay_id"]),
@@ -217,7 +244,7 @@ def replay_stay_ablation(
         "interruptive_alert_count": page_alert_count,
         "interruptive_alert_times": page_times,
         "episode_count": episode_count,
+        "aki_signal_count": aki_signal_count,
         "completeness_partial": partial,
-        "errors": list(state.errors),
-        "missingness": dict(state.missingness),
+        "pipelines": ["sofa-deterioration", "aki-kdigo-timeline"],
     }
