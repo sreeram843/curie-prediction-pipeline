@@ -277,9 +277,9 @@ version/hash, and resolution state.
 
 **Acceptance criteria**
 
-- [ ] Concurrent sepsis, AKI, and hypotension signals generate one interruptive episode alert.
-- [ ] Passive updates remain visible without generating repeat pages.
-- [ ] Resolution and re-deterioration behavior is deterministic and tested.
+- [x] Concurrent sepsis, AKI, and hypotension signals generate one interruptive episode alert.
+- [x] Passive updates remain visible without generating repeat pages.
+- [x] Resolution and re-deterioration behavior is deterministic and tested.
 
 ### CURIE-013 — Add respiratory deterioration as indicator three [P2]
 

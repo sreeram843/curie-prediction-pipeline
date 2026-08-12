@@ -164,6 +164,26 @@ def list_indicator_plugins() -> list[dict]:
     return [p.to_public_dict() for p in list_plugins()]
 
 
+@app.get("/episodes")
+def list_episodes(
+    patient_id: str | None = Query(default=None),
+    limit: int = Query(default=100, ge=1, le=1000),
+) -> list[dict]:
+    """Patient episodes (CURIE-012 cross-condition arbitration)."""
+    return [
+        e.to_public_dict()
+        for e in STORE.list_episodes(patient_id=patient_id, limit=limit)
+    ]
+
+
+@app.get("/episodes/{episode_id}")
+def get_episode(episode_id: str) -> dict:
+    episode = STORE.arbiter.get(episode_id)
+    if episode is None:
+        raise HTTPException(status_code=404, detail="Episode not found")
+    return episode.to_public_dict()
+
+
 @app.get("/metrics", response_model=MetricsSummary)
 def metrics() -> MetricsSummary:
     return STORE.metrics()

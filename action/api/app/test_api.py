@@ -88,7 +88,11 @@ def test_demo_sofa_alerts_not_labeled_sepsis() -> None:
     """CURIE-008: SOFA threshold alone must not read as confirmed sepsis."""
     client = TestClient(app)
     alerts = client.get("/alerts").json()
-    sofa = [a for a in alerts if a["indicator"] != "aki"]
+    sofa = [
+        a
+        for a in alerts
+        if a["indicator"] in {"sofa-deterioration", "sepsis", "sepsis-3"}
+    ]
     assert sofa
     assert all(a["indicator"] == "sofa-deterioration" for a in sofa)
     assert not any(a["indicator"] == "sepsis" for a in alerts)
@@ -148,6 +152,24 @@ def test_unknown_indicator_accepted_by_api_store() -> None:
     assert detail["signal"]["missing_inputs"] == ["abg"]
     metrics = client.get("/metrics").json()
     assert metrics["by_indicator"].get("respiratory-deterioration", 0) >= 1
+
+
+def test_episodes_aggregate_concurrent_demo_signals() -> None:
+    client = TestClient(app)
+    episodes = client.get("/episodes").json()
+    assert episodes
+    multi = next(
+        e
+        for e in episodes
+        if e["patient_id"] == "Patient/p-ep-901"
+    )
+    assert multi["page_count"] == 1
+    assert multi["dominant_signal_type"] == "sofa-deterioration"
+    assert "aki" in multi["supporting_signal_types"]
+    assert "hypotension" in multi["supporting_signal_types"]
+    detail = client.get(f"/episodes/{multi['episode_id']}").json()
+    assert detail["episode_id"] == multi["episode_id"]
+    assert len(detail["signals"]) == 3
 
 
 def test_acknowledge_sets_resolution_state() -> None:

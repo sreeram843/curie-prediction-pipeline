@@ -167,6 +167,37 @@ body {
   animation: rise 0.65s ease both;
 }
 
+.episodes {
+  margin-bottom: 1.15rem;
+}
+
+.episode-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 0.75rem;
+}
+
+.episode-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 0.85rem 1rem;
+  box-shadow: var(--shadow);
+}
+
+.episode-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.35rem;
+}
+
+.episode-dom {
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+}
+
 .stat-card {
   background: var(--surface);
   border: 1px solid var(--line);

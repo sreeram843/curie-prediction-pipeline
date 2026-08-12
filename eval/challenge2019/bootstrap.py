@@ -447,7 +447,10 @@ def summarize_stay_metrics(
                 },
                 "episode_level": {
                     "value": None,
-                    "note": "Requires episode aggregation (CURIE-012).",
+                    "note": (
+                        "Episode-level PPV uses CURIE-012 EpisodeArbiter "
+                        "page emissions as the unit (see eval/episodes/)."
+                    ),
                 },
             },
         },

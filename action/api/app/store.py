@@ -6,12 +6,14 @@ from datetime import UTC, datetime, timedelta
 from threading import RLock
 
 from action.api.app.models import AlertRecord, ComponentBreakdown, MetricsSummary
+from eval.episodes.arbiter import EpisodeArbiter, EpisodeConfig
 
 
 class AlertStore:
-    def __init__(self) -> None:
+    def __init__(self, *, arbiter: EpisodeArbiter | None = None) -> None:
         self._lock = RLock()
         self._alerts: dict[str, AlertRecord] = {}
+        self.arbiter = arbiter or EpisodeArbiter(EpisodeConfig())
 
     def upsert(self, alert: AlertRecord) -> AlertRecord:
         with self._lock:
@@ -20,7 +22,10 @@ class AlertStore:
                 alert.acknowledged = True
                 alert.acknowledged_at = existing.acknowledged_at
                 alert.acknowledge_note = existing.acknowledge_note
+                alert.resolution_state = "acknowledged"
             self._alerts[alert.alert_id] = alert
+            # Fold into patient episode (CURIE-012)
+            self.arbiter.ingest(alert)
             return alert
 
     def list(
@@ -113,6 +118,14 @@ class AlertStore:
     def clear(self) -> None:
         with self._lock:
             self._alerts.clear()
+            self.arbiter = EpisodeArbiter(EpisodeConfig())
+
+    def list_episodes(self, *, patient_id: str | None = None, limit: int = 100):
+        with self._lock:
+            items = self.arbiter.list_all()
+        if patient_id:
+            items = [e for e in items if e.patient_id == patient_id]
+        return items[:limit]
 
 
 def seed_demo_alerts(store: AlertStore) -> None:
@@ -258,6 +271,86 @@ def seed_demo_alerts(store: AlertStore) -> None:
             governance_path="governed",
             routing="passive",
             page_deferred_reason="page_persistence",
+            positive_components=1,
+        ),
+        # CURIE-012: concurrent multi-signal episode (one page, supporting differential)
+        AlertRecord(
+            alert_id="alert-demo-episode-sofa-005",
+            patient_id="Patient/p-ep-901",
+            patient_name="Elena Vargas",
+            encounter_id="Encounter/enc-ep-1",
+            indicator="sofa-deterioration",
+            event_time=now - timedelta(minutes=25),
+            ingest_time=now - timedelta(minutes=24),
+            score=7,
+            completeness="partial",
+            tier="critical",
+            component_breakdown=[
+                ComponentBreakdown(
+                    name="cardiovascular",
+                    points=3,
+                    evidence_ids=["Observation/map-ep"],
+                ),
+                ComponentBreakdown(
+                    name="renal",
+                    points=2,
+                    evidence_ids=["Observation/cr-ep"],
+                ),
+            ],
+            evidence_ids=["Observation/map-ep", "Observation/cr-ep"],
+            governance_path="governed",
+            routing="interruptive",
+            positive_components=2,
+        ),
+        AlertRecord(
+            alert_id="alert-demo-episode-aki-006",
+            patient_id="Patient/p-ep-901",
+            patient_name="Elena Vargas",
+            encounter_id="Encounter/enc-ep-1",
+            indicator="aki",
+            event_time=now - timedelta(minutes=20),
+            ingest_time=now - timedelta(minutes=19),
+            score=4,
+            completeness="complete",
+            tier="urgent",
+            component_breakdown=[
+                ComponentBreakdown(
+                    name="creatinine",
+                    points=4,
+                    evidence_ids=["Observation/cr-ep-aki"],
+                ),
+            ],
+            evidence_ids=["Observation/cr-ep-aki"],
+            rule_bundle_id="aki-kdigo",
+            rule_version="0.4.0",
+            governance_path="governed",
+            routing="interruptive",
+            positive_components=1,
+        ),
+        AlertRecord(
+            alert_id="alert-demo-episode-hypo-007",
+            patient_id="Patient/p-ep-901",
+            patient_name="Elena Vargas",
+            encounter_id="Encounter/enc-ep-1",
+            indicator="hypotension",
+            signal_kind="risk",
+            event_time=now - timedelta(minutes=18),
+            ingest_time=now - timedelta(minutes=17),
+            score=3,
+            completeness="complete",
+            tier="urgent",
+            component_breakdown=[
+                ComponentBreakdown(
+                    name="map",
+                    points=3,
+                    evidence_ids=["Observation/map-low"],
+                ),
+            ],
+            evidence_ids=["Observation/map-low"],
+            rule_bundle_id="hypotension-demo",
+            rule_version="0.1.0",
+            governance_path="governed",
+            routing="interruptive",
             positive_components=1,
         ),
     ]

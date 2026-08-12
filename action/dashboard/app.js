@@ -1,5 +1,6 @@
 const state = {
   alerts: [],
+  episodes: [],
   selectedId: null,
   hideAck: false,
   metrics: null,
@@ -9,6 +10,7 @@ const listEl = document.getElementById("alertList");
 const detailEl = document.getElementById("detail");
 const detailEmpty = document.getElementById("detailEmpty");
 const metricsEl = document.getElementById("metrics");
+const episodesEl = document.getElementById("episodes");
 const hideAckEl = document.getElementById("hideAck");
 
 const SCORE_CEILING = 24;
@@ -162,6 +164,40 @@ async function loadMetrics() {
       <strong class="stat-value">${m.acknowledged_alerts}</strong>
       <span class="stat-sub">of ${m.total_alerts} total</span>
     </article>
+  `;
+}
+
+async function loadEpisodes() {
+  if (!episodesEl) return;
+  state.episodes = await fetchJson("/episodes?limit=50");
+  if (!state.episodes.length) {
+    episodesEl.innerHTML = "";
+    return;
+  }
+  episodesEl.innerHTML = `
+    <div class="section-title-row">
+      <h2>Episodes</h2>
+      <p class="hint">One interruptive page per patient episode · supporting signals retained</p>
+    </div>
+    <div class="episode-row">
+      ${state.episodes
+        .map((ep) => {
+          const support = (ep.supporting_signal_types || []).join(", ") || "—";
+          const name =
+            state.alerts.find((a) => a.patient_id === ep.patient_id)?.patient_name ||
+            ep.patient_id.replace(/^Patient\//, "");
+          return `<article class="episode-card">
+            <div class="episode-top">
+              <strong>${name}</strong>
+              <span class="tier-chip ${ep.dominant_severity}">${ep.status}</span>
+            </div>
+            <div class="episode-dom">${ep.dominant_signal_type || "—"} · ${ep.dominant_severity}</div>
+            <div class="meta">support: ${support}</div>
+            <div class="meta">pages ${ep.page_count} · passive ${ep.passive_update_count}</div>
+          </article>`;
+        })
+        .join("")}
+    </div>
   `;
 }
 
@@ -406,6 +442,7 @@ hideAckEl.addEventListener("change", async () => {
 (async function init() {
   await loadMetrics();
   await loadAlerts();
+  await loadEpisodes();
   if (state.alerts[0]) {
     state.selectedId = state.alerts[0].alert_id;
     renderList();
