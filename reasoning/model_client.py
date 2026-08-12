@@ -3,6 +3,13 @@
 from __future__ import annotations
 
 from reasoning.models import AlertContext, Claim, NarrativeDraft
+from reasoning.openai_compat import generate_openai_compat
+
+__all__ = [
+    "generate_deterministic",
+    "generate_openai_compat",
+    "generate_ungrounded_hallucination",
+]
 
 
 def generate_deterministic(ctx: AlertContext, *, model_name: str) -> NarrativeDraft:

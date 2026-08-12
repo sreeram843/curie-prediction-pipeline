@@ -7,44 +7,61 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=IBM+Plex+Sans:wght@400;500;600&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,560;9..144,700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap"
       rel="stylesheet"
     />
     <link rel="stylesheet" href="/static/styles.css" />
   </head>
   <body>
-    <div class="atmosphere" aria-hidden="true"></div>
-    <header class="top">
-      <div class="brand-block">
-        <p class="eyebrow">Prototype · synthetic data only</p>
-        <h1>Curie</h1>
-        <p class="tagline">Clinical deterioration alerts with evidence you can audit.</p>
-      </div>
-      <div class="metrics" id="metrics" aria-live="polite"></div>
-    </header>
+    <div class="shell">
+      <aside class="rail" aria-label="Primary">
+        <div class="rail-mark" title="Curie">C</div>
+        <nav class="rail-nav">
+          <button type="button" class="rail-btn active" aria-current="page" title="Alerts">
+            <span aria-hidden="true">◈</span>
+            <span class="sr-only">Alerts</span>
+          </button>
+        </nav>
+        <p class="rail-proto">Demo</p>
+      </aside>
 
-    <main class="layout">
-      <section class="panel list-panel" aria-labelledby="alerts-heading">
-        <div class="panel-head">
-          <h2 id="alerts-heading">Alerts</h2>
-          <label class="filter">
+      <div class="workspace">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">Prototype · synthetic data only</p>
+            <h1>Curie</h1>
+          </div>
+          <label class="filter-chip">
             <input type="checkbox" id="hideAck" />
             Hide acknowledged
           </label>
+        </header>
+
+        <section class="summary" id="metrics" aria-live="polite" aria-label="Alert summary"></section>
+
+        <div class="workspace-grid">
+          <section class="board" aria-labelledby="alerts-heading">
+            <div class="section-title-row">
+              <h2 id="alerts-heading">Active trackers</h2>
+              <p class="hint">Select a card to inspect score evidence</p>
+            </div>
+            <div id="alertList" class="card-grid"></div>
+          </section>
+
+          <section class="inspector" aria-labelledby="detail-heading">
+            <h2 id="detail-heading">Evidence</h2>
+            <div id="detailEmpty" class="empty-state">
+              <p>Pick an alert card to see component scores, evidence IDs, and actions.</p>
+            </div>
+            <article id="detail" class="detail hidden"></article>
+          </section>
         </div>
-        <ul id="alertList" class="alert-list"></ul>
-      </section>
 
-      <section class="panel detail-panel" aria-labelledby="detail-heading">
-        <h2 id="detail-heading">Evidence</h2>
-        <div id="detailEmpty" class="empty">Select an alert to inspect score breakdown and evidence IDs.</div>
-        <article id="detail" class="detail hidden"></article>
-      </section>
-    </main>
-
-    <footer class="foot">
-      Not clinically validated · Not for patient care · SOFA prototype scoring
-    </footer>
+        <footer class="foot">
+          Not clinically validated · Not for patient care · Scores are deterministic prototypes
+        </footer>
+      </div>
+    </div>
     <script src="/static/app.js"></script>
   </body>
 </html>

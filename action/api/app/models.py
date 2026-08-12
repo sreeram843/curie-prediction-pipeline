@@ -18,6 +18,7 @@ class ComponentBreakdown(BaseModel):
 class AlertRecord(BaseModel):
     alert_id: str
     patient_id: str
+    patient_name: str | None = None
     encounter_id: str | None = None
     indicator: Literal["sepsis", "aki"] = "sepsis"
     event_time: datetime

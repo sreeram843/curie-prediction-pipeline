@@ -110,7 +110,8 @@ def seed_demo_alerts(store: AlertStore) -> None:
     demos = [
         AlertRecord(
             alert_id="alert-demo-critical-001",
-            patient_id="Patient/synthea-icu-001",
+            patient_id="Patient/p-48102",
+            patient_name="Maya Ellison",
             encounter_id="Encounter/enc-001",
             event_time=now - timedelta(minutes=12),
             ingest_time=now - timedelta(minutes=11),
@@ -152,7 +153,8 @@ def seed_demo_alerts(store: AlertStore) -> None:
         ),
         AlertRecord(
             alert_id="alert-demo-urgent-002",
-            patient_id="Patient/synthea-icu-002",
+            patient_id="Patient/p-55217",
+            patient_name="James Okonkwo",
             encounter_id="Encounter/enc-002",
             event_time=now - timedelta(hours=1),
             ingest_time=now - timedelta(hours=1) + timedelta(seconds=40),
@@ -181,7 +183,8 @@ def seed_demo_alerts(store: AlertStore) -> None:
         ),
         AlertRecord(
             alert_id="alert-demo-watch-003",
-            patient_id="Patient/synthea-ward-003",
+            patient_id="Patient/p-60344",
+            patient_name="Priya Natarajan",
             encounter_id="Encounter/enc-003",
             event_time=now - timedelta(hours=3),
             ingest_time=now - timedelta(hours=3),
@@ -208,7 +211,8 @@ def seed_demo_alerts(store: AlertStore) -> None:
         ),
         AlertRecord(
             alert_id="alert-demo-aki-urgent-004",
-            patient_id="Patient/synthea-icu-004",
+            patient_id="Patient/p-71908",
+            patient_name="Daniel Romero",
             encounter_id="Encounter/enc-004",
             indicator="aki",
             event_time=now - timedelta(minutes=40),
@@ -230,7 +234,7 @@ def seed_demo_alerts(store: AlertStore) -> None:
             ],
             evidence_ids=["Observation/cr-aki-now", "Observation/cr-aki-base"],
             rule_bundle_id="aki-kdigo",
-            rule_version="0.1.0",
+            rule_version="0.2.0",
             governance_path="governed",
         ),
     ]

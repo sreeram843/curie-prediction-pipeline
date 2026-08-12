@@ -2,6 +2,7 @@ const state = {
   alerts: [],
   selectedId: null,
   hideAck: false,
+  metrics: null,
 };
 
 const listEl = document.getElementById("alertList");
@@ -9,6 +10,8 @@ const detailEl = document.getElementById("detail");
 const detailEmpty = document.getElementById("detailEmpty");
 const metricsEl = document.getElementById("metrics");
 const hideAckEl = document.getElementById("hideAck");
+
+const SCORE_CEILING = 24;
 
 function fmtTime(iso) {
   if (!iso) return "—";
@@ -19,6 +22,82 @@ function fmtTime(iso) {
     hour: "2-digit",
     minute: "2-digit",
   });
+}
+
+const FIRST_NAMES = [
+  "Amelia",
+  "Noah",
+  "Sofia",
+  "Liam",
+  "Ava",
+  "Ethan",
+  "Mia",
+  "Lucas",
+  "Harper",
+  "Owen",
+  "Isla",
+  "Caleb",
+  "Chloe",
+  "Julian",
+  "Zoe",
+  "Adrian",
+];
+
+const LAST_NAMES = [
+  "Brooks",
+  "Nguyen",
+  "Patel",
+  "Garcia",
+  "Kim",
+  "Andersen",
+  "Hassan",
+  "Murphy",
+  "Silva",
+  "Cohen",
+  "Walsh",
+  "Ibrahim",
+  "Foster",
+  "Reyes",
+  "Bennett",
+  "Sato",
+];
+
+function hashString(value) {
+  let h = 0;
+  const s = String(value || "");
+  for (let i = 0; i < s.length; i += 1) {
+    h = (h * 31 + s.charCodeAt(i)) >>> 0;
+  }
+  return h;
+}
+
+function displayName(alert) {
+  if (alert.patient_name && String(alert.patient_name).trim()) {
+    return String(alert.patient_name).trim();
+  }
+  const h = hashString(alert.patient_id);
+  const first = FIRST_NAMES[h % FIRST_NAMES.length];
+  const last = LAST_NAMES[Math.floor(h / FIRST_NAMES.length) % LAST_NAMES.length];
+  return `${first} ${last}`;
+}
+
+function patientIdLabel(id) {
+  if (!id) return "";
+  return String(id).replace(/^Patient\//, "");
+}
+
+function indicatorGlyph(indicator) {
+  return indicator === "aki" ? "◇" : "◈";
+}
+
+function scoreWidth(score) {
+  const n = Number(score) || 0;
+  return `${Math.max(6, Math.min(100, (n / SCORE_CEILING) * 100))}%`;
+}
+
+function componentWidth(points) {
+  if (points == null) return "0%";
+  return `${Math.max(8, Math.min(100, (Number(points) / 4) * 100))}%`;
 }
 
 async function fetchJson(url, options) {
@@ -32,10 +111,33 @@ async function fetchJson(url, options) {
 
 async function loadMetrics() {
   const m = await fetchJson("/metrics");
+  state.metrics = m;
   metricsEl.innerHTML = `
-    <div class="metric"><strong>${m.open_alerts}</strong><span>Open</span></div>
-    <div class="metric"><strong>${m.acknowledged_alerts}</strong><span>Acked</span></div>
-    <div class="metric"><strong>${m.by_tier.critical || 0}</strong><span>Critical</span></div>
+    <article class="stat-card">
+      <span class="stat-label">Open</span>
+      <strong class="stat-value">${m.open_alerts}</strong>
+      <span class="stat-sub">Needs review</span>
+    </article>
+    <article class="stat-card critical">
+      <span class="stat-label">Critical</span>
+      <strong class="stat-value">${m.by_tier.critical || 0}</strong>
+      <span class="stat-sub">Highest acuity</span>
+    </article>
+    <article class="stat-card urgent">
+      <span class="stat-label">Urgent</span>
+      <strong class="stat-value">${m.by_tier.urgent || 0}</strong>
+      <span class="stat-sub">Interruptive</span>
+    </article>
+    <article class="stat-card watch">
+      <span class="stat-label">Watch</span>
+      <strong class="stat-value">${m.by_tier.watch || 0}</strong>
+      <span class="stat-sub">Passive flag</span>
+    </article>
+    <article class="stat-card ok">
+      <span class="stat-label">Acknowledged</span>
+      <strong class="stat-value">${m.acknowledged_alerts}</strong>
+      <span class="stat-sub">of ${m.total_alerts} total</span>
+    </article>
   `;
 }
 
@@ -49,14 +151,13 @@ async function loadAlerts() {
   if (state.selectedId) {
     const still = state.alerts.find((a) => a.alert_id === state.selectedId);
     if (still) renderDetail(still);
-    else {
-      state.selectedId = state.alerts[0]?.alert_id || null;
-      if (state.selectedId) {
-        renderDetail(state.alerts[0]);
-      } else {
-        detailEl.classList.add("hidden");
-        detailEmpty.classList.remove("hidden");
-      }
+    else if (state.alerts[0]) {
+      state.selectedId = state.alerts[0].alert_id;
+      renderDetail(state.alerts[0]);
+    } else {
+      state.selectedId = null;
+      detailEl.classList.add("hidden");
+      detailEmpty.classList.remove("hidden");
     }
   }
 }
@@ -64,32 +165,43 @@ async function loadAlerts() {
 function renderList() {
   listEl.innerHTML = "";
   if (!state.alerts.length) {
-    listEl.innerHTML = `<li class="empty">No alerts match this filter.</li>`;
+    listEl.innerHTML = `<p class="empty">No alerts match this filter.</p>`;
     return;
   }
+
   for (const alert of state.alerts) {
-    const li = document.createElement("li");
     const btn = document.createElement("button");
     btn.type = "button";
-    btn.className = `alert-item${alert.acknowledged ? " acked" : ""}${
+    btn.className = `alert-card${alert.acknowledged ? " acked" : ""}${
       alert.alert_id === state.selectedId ? " active" : ""
     }`;
+    const tier = alert.tier || "none";
+    const indicator = alert.indicator || "sepsis";
     btn.innerHTML = `
-      <div class="row">
-        <span class="patient">${alert.patient_id}</span>
-        <span class="tier ${alert.tier}">${alert.tier}</span>
+      <div class="card-top">
+        <div class="icon-pill ${tier}" aria-hidden="true">${indicatorGlyph(indicator)}</div>
+        <span class="tier-chip ${tier}">${tier}</span>
       </div>
-      <div class="meta">${alert.indicator || "sepsis"} · Score ${alert.score ?? "—"} · ${fmtTime(alert.event_time)}${
-        alert.acknowledged ? " · acknowledged" : ""
-      }</div>
+      <div class="card-patient">${displayName(alert)}</div>
+      <div class="card-score-row">
+        <div class="card-score">
+          <span>Score</span>
+          ${alert.score ?? "—"}
+        </div>
+        <div class="card-meta">${fmtTime(alert.event_time)}</div>
+      </div>
+      <div class="meter ${tier}" aria-hidden="true"><i style="width:${scoreWidth(alert.score)}"></i></div>
+      <div class="card-footer">
+        <span class="indicator-tag">${indicator}</span>
+        <span>${alert.completeness}${alert.acknowledged ? " · acked" : ""}</span>
+      </div>
     `;
     btn.addEventListener("click", () => {
       state.selectedId = alert.alert_id;
       renderList();
       renderDetail(alert);
     });
-    li.appendChild(btn);
-    listEl.appendChild(li);
+    listEl.appendChild(btn);
   }
 }
 
@@ -120,7 +232,7 @@ function renderNarrative(alert) {
   }
   return `
     <div class="narrative none">
-      <p class="meta">No LLM narrative yet. GRP is additive and feature-flagged — it cannot change the score.</p>
+      <p class="meta">No LLM narrative yet. GRP is additive and cannot change the score.</p>
       <button type="button" id="explainBtn">Generate explanation</button>
     </div>`;
 }
@@ -128,35 +240,49 @@ function renderNarrative(alert) {
 function renderDetail(alert) {
   detailEmpty.classList.add("hidden");
   detailEl.classList.remove("hidden");
+
   const components = (alert.component_breakdown || [])
     .map((c) => {
       if (c.missing) {
-        return `<li class="missing">${c.name} — missing</li>`;
+        return `<li class="comp-item missing"><div class="comp-head"><strong>${c.name}</strong><span>missing</span></div></li>`;
       }
-      return `<li><strong>${c.name}</strong>: ${c.points} pts · ${(c.evidence_ids || []).join(", ") || "no evidence ids"}</li>`;
+      return `
+        <li class="comp-item">
+          <div class="comp-head">
+            <strong>${c.name}</strong>
+            <span>${c.points ?? 0} pts</span>
+          </div>
+          <div class="comp-bar" aria-hidden="true"><i style="width:${componentWidth(c.points)}"></i></div>
+          <div class="meta">${(c.evidence_ids || []).join(", ") || "no evidence ids"}</div>
+        </li>`;
     })
     .join("");
+
   const evidence = (alert.evidence_ids || [])
     .map((e) => `<li><code>${e}</code></li>`)
     .join("");
 
   detailEl.innerHTML = `
-    <h3>${alert.patient_id}</h3>
-    <div class="meta">${alert.alert_id}</div>
-    <div class="badges">
-      <span class="badge tier ${alert.tier}">${alert.tier}</span>
-      <span class="badge">${alert.indicator || "sepsis"}</span>
-      <span class="badge">score ${alert.score ?? "—"}</span>
-      <span class="badge">${alert.completeness}</span>
-      <span class="badge">${alert.governance_path}</span>
-      <span class="badge">rule ${alert.rule_bundle_id}@${alert.rule_version}</span>
+    <div class="detail-hero">
+      <div class="detail-score"><small>Score</small>${alert.score ?? "—"}</div>
+      <div>
+        <h3>${displayName(alert)}</h3>
+        <p class="meta">${alert.alert_id} · ${patientIdLabel(alert.patient_id)}</p>
+        <div class="badges">
+          <span class="badge tier-chip ${alert.tier}">${alert.tier}</span>
+          <span class="badge">${alert.indicator || "sepsis"}</span>
+          <span class="badge">${alert.completeness}</span>
+          <span class="badge">${alert.governance_path}</span>
+          <span class="badge">${alert.rule_bundle_id}@${alert.rule_version}</span>
+        </div>
+      </div>
     </div>
     <p class="meta">Event ${fmtTime(alert.event_time)} · Encounter ${alert.encounter_id || "—"}</p>
-    <div class="section-label">Component breakdown</div>
-    <ul class="breakdown">${components || "<li class='missing'>No components</li>"}</ul>
+    <div class="section-label">Component scores</div>
+    <ul class="comp-list">${components || '<li class="comp-item missing">No components</li>'}</ul>
     <div class="section-label">Evidence IDs</div>
-    <ul class="evidence">${evidence || "<li class='missing'>None</li>"}</ul>
-    <div class="section-label">Guarded explanation (additive)</div>
+    <ul class="evidence">${evidence || '<li class="missing">None</li>'}</ul>
+    <div class="section-label">Guarded explanation</div>
     ${renderNarrative(alert)}
     ${
       alert.acknowledged

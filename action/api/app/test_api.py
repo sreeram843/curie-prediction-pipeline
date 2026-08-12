@@ -43,7 +43,15 @@ def test_metrics() -> None:
     assert "critical" in m["by_tier"]
 
 
-def test_explain_is_additive() -> None:
+def test_explain_is_additive(monkeypatch) -> None:
+    from ingestion.extraction import settings as settings_mod
+
+    # Isolate from local .env (e.g. LM Studio openai_compat).
+    monkeypatch.setattr(settings_mod.settings, "enable_grp", True)
+    monkeypatch.setattr(settings_mod.settings, "grp_backend", "deterministic")
+    monkeypatch.setattr(settings_mod.settings, "grp_model_name", "curie-grp-stub-v1")
+    monkeypatch.setattr(settings_mod.settings, "grp_fail_closed", True)
+
     client = TestClient(app)
     alerts = client.get("/alerts").json()
     target = next(a for a in alerts if a["tier"] == "critical")
@@ -72,3 +80,11 @@ def test_aki_demo_alert_present() -> None:
     aki = [a for a in alerts if a["indicator"] == "aki"]
     assert len(aki) >= 1
     assert aki[0]["rule_bundle_id"] == "aki-kdigo"
+
+
+def test_demo_alerts_use_human_names() -> None:
+    client = TestClient(app)
+    alerts = client.get("/alerts").json()
+    assert all(a.get("patient_name") for a in alerts)
+    assert not any("synthea" in (a.get("patient_name") or "").lower() for a in alerts)
+    assert not any("synthea" in a["patient_id"].lower() for a in alerts)

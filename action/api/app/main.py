@@ -60,6 +60,8 @@ def health() -> dict[str, object]:
         "flags": {
             "enable_extraction": settings.enable_extraction,
             "enable_grp": settings.enable_grp,
+            "grp_backend": settings.grp_backend,
+            "grp_model_name": settings.grp_model_name,
         },
     }
 

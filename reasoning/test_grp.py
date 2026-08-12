@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import pytest
+
+from ingestion.extraction import settings as settings_mod
 from reasoning.pipeline import explain_alert
 
 ALERT = {
@@ -36,6 +39,15 @@ ALERT = {
     "rule_bundle_id": "sepsis-sofa",
     "rule_version": "0.1.0",
 }
+
+
+@pytest.fixture(autouse=True)
+def _deterministic_grp_defaults(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Isolate unit tests from local .env (e.g. LM Studio openai_compat)."""
+    monkeypatch.setattr(settings_mod.settings, "enable_grp", False)
+    monkeypatch.setattr(settings_mod.settings, "grp_backend", "deterministic")
+    monkeypatch.setattr(settings_mod.settings, "grp_model_name", "curie-grp-stub-v1")
+    monkeypatch.setattr(settings_mod.settings, "grp_fail_closed", True)
 
 
 def test_grp_disabled_by_default() -> None:
@@ -75,3 +87,51 @@ def test_abstain_without_evidence() -> None:
     decision = explain_alert(bare, force=True)
     assert decision.status == "abstain"
     assert decision.narrative is None
+
+
+def test_openai_compat_parses_fenced_json(monkeypatch) -> None:
+    from ingestion.extraction import settings as settings_mod
+    from reasoning import openai_compat as oc
+
+    class _Resp:
+        def raise_for_status(self) -> None:
+            return None
+
+        def json(self) -> dict:
+            return {
+                "choices": [
+                    {
+                        "message": {
+                            "content": (
+                                '```json\n{"summary":"Partial SOFA alert.",'
+                                '"claims":[{"text":"Coagulation elevated.",'
+                                '"evidence_ids":["Observation/plt-1"]}],'
+                                '"abstain":false,"abstain_reason":null}\n```'
+                            )
+                        }
+                    }
+                ]
+            }
+
+    class _Client:
+        def __init__(self, *args, **kwargs) -> None:
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args) -> None:
+            return None
+
+        def post(self, *args, **kwargs):
+            return _Resp()
+
+    monkeypatch.setattr(settings_mod.settings, "grp_backend", "openai_compat")
+    monkeypatch.setattr(settings_mod.settings, "grp_model_name", "medgemma-4b-it-mlx")
+    monkeypatch.setattr(oc.httpx, "Client", _Client)
+
+    decision = explain_alert(ALERT, force=True)
+    assert decision.status == "pass"
+    assert decision.narrative is not None
+    assert "Partial SOFA alert" in decision.narrative
+    assert decision.model_name == "medgemma-4b-it-mlx"
