@@ -11,6 +11,8 @@ const detailEl = document.getElementById("detail");
 const detailEmpty = document.getElementById("detailEmpty");
 const metricsEl = document.getElementById("metrics");
 const episodesEl = document.getElementById("episodes");
+const claimsEl = document.getElementById("claims");
+const investorEl = document.getElementById("investor");
 const hideAckEl = document.getElementById("hideAck");
 
 const SCORE_CEILING = 24;
@@ -199,6 +201,80 @@ async function loadEpisodes() {
         .join("")}
     </div>
   `;
+}
+
+async function loadClaims() {
+  if (!claimsEl) return;
+  try {
+    const matrix = await fetchJson("/claims-matrix");
+    const groups = [
+      ["demonstrated", "Demonstrated"],
+      ["under_evaluation", "Under evaluation"],
+      ["not_claimed", "Not claimed"],
+    ];
+    claimsEl.innerHTML = `
+      <div class="section-title-row">
+        <h2>Claims matrix</h2>
+        <p class="hint">Investor posture · not regulatory · see docs/claims-matrix.md</p>
+      </div>
+      <div class="claims-grid">
+        ${groups
+          .map(([key, label]) => {
+            const rows = (matrix.claims || []).filter((c) => c.status === key);
+            return `<article class="claims-col ${key}">
+              <h3>${label}</h3>
+              <ul>${rows
+                .map((c) => `<li><code>${c.id}</code> ${c.claim}</li>`)
+                .join("")}</ul>
+            </article>`;
+          })
+          .join("")}
+      </div>
+    `;
+  } catch (err) {
+    console.warn("claims matrix unavailable", err);
+    claimsEl.innerHTML = "";
+  }
+}
+
+async function loadInvestorDemo() {
+  if (!investorEl) return;
+  try {
+    const report = await fetchJson("/investor-demo");
+    const vol = report.timeline?.volume || {};
+    const chaos = report.chaos_all_passed ? "passed" : "failed";
+    investorEl.innerHTML = `
+      <div class="section-title-row">
+        <h2>Investor demo snapshot</h2>
+        <p class="hint">Multi-signal → one episode · chaos ${chaos}</p>
+      </div>
+      <div class="investor-row">
+        <article class="investor-card">
+          <span class="stat-label">Signals → episode</span>
+          <strong class="stat-value">${report.timeline?.signals_merged ?? "—"} → 1</strong>
+          <span class="stat-sub">${report.timeline?.final_episode?.dominant_signal_type || "dominant"}</span>
+        </article>
+        <article class="investor-card">
+          <span class="stat-label">Naive pages</span>
+          <strong class="stat-value">${vol.naive_alert_count ?? "—"}</strong>
+          <span class="stat-sub">Every emission</span>
+        </article>
+        <article class="investor-card">
+          <span class="stat-label">Episode pages</span>
+          <strong class="stat-value">${vol.episode_interruptive_pages ?? "—"}</strong>
+          <span class="stat-sub">vs ${vol.governed_passive_count ?? 0} passive</span>
+        </article>
+        <article class="investor-card">
+          <span class="stat-label">Evidence + hashes</span>
+          <strong class="stat-value">${(report.evidence_and_hashes || []).length}</strong>
+          <span class="stat-sub">alerts with rule digests</span>
+        </article>
+      </div>
+    `;
+  } catch (err) {
+    console.warn("investor demo unavailable", err);
+    investorEl.innerHTML = "";
+  }
 }
 
 async function loadAlerts() {
@@ -441,6 +517,8 @@ hideAckEl.addEventListener("change", async () => {
 
 (async function init() {
   await loadMetrics();
+  await loadClaims();
+  await loadInvestorDemo();
   await loadAlerts();
   await loadEpisodes();
   if (state.alerts[0]) {

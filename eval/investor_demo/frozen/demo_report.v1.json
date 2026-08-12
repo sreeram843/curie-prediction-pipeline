@@ -1,0 +1,351 @@
+{
+  "schema_version": "1.0.0",
+  "curie_ticket": "CURIE-021",
+  "disclaimer": "Synthetic investor demo \u2014 not clinical validation.",
+  "timeline": {
+    "patient_id": "Patient/p-investor-001",
+    "steps": [
+      {
+        "alert_id": "inv-sofa-1",
+        "event_time": "2024-06-15T14:00:00+00:00",
+        "indicator": "sofa-deterioration",
+        "tier": "urgent",
+        "routing": "interruptive",
+        "score": 6,
+        "evidence_ids": [
+          "Observation/map-inv-1",
+          "Observation/cr-inv-1"
+        ],
+        "rule_bundle_id": "sepsis-sofa",
+        "rule_version": "0.2.0",
+        "rule_bundle_hash": "3d48b41aa3eb57ec",
+        "episode_id": "episode-5fd07c30-bf84-41ab-bd01-fa356ea3f09e",
+        "episode_signals": 1,
+        "dominant": "sofa-deterioration"
+      },
+      {
+        "alert_id": "inv-aki-1",
+        "event_time": "2024-06-15T14:25:00+00:00",
+        "indicator": "aki",
+        "tier": "urgent",
+        "routing": "interruptive",
+        "score": 3,
+        "evidence_ids": [
+          "Observation/cr-inv-aki"
+        ],
+        "rule_bundle_id": "aki-kdigo",
+        "rule_version": "0.4.0",
+        "rule_bundle_hash": "647eddbba2126804",
+        "episode_id": "episode-5fd07c30-bf84-41ab-bd01-fa356ea3f09e",
+        "episode_signals": 2,
+        "dominant": "sofa-deterioration"
+      },
+      {
+        "alert_id": "inv-hypo-1",
+        "event_time": "2024-06-15T14:40:00+00:00",
+        "indicator": "hypotension",
+        "tier": "urgent",
+        "routing": "interruptive",
+        "score": 3,
+        "evidence_ids": [
+          "Observation/map-inv-low"
+        ],
+        "rule_bundle_id": "hypotension-demo",
+        "rule_version": "0.1.0",
+        "rule_bundle_hash": "976be19f6d17828f",
+        "episode_id": "episode-5fd07c30-bf84-41ab-bd01-fa356ea3f09e",
+        "episode_signals": 3,
+        "dominant": "sofa-deterioration"
+      },
+      {
+        "alert_id": "inv-sofa-2",
+        "event_time": "2024-06-15T14:55:00+00:00",
+        "indicator": "sofa-deterioration",
+        "tier": "critical",
+        "routing": "interruptive",
+        "score": 8,
+        "evidence_ids": [
+          "Observation/map-inv-2",
+          "Observation/cr-inv-2",
+          "Observation/plt-inv-2"
+        ],
+        "rule_bundle_id": "sepsis-sofa",
+        "rule_version": "0.2.0",
+        "rule_bundle_hash": "3d48b41aa3eb57ec",
+        "episode_id": "episode-5fd07c30-bf84-41ab-bd01-fa356ea3f09e",
+        "episode_signals": 4,
+        "dominant": "sofa-deterioration"
+      },
+      {
+        "alert_id": "inv-watch-1",
+        "event_time": "2024-06-15T15:30:00+00:00",
+        "indicator": "sofa-deterioration",
+        "tier": "watch",
+        "routing": "passive",
+        "score": 2,
+        "evidence_ids": [
+          "Observation/cr-inv-watch"
+        ],
+        "rule_bundle_id": "sepsis-sofa",
+        "rule_version": "0.2.0",
+        "rule_bundle_hash": "3d48b41aa3eb57ec",
+        "episode_id": "episode-5fd07c30-bf84-41ab-bd01-fa356ea3f09e",
+        "episode_signals": 5,
+        "dominant": "sofa-deterioration"
+      }
+    ],
+    "final_episode": {
+      "schema_version": "1.0.0",
+      "episode_id": "episode-5fd07c30-bf84-41ab-bd01-fa356ea3f09e",
+      "patient_id": "Patient/p-investor-001",
+      "encounter_id": "Encounter/enc-investor-1",
+      "status": "updated",
+      "opened_at": "2024-06-15T14:00:00Z",
+      "updated_at": "2024-06-15T15:30:00Z",
+      "resolved_at": null,
+      "acknowledged_at": null,
+      "dominant_signal_type": "sofa-deterioration",
+      "dominant_severity": "critical",
+      "supporting_signal_types": [
+        "aki",
+        "hypotension"
+      ],
+      "signals": [
+        {
+          "signal_id": "inv-sofa-1",
+          "signal_type": "sofa-deterioration",
+          "signal_kind": "risk",
+          "severity": "urgent",
+          "score": 6,
+          "routing": "interruptive",
+          "event_time": "2024-06-15T14:00:00Z",
+          "evidence_ids": [
+            "Observation/map-inv-1",
+            "Observation/cr-inv-1"
+          ],
+          "suppressed": false,
+          "suppression_reason": null,
+          "exclusions": [],
+          "criteria_met": [],
+          "rule_bundle_id": "sepsis-sofa",
+          "rule_version": "0.2.0"
+        },
+        {
+          "signal_id": "inv-aki-1",
+          "signal_type": "aki",
+          "signal_kind": "risk",
+          "severity": "urgent",
+          "score": 3,
+          "routing": "interruptive",
+          "event_time": "2024-06-15T14:25:00Z",
+          "evidence_ids": [
+            "Observation/cr-inv-aki"
+          ],
+          "suppressed": false,
+          "suppression_reason": null,
+          "exclusions": [],
+          "criteria_met": [],
+          "rule_bundle_id": "aki-kdigo",
+          "rule_version": "0.4.0"
+        },
+        {
+          "signal_id": "inv-hypo-1",
+          "signal_type": "hypotension",
+          "signal_kind": "risk",
+          "severity": "urgent",
+          "score": 3,
+          "routing": "interruptive",
+          "event_time": "2024-06-15T14:40:00Z",
+          "evidence_ids": [
+            "Observation/map-inv-low"
+          ],
+          "suppressed": false,
+          "suppression_reason": null,
+          "exclusions": [],
+          "criteria_met": [],
+          "rule_bundle_id": "hypotension-demo",
+          "rule_version": "0.1.0"
+        },
+        {
+          "signal_id": "inv-sofa-2",
+          "signal_type": "sofa-deterioration",
+          "signal_kind": "risk",
+          "severity": "critical",
+          "score": 8,
+          "routing": "interruptive",
+          "event_time": "2024-06-15T14:55:00Z",
+          "evidence_ids": [
+            "Observation/map-inv-2",
+            "Observation/cr-inv-2",
+            "Observation/plt-inv-2"
+          ],
+          "suppressed": false,
+          "suppression_reason": null,
+          "exclusions": [],
+          "criteria_met": [],
+          "rule_bundle_id": "sepsis-sofa",
+          "rule_version": "0.2.0"
+        },
+        {
+          "signal_id": "inv-watch-1",
+          "signal_type": "sofa-deterioration",
+          "signal_kind": "risk",
+          "severity": "watch",
+          "score": 2,
+          "routing": "passive",
+          "event_time": "2024-06-15T15:30:00Z",
+          "evidence_ids": [
+            "Observation/cr-inv-watch"
+          ],
+          "suppressed": false,
+          "suppression_reason": null,
+          "exclusions": [],
+          "criteria_met": [],
+          "rule_bundle_id": "sepsis-sofa",
+          "rule_version": "0.2.0"
+        }
+      ],
+      "evidence_ids": [
+        "Observation/map-inv-1",
+        "Observation/cr-inv-1",
+        "Observation/cr-inv-aki",
+        "Observation/map-inv-low",
+        "Observation/map-inv-2",
+        "Observation/cr-inv-2",
+        "Observation/plt-inv-2",
+        "Observation/cr-inv-watch"
+      ],
+      "page_count": 1,
+      "passive_update_count": 4,
+      "last_page_at": "2024-06-15T14:00:00Z",
+      "last_action": "passive",
+      "last_action_reason": "passive_update",
+      "audit": [
+        {
+          "at": "2024-06-15T14:00:00Z",
+          "action": "page",
+          "status": "open",
+          "reason": "new_episode_interruptive",
+          "signal_id": "inv-sofa-1",
+          "dominant_signal_type": "sofa-deterioration"
+        },
+        {
+          "at": "2024-06-15T14:25:00Z",
+          "action": "passive",
+          "status": "updated",
+          "reason": "passive_update_within_page_refractory",
+          "signal_id": "inv-aki-1",
+          "dominant_signal_type": "sofa-deterioration"
+        },
+        {
+          "at": "2024-06-15T14:40:00Z",
+          "action": "passive",
+          "status": "updated",
+          "reason": "passive_update_within_page_refractory",
+          "signal_id": "inv-hypo-1",
+          "dominant_signal_type": "sofa-deterioration"
+        },
+        {
+          "at": "2024-06-15T14:55:00Z",
+          "action": "passive",
+          "status": "updated",
+          "reason": "passive_update_within_page_refractory",
+          "signal_id": "inv-sofa-2",
+          "dominant_signal_type": "sofa-deterioration"
+        },
+        {
+          "at": "2024-06-15T15:30:00Z",
+          "action": "passive",
+          "status": "updated",
+          "reason": "passive_update",
+          "signal_id": "inv-watch-1",
+          "dominant_signal_type": "sofa-deterioration"
+        }
+      ]
+    },
+    "volume": {
+      "naive_alert_count": 5,
+      "governed_passive_count": 1,
+      "governed_interruptive_signal_count": 4,
+      "episode_interruptive_pages": 1,
+      "reduction_vs_naive_pages": 0.2,
+      "note": "Naive counts every signal emission as a page. Episode arbitration collapses correlated interruptive signals."
+    },
+    "signals_merged": 5,
+    "single_episode": true
+  },
+  "evidence_and_hashes": [
+    {
+      "alert_id": "inv-sofa-1",
+      "evidence_ids": [
+        "Observation/map-inv-1",
+        "Observation/cr-inv-1"
+      ],
+      "rule_bundle_id": "sepsis-sofa",
+      "rule_version": "0.2.0",
+      "rule_bundle_hash": "3d48b41aa3eb57ec"
+    },
+    {
+      "alert_id": "inv-aki-1",
+      "evidence_ids": [
+        "Observation/cr-inv-aki"
+      ],
+      "rule_bundle_id": "aki-kdigo",
+      "rule_version": "0.4.0",
+      "rule_bundle_hash": "647eddbba2126804"
+    },
+    {
+      "alert_id": "inv-hypo-1",
+      "evidence_ids": [
+        "Observation/map-inv-low"
+      ],
+      "rule_bundle_id": "hypotension-demo",
+      "rule_version": "0.1.0",
+      "rule_bundle_hash": "976be19f6d17828f"
+    },
+    {
+      "alert_id": "inv-sofa-2",
+      "evidence_ids": [
+        "Observation/map-inv-2",
+        "Observation/cr-inv-2",
+        "Observation/plt-inv-2"
+      ],
+      "rule_bundle_id": "sepsis-sofa",
+      "rule_version": "0.2.0",
+      "rule_bundle_hash": "3d48b41aa3eb57ec"
+    },
+    {
+      "alert_id": "inv-watch-1",
+      "evidence_ids": [
+        "Observation/cr-inv-watch"
+      ],
+      "rule_bundle_id": "sepsis-sofa",
+      "rule_version": "0.2.0",
+      "rule_bundle_hash": "3d48b41aa3eb57ec"
+    }
+  ],
+  "chaos": {
+    "duplicate": {
+      "scenario": "duplicate_upsert",
+      "passed": true,
+      "alert_copies": 1
+    },
+    "out_of_order": {
+      "scenario": "out_of_order_ingest",
+      "passed": true,
+      "alert_count": 5,
+      "episode_count": 1,
+      "dominant": "sofa-deterioration"
+    },
+    "restart": {
+      "scenario": "restart_plus_duplicate_kafka",
+      "passed": true,
+      "alert_count": 5,
+      "episode_count": 1,
+      "signals_in_episode": 5,
+      "duplicate_created": false
+    }
+  },
+  "chaos_all_passed": true,
+  "claims_matrix_path": "eval/investor_demo/frozen/claims_matrix.v1.json"
+}

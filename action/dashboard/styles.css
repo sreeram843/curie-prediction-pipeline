@@ -171,6 +171,78 @@ body {
   margin-bottom: 1.15rem;
 }
 
+.claims,
+.investor {
+  margin-bottom: 1.15rem;
+}
+
+.claims-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+@media (max-width: 960px) {
+  .claims-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.claims-col {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 0.85rem 1rem;
+  box-shadow: var(--shadow);
+}
+
+.claims-col h3 {
+  margin: 0 0 0.5rem;
+  font-size: 0.85rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.claims-col ul {
+  margin: 0;
+  padding-left: 1.1rem;
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.claims-col li {
+  margin-bottom: 0.35rem;
+}
+
+.claims-col.demonstrated {
+  border-top: 3px solid var(--ok);
+}
+
+.claims-col.under_evaluation {
+  border-top: 3px solid var(--watch);
+}
+
+.claims-col.not_claimed {
+  border-top: 3px solid var(--critical);
+}
+
+.investor-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 0.75rem;
+}
+
+.investor-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 0.85rem 1rem;
+  box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
 .episode-row {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
