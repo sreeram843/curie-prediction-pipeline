@@ -1,0 +1,35 @@
+{
+  "schema_version": "1.0.0",
+  "event_id": "obs-cr-trusted-1",
+  "patient_id": "Patient/bridge-demo-1",
+  "encounter_id": "Encounter/enc-bridge-1",
+  "resource_type": "Observation",
+  "resource": {
+    "resourceType": "Observation",
+    "id": "cr-1",
+    "status": "final",
+    "code": { "text": "Creatinine" },
+    "valueQuantity": { "value": 2.1, "unit": "mg/dL" }
+  },
+  "clinical_event_time": "2026-08-12T10:00:00Z",
+  "availability_time": "2026-08-12T10:04:00Z",
+  "trust_status": "trusted",
+  "source": {
+    "system": "hospital-a-lab",
+    "resource_id": "Observation/cr-1",
+    "spans": []
+  },
+  "extraction": {
+    "method": "deterministic",
+    "model": null,
+    "prompt_version": null,
+    "confidence": null
+  },
+  "validation": {
+    "schema": "passed",
+    "terminology": "passed",
+    "provenance": "passed",
+    "semantic_review": "not_required"
+  },
+  "idempotency_key": "hospital-a-lab:Observation/cr-1:v1:sha256:abc"
+}

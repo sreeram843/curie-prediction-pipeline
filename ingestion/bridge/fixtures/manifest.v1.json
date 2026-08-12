@@ -1,0 +1,54 @@
+{
+  "fixture_id": "trusted-clinical-fact-contract.v1",
+  "schema_version": "1.0.0",
+  "curie_ticket": "CURIE-022",
+  "shared_with": ["curie-prediction-pipeline", "curie-fhir"],
+  "schema_path": "schema/trusted_clinical_fact.v1.schema.json",
+  "cases": [
+    {
+      "id": "valid_trusted_deterministic",
+      "file": "valid_trusted_deterministic.v1.json",
+      "expect_outcome": "admit",
+      "may_mutate_scoring": true,
+      "extraction_method": "deterministic"
+    },
+    {
+      "id": "valid_trusted_llm",
+      "file": "valid_trusted_llm.v1.json",
+      "expect_outcome": "admit",
+      "may_mutate_scoring": true,
+      "extraction_method": "llm"
+    },
+    {
+      "id": "candidate_quarantine",
+      "file": "candidate_quarantine.v1.json",
+      "expect_outcome": "quarantine",
+      "may_mutate_scoring": false
+    },
+    {
+      "id": "failed_validation",
+      "file": "failed_validation.v1.json",
+      "expect_outcome": "reject",
+      "may_mutate_scoring": false
+    },
+    {
+      "id": "missing_provenance",
+      "file": "missing_provenance.v1.json",
+      "expect_outcome": "reject",
+      "may_mutate_scoring": false
+    },
+    {
+      "id": "future_availability",
+      "file": "future_availability.v1.json",
+      "expect_outcome": "reject",
+      "may_mutate_scoring": false,
+      "clock": "2026-08-12T12:30:00Z"
+    },
+    {
+      "id": "unknown_schema",
+      "file": "unknown_schema.v1.json",
+      "expect_outcome": "reject",
+      "may_mutate_scoring": false
+    }
+  ]
+}

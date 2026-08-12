@@ -465,9 +465,13 @@ Reject or quarantine candidate facts, unknown schemas, failed validation, and mi
 
 **Acceptance criteria**
 
-- [ ] Both projects validate the same contract fixtures.
-- [ ] LLM-derived and deterministic facts are distinguishable in audit output.
-- [ ] Only trusted facts can mutate scoring state.
+- [x] Both projects validate the same contract fixtures.
+- [x] LLM-derived and deterministic facts are distinguishable in audit output.
+- [x] Only trusted facts can mutate scoring state.
+
+**Artifacts:** [`docs/trusted-clinical-fact-bridge.md`](./trusted-clinical-fact-bridge.md),
+`ingestion/bridge/`, `make trusted-fact-bridge`,
+`curie-fhir` `src/curie_fhir/contracts/trusted_clinical_fact/`.
 
 ### CURIE-023 — Build grounded patient-episode narratives [P1]
 

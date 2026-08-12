@@ -1,0 +1,28 @@
+{
+  "schema_version": "9.9.9",
+  "event_id": "obs-unknown-schema",
+  "patient_id": "Patient/bridge-demo-1",
+  "resource_type": "Observation",
+  "resource": {},
+  "clinical_event_time": "2026-08-12T12:00:00Z",
+  "availability_time": "2026-08-12T12:01:00Z",
+  "trust_status": "trusted",
+  "source": {
+    "system": "hospital-a-lab",
+    "resource_id": "Observation/x",
+    "spans": []
+  },
+  "extraction": {
+    "method": "deterministic",
+    "model": null,
+    "prompt_version": null,
+    "confidence": null
+  },
+  "validation": {
+    "schema": "passed",
+    "terminology": "passed",
+    "provenance": "passed",
+    "semantic_review": "not_required"
+  },
+  "idempotency_key": "unknown-schema-key"
+}

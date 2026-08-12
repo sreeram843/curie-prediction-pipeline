@@ -1,0 +1,29 @@
+{
+  "schema_version": "1.0.0",
+  "event_id": "obs-candidate-1",
+  "patient_id": "Patient/bridge-demo-1",
+  "encounter_id": "Encounter/enc-bridge-1",
+  "resource_type": "Observation",
+  "resource": { "resourceType": "Observation", "id": "cand-1" },
+  "clinical_event_time": "2026-08-12T12:00:00Z",
+  "availability_time": "2026-08-12T12:01:00Z",
+  "trust_status": "candidate",
+  "source": {
+    "system": "hospital-a-notes",
+    "resource_id": "DocumentReference/note-99",
+    "spans": []
+  },
+  "extraction": {
+    "method": "llm",
+    "model": "curie-extract-stub-v1",
+    "prompt_version": "extract-obs.v3",
+    "confidence": 0.4
+  },
+  "validation": {
+    "schema": "passed",
+    "terminology": "passed",
+    "provenance": "passed",
+    "semantic_review": "pending"
+  },
+  "idempotency_key": "hospital-a-notes:DocumentReference/note-99:cand"
+}

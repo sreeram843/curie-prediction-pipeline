@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://curie.local/schemas/trusted-clinical-fact.v1.json",
+  "title": "TrustedClinicalFactEnvelope",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "event_id",
+    "patient_id",
+    "resource_type",
+    "resource",
+    "clinical_event_time",
+    "availability_time",
+    "trust_status",
+    "source",
+    "extraction",
+    "validation",
+    "idempotency_key"
+  ],
+  "properties": {
+    "schema_version": { "const": "1.0.0" },
+    "event_id": { "type": "string", "minLength": 1 },
+    "patient_id": { "type": "string", "minLength": 1 },
+    "encounter_id": { "type": ["string", "null"] },
+    "resource_type": { "type": "string", "minLength": 1 },
+    "resource": { "type": "object" },
+    "clinical_event_time": { "type": "string", "format": "date-time" },
+    "availability_time": { "type": "string", "format": "date-time" },
+    "trust_status": {
+      "type": "string",
+      "enum": ["candidate", "trusted", "quarantined", "rejected"]
+    },
+    "source": {
+      "type": "object",
+      "required": ["system", "resource_id"],
+      "properties": {
+        "system": { "type": "string", "minLength": 1 },
+        "resource_id": { "type": "string", "minLength": 1 },
+        "spans": { "type": "array" }
+      }
+    },
+    "extraction": {
+      "type": "object",
+      "required": ["method"],
+      "properties": {
+        "method": {
+          "type": "string",
+          "enum": ["deterministic", "llm", "human_review", "hybrid"]
+        },
+        "model": { "type": ["string", "null"] },
+        "prompt_version": { "type": ["string", "null"] },
+        "confidence": { "type": ["number", "null"] }
+      }
+    },
+    "validation": {
+      "type": "object",
+      "required": ["schema", "terminology", "provenance"],
+      "properties": {
+        "schema": {
+          "type": "string",
+          "enum": ["passed", "failed", "not_required", "pending"]
+        },
+        "terminology": {
+          "type": "string",
+          "enum": ["passed", "failed", "not_required", "pending"]
+        },
+        "provenance": {
+          "type": "string",
+          "enum": ["passed", "failed", "not_required", "pending"]
+        },
+        "semantic_review": {
+          "type": "string",
+          "enum": ["passed", "failed", "not_required", "pending"]
+        }
+      }
+    },
+    "idempotency_key": { "type": "string", "minLength": 1 },
+    "extensions": { "type": "object" }
+  }
+}

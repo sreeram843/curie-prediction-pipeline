@@ -1,0 +1,35 @@
+{
+  "schema_version": "1.0.0",
+  "event_id": "obs-map-llm-trusted-1",
+  "patient_id": "Patient/bridge-demo-1",
+  "encounter_id": "Encounter/enc-bridge-1",
+  "resource_type": "Observation",
+  "resource": {
+    "resourceType": "Observation",
+    "id": "map-note-1",
+    "status": "final",
+    "code": { "text": "MAP" },
+    "valueQuantity": { "value": 58, "unit": "mmHg" }
+  },
+  "clinical_event_time": "2026-08-12T11:00:00Z",
+  "availability_time": "2026-08-12T11:05:00Z",
+  "trust_status": "trusted",
+  "source": {
+    "system": "hospital-a-notes",
+    "resource_id": "DocumentReference/note-44",
+    "spans": [{ "start": 120, "end": 148, "text": "MAP remained 58 mmHg" }]
+  },
+  "extraction": {
+    "method": "llm",
+    "model": "curie-extract-stub-v1",
+    "prompt_version": "extract-obs.v3",
+    "confidence": 0.81
+  },
+  "validation": {
+    "schema": "passed",
+    "terminology": "passed",
+    "provenance": "passed",
+    "semantic_review": "passed"
+  },
+  "idempotency_key": "hospital-a-notes:DocumentReference/note-44:map:v3"
+}

@@ -279,7 +279,8 @@ ordering.
 
 1. **LLM-WF-02:** deterministic-first router in `curie-fhir`.
 2. **LLM-WF-03:** provenance-preserving candidate-fact schema.
-3. **Cross-project bridge:** trusted event envelope and contract tests.
+3. **Cross-project bridge:** trusted event envelope and contract tests — see
+   [`trusted-clinical-fact-bridge.md`](trusted-clinical-fact-bridge.md) (CURIE-022).
 4. **LLM-WF-05:** human-review workbench and feedback capture.
 5. **LLM-WF-06:** grounded patient-episode narrative in the prediction pipeline.
 6. **LLM-WF-01:** mapping proposal and deterministic compiler workflow.
