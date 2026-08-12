@@ -80,10 +80,25 @@ def test_sofa_and_aki_share_top_level_schema_keys() -> None:
         onset_time=T0,
         criteria_met=["cr_ge_2_0x_baseline"],
     )
+    from eval.respiratory.scoring import RespInput, compute_resp_score, tier_for_resp_score
+    from eval.signals.contract import signal_from_respiratory
+
+    resp = compute_resp_score(
+        patient_id="Patient/r",
+        event_time=T0,
+        inputs=RespInput(spo2_fio2=220, respiratory_rate=28, oxygen_device="high_flow"),
+        encounter_id="Encounter/3",
+    )
+    resp_sig = signal_from_respiratory(
+        alert_id="alert-resp",
+        score_result=resp,
+        severity=tier_for_resp_score(resp.total_score).value,
+    )
 
     sofa_keys = set(sofa_sig.model_dump().keys())
     aki_keys = set(aki_sig.model_dump().keys())
-    assert sofa_keys == aki_keys
+    resp_keys = set(resp_sig.model_dump().keys())
+    assert sofa_keys == aki_keys == resp_keys
     required = {
         "schema_version",
         "signal_id",

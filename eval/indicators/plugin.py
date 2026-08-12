@@ -231,6 +231,53 @@ def _register_builtins() -> None:
             notes="Stateful timelines in eval.aki.timeline (CURIE-009).",
         )
     )
+    register_plugin(
+        IndicatorPlugin(
+            plugin_id="resp-deterioration",
+            score_type="resp_hypoxemia",
+            indicator="respiratory-deterioration",
+            signal_kind="risk",
+            display_name="Respiratory deterioration",
+            bundle_id="resp-deterioration",
+            clinical_concepts=(
+                "oxygenation",
+                "respiratory_rate",
+                "oxygen_support",
+                "blood_gas",
+            ),
+            codes=("2708-6", "2019-8", "3150-0", "9279-1", "2744-1", "2012-3"),
+            units=("%", "mmHg", "fraction", "/min"),
+            windows={"score": "point-in-time with forward-fill per replay policy"},
+            eligibility="Encounter with SpO2/PaO2+FiO2, RR, O2 device, and/or ABG",
+            exclusions=(
+                "comfort_care",
+                "already_on_vent_protocol",
+                "chronic_home_vent",
+            ),
+            missing_data_policy=(
+                "partial_with_missing_components; SpO2 alone never assumes "
+                "ambient FiO2 unless room_air=true"
+            ),
+            resolution_rule="governance refractory + resolution_gap_minutes",
+            scorer_module="eval.respiratory.scoring",
+            scorer_attr="compute_resp_score",
+            tier_module="eval.respiratory.scoring",
+            tier_attr="tier_for_resp_score",
+            runtime_impl={
+                "python": "eval.respiratory.scoring.compute_resp_score",
+                # Same shared Flink alert path as other indicators — no bespoke job.
+                "java": "com.curie.sofa.resp.RespScorer",
+                "flink_job": "com.curie.sofa.operators.SofaAlertFunction",
+            },
+            fixture_paths=(
+                "eval/fixtures/golden/resp_cases.v0.1.json",
+            ),
+            notes=(
+                "CURIE-013 hypoxemic/ventilatory deterioration. Java scorer "
+                "mapping reserved; Python reference is activation proof."
+            ),
+        )
+    )
 
 
 _register_builtins()

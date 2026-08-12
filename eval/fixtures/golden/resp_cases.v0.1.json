@@ -1,0 +1,120 @@
+{
+  "schema_version": "1.0.0",
+  "bundle_id": "resp-deterioration",
+  "rule_version": "0.1.0",
+  "cases": [
+    {
+      "id": "resp-ok-room-air",
+      "inputs": {
+        "spo2_percent": 98,
+        "room_air": true,
+        "respiratory_rate": 16,
+        "oxygen_device": "none"
+      },
+      "expect": {
+        "stage": 0,
+        "total_score": 0,
+        "completeness": "complete",
+        "tier": "none"
+      }
+    },
+    {
+      "id": "resp-spo2-alone-insufficient",
+      "inputs": {
+        "spo2_percent": 88
+      },
+      "expect": {
+        "stage": null,
+        "total_score": null,
+        "completeness": "insufficient_data"
+      }
+    },
+    {
+      "id": "resp-mild-sf-ratio",
+      "inputs": {
+        "spo2_percent": 92,
+        "fio2_fraction": 0.28,
+        "respiratory_rate": 20,
+        "oxygen_device": "nasal_cannula",
+        "oxygenation_evidence_ids": ["Observation/spo2-1"],
+        "support_evidence_ids": ["Observation/o2dev-1"]
+      },
+      "expect": {
+        "stage": 1,
+        "total_score": 2,
+        "completeness": "complete",
+        "tier": "watch",
+        "oxygenation_stage": 1,
+        "support_stage": 1
+      }
+    },
+    {
+      "id": "resp-moderate-tachypnea-hf",
+      "inputs": {
+        "spo2_fio2": 250,
+        "respiratory_rate": 32,
+        "oxygen_device": "high_flow",
+        "rate_evidence_ids": ["Observation/rr-2"]
+      },
+      "expect": {
+        "stage": 2,
+        "total_score": 4,
+        "completeness": "complete",
+        "tier": "urgent",
+        "rate_stage": 2,
+        "support_stage": 2
+      }
+    },
+    {
+      "id": "resp-severe-vent-pf",
+      "inputs": {
+        "pao2_fio2": 90,
+        "mechanically_ventilated": true,
+        "respiratory_rate": 28,
+        "oxygenation_evidence_ids": ["Observation/abg-pf"]
+      },
+      "expect": {
+        "stage": 3,
+        "total_score": 6,
+        "completeness": "complete",
+        "tier": "critical",
+        "oxygenation_stage": 3,
+        "support_stage": 3
+      }
+    },
+    {
+      "id": "resp-abg-acidosis",
+      "inputs": {
+        "spo2_percent": 96,
+        "fio2_fraction": 0.21,
+        "room_air": true,
+        "abg_ph": 7.18,
+        "paco2_mmhg": 68,
+        "gas_evidence_ids": ["Observation/abg-1"]
+      },
+      "expect": {
+        "stage": 3,
+        "total_score": 6,
+        "completeness": "complete",
+        "tier": "critical",
+        "blood_gas_stage": 3
+      }
+    },
+    {
+      "id": "resp-pao2-preferred-over-spo2",
+      "inputs": {
+        "pao2_mmhg": 45,
+        "spo2_percent": 94,
+        "fio2_fraction": 0.5,
+        "oxygen_device": "face_mask"
+      },
+      "expect": {
+        "stage": 3,
+        "total_score": 6,
+        "completeness": "complete",
+        "tier": "critical",
+        "ratio_source": "pao2_mmhg/fio2"
+      }
+    }
+  ]
+}

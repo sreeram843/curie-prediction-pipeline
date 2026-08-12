@@ -14,7 +14,7 @@ to render an unknown `signal_type`.
 |---|---|
 | `schema_version` | Contract version (`1.0.0`) |
 | `signal_id` | Stable id (alert id) |
-| `signal_type` | Open string (`sofa-deterioration`, `aki`, `sepsis-3`, future…) |
+| `signal_type` | Open string (`sofa-deterioration`, `aki`, `sepsis-3`, `respiratory-deterioration`, …) |
 | `signal_kind` | `risk` (score/stage) or `phenotype` (met/not-met) |
 | `patient_id` / `encounter_id` | Subject |
 | `event_time` | Score / evaluation time |
@@ -37,6 +37,7 @@ to render an unknown `signal_type`.
 |---|---|
 | SOFA score | `signal_from_sofa` → `sofa-deterioration` / `risk` |
 | AKI score / timeline | `signal_from_aki` → `aki` / `risk` |
+| Respiratory deterioration | `signal_from_respiratory` → `respiratory-deterioration` / `risk` |
 | Sepsis-3 phenotype | `signal_from_sepsis3` → `sepsis-3` / `phenotype` |
 | Alert / Kafka dict | `signal_from_alert_record` (unknown types OK) |
 
@@ -51,3 +52,4 @@ to render an unknown `signal_type`.
 
 - [sofa-contract.md](./sofa-contract.md)
 - [aki-contract.md](./aki-contract.md)
+- [respiratory-contract.md](./respiratory-contract.md)

@@ -28,6 +28,7 @@ A JSON bundle alone cannot activate without an installed scorer.
 |---|---|---|---|
 | `sofa` | `sofa-deterioration` | `eval.sofa.scoring.compute_sofa_score` | `SofaScorer` / `SofaAlertFunction` |
 | `aki_kdigo` | `aki` | `eval.aki.timeline` (+ legacy `compute_aki_score`) | `AkiTimeline` / `AkiAlertFunction` |
+| `resp_hypoxemia` | `respiratory-deterioration` | `eval.respiratory.scoring.compute_resp_score` | `RespScorer` (mapped; shared alert path) |
 
 ## Activation
 

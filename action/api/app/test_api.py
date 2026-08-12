@@ -67,22 +67,24 @@ def test_explain_is_additive(monkeypatch) -> None:
     assert updated["narrative"]
 
 
-def test_indicators_include_aki_and_sofa_deterioration() -> None:
+def test_indicators_include_aki_sofa_and_resp() -> None:
     client = TestClient(app)
     rows = client.get("/indicators").json()
     indicators = {i["indicator"] for i in rows}
     assert "sofa-deterioration" in indicators
     assert "aki" in indicators
+    assert "respiratory-deterioration" in indicators
     assert all(i.get("scorer_installed") is True for i in rows)
 
 
-def test_plugins_endpoint_lists_sofa_and_aki() -> None:
+def test_plugins_endpoint_lists_sofa_aki_and_resp() -> None:
     client = TestClient(app)
     plugins = {p["score_type"]: p for p in client.get("/plugins").json()}
     assert "sofa" in plugins
     assert "aki_kdigo" in plugins
+    assert "resp_hypoxemia" in plugins
     assert plugins["sofa"]["runtime_impl"]["java"]
-
+    assert plugins["resp_hypoxemia"]["indicator"] == "respiratory-deterioration"
 
 def test_demo_sofa_alerts_not_labeled_sepsis() -> None:
     """CURIE-008: SOFA threshold alone must not read as confirmed sepsis."""
@@ -128,30 +130,51 @@ def test_unknown_indicator_accepted_by_api_store() -> None:
 
     STORE.upsert(
         AlertRecord(
-            alert_id="alert-future-resp-001",
+            alert_id="alert-future-hepatic-001",
             patient_id="Patient/p-future",
             patient_name="Future Signal",
-            indicator="respiratory-deterioration",
+            indicator="hepatic-deterioration",
             signal_kind="risk",
             event_time=datetime(2024, 6, 15, 14, 0, tzinfo=UTC),
             score=3,
             completeness="partial",
             tier="watch",
-            missing_components=["abg"],
-            evidence_ids=["Observation/spo2-1"],
-            rule_bundle_id="resp-hypoxemia",
+            missing_components=["bilirubin"],
+            evidence_ids=["Observation/bili-1"],
+            rule_bundle_id="hepatic-demo",
             rule_version="0.1.0",
             routing="passive",
             component_breakdown=[],
         )
     )
     client = TestClient(app)
-    detail = client.get("/alerts/alert-future-resp-001").json()
-    assert detail["indicator"] == "respiratory-deterioration"
-    assert detail["signal"]["signal_type"] == "respiratory-deterioration"
-    assert detail["signal"]["missing_inputs"] == ["abg"]
+    detail = client.get("/alerts/alert-future-hepatic-001").json()
+    assert detail["indicator"] == "hepatic-deterioration"
+    assert detail["signal"]["signal_type"] == "hepatic-deterioration"
+    assert detail["signal"]["missing_inputs"] == ["bilirubin"]
     metrics = client.get("/metrics").json()
-    assert metrics["by_indicator"].get("respiratory-deterioration", 0) >= 1
+    assert metrics["by_indicator"].get("hepatic-deterioration", 0) >= 1
+
+
+def test_resp_demo_alert_uses_shared_contract() -> None:
+    client = TestClient(app)
+    alerts = client.get("/alerts").json()
+    resp = [a for a in alerts if a["indicator"] == "respiratory-deterioration"]
+    assert len(resp) >= 1
+    row = next(a for a in resp if a["alert_id"] == "alert-demo-resp-urgent-008")
+    assert row["rule_bundle_id"] == "resp-deterioration"
+    assert row["signal"]["signal_type"] == "respiratory-deterioration"
+    assert row["signal"]["signal_kind"] == "risk"
+
+
+def test_episodes_include_resp_supporting_signal() -> None:
+    client = TestClient(app)
+    episodes = client.get("/episodes").json()
+    multi = next(e for e in episodes if e["patient_id"] == "Patient/p-ep-902")
+    assert multi["page_count"] == 1
+    types = {multi["dominant_signal_type"], *multi["supporting_signal_types"]}
+    assert "sofa-deterioration" in types
+    assert "respiratory-deterioration" in types
 
 
 def test_episodes_aggregate_concurrent_demo_signals() -> None:

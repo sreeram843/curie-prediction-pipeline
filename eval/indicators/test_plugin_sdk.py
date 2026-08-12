@@ -24,16 +24,20 @@ from eval.indicators.registry import (
 )
 
 
-def test_sofa_and_aki_registered_and_dispatchable() -> None:
+def test_sofa_aki_and_resp_registered_and_dispatchable() -> None:
     plugins = {p.score_type: p for p in list_plugins()}
     assert "sofa" in plugins
     assert "aki_kdigo" in plugins
+    assert "resp_hypoxemia" in plugins
     sofa = dispatch_score("sofa")
     aki = dispatch_score("aki_kdigo")
+    resp = dispatch_score("resp_hypoxemia")
     assert callable(sofa)
     assert callable(aki)
+    assert callable(resp)
     assert plugins["sofa"].runtime_impl["java"]
     assert plugins["aki_kdigo"].runtime_impl["java"]
+    assert plugins["resp_hypoxemia"].indicator == "respiratory-deterioration"
 
 
 def test_list_indicators_proves_scorer_installed() -> None:
@@ -44,6 +48,7 @@ def test_list_indicators_proves_scorer_installed() -> None:
     indicators = {r["indicator"] for r in rows}
     assert "sofa-deterioration" in indicators
     assert "aki" in indicators
+    assert "respiratory-deterioration" in indicators
 
 
 def test_load_bundle_requires_installed_scorer(
@@ -76,18 +81,18 @@ def test_validate_activation_rejects_unsupported_score_type(
     bundles = tmp_path / "bundles"
     bundles.mkdir()
     doc = {
-        "bundle_id": "future-resp",
+        "bundle_id": "future-hepatic",
         "version": "0.1.0",
-        "indicator": "respiratory-deterioration",
-        "score": {"type": "resp_hypoxemia"},
+        "indicator": "hepatic-deterioration",
+        "score": {"type": "hepatic_not_installed"},
     }
-    (bundles / "future-resp.v0.1.0.json").write_text(json.dumps(doc))
+    (bundles / "future-hepatic.v0.1.0.json").write_text(json.dumps(doc))
     activation = tmp_path / "activation.json"
     activation.write_text(
         json.dumps(
             {
                 "schema_version": "1.0.0",
-                "active": {"future-resp": "0.1.0"},
+                "active": {"future-hepatic": "0.1.0"},
             }
         )
     )
@@ -102,8 +107,10 @@ def test_validate_activation_passes_for_repo_manifest() -> None:
     assert report["ok"] is True
     assert "sepsis-sofa" in report["active"]
     assert "aki-kdigo" in report["active"]
+    assert "resp-deterioration" in report["active"]
     assert report["active"]["sepsis-sofa"]["scorer_installed"] is True
     assert report["active"]["aki-kdigo"]["scorer_installed"] is True
+    assert report["active"]["resp-deterioration"]["scorer_installed"] is True
 
 
 def test_require_plugin_unknown() -> None:

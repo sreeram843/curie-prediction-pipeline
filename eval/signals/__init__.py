@@ -8,6 +8,7 @@ from eval.signals.contract import (
     SignalKind,
     signal_from_aki,
     signal_from_alert_record,
+    signal_from_respiratory,
     signal_from_sepsis3,
     signal_from_sofa,
 )
@@ -20,6 +21,7 @@ __all__ = [
     "SignalKind",
     "signal_from_aki",
     "signal_from_alert_record",
+    "signal_from_respiratory",
     "signal_from_sepsis3",
     "signal_from_sofa",
 ]

@@ -219,6 +219,52 @@ def signal_from_aki(
     )
 
 
+def signal_from_respiratory(
+    *,
+    alert_id: str,
+    score_result: Any,
+    severity: str,
+    rule_bundle_hash: str | None = None,
+    resolution_state: ResolutionState = ResolutionState.OPEN,
+) -> ClinicalSignal:
+    """Project a RespScoreResult onto the shared contract."""
+    missing = list(score_result.missing_components or [])
+    return ClinicalSignal(
+        signal_id=alert_id,
+        signal_type="respiratory-deterioration",
+        signal_kind=SignalKind.RISK,
+        patient_id=score_result.patient_id,
+        encounter_id=score_result.encounter_id,
+        event_time=score_result.event_time,
+        score=score_result.total_score,
+        stage=getattr(score_result, "stage", None),
+        completeness=getattr(score_result.completeness, "value", score_result.completeness),
+        severity=severity,
+        required_inputs=[
+            "oxygenation",
+            "respiratory_rate",
+            "oxygen_support",
+            "blood_gas",
+        ],
+        missing_inputs=missing,
+        evidence_ids=list(score_result.evidence_ids or []),
+        criteria_met=list(getattr(score_result, "criteria_met", None) or []),
+        rule_bundle_id=score_result.rule_bundle_id,
+        rule_version=score_result.rule_version,
+        rule_bundle_hash=rule_bundle_hash,
+        resolution_state=resolution_state,
+        components=_components_from_breakdown(list(score_result.components or [])),
+        extensions={
+            "oxygenation_stage": getattr(score_result, "oxygenation_stage", None),
+            "rate_stage": getattr(score_result, "rate_stage", None),
+            "support_stage": getattr(score_result, "support_stage", None),
+            "blood_gas_stage": getattr(score_result, "blood_gas_stage", None),
+            "ratio_used": getattr(score_result, "ratio_used", None),
+            "ratio_source": getattr(score_result, "ratio_source", None),
+        },
+    )
+
+
 def signal_from_sepsis3(
     *,
     alert_id: str,
