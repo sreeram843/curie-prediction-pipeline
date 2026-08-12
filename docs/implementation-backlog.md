@@ -125,9 +125,9 @@ These tasks block publication claims, MIMIC threshold tuning, and additional ind
 
 **Acceptance criteria**
 
-- [ ] The report clearly states that Challenge labels begin six hours before clinical onset.
-- [ ] No primary metric rewards an alert with unlimited early lead time.
-- [ ] Timing definitions are frozen before MIMIC holdout evaluation.
+- [x] The report clearly states that Challenge labels begin six hours before clinical onset.
+- [x] No primary metric rewards an alert with unlimited early lead time.
+- [x] Timing definitions are frozen before MIMIC holdout evaluation.
 
 ### CURIE-005 — Complete Python/Java governance configuration parity [P0]
 

@@ -17,18 +17,22 @@
 | Config | `grid_p0_r90_b0` → `p1_setA_winner.json` + resolved study bundle `sepsis-sofa.challenge2019-p1.v1.json` |
 | Knobs | persist **0**, crossings **1**, baseline **off**, refractory **90** min, min_comp **2**, **page gate on** (↑score, ≥2 crossings, ≥2 components, page persist **30** m) |
 | Tune / holdout | setA → freeze → **setB** (blinded) |
-| Detection | First alert ≤ onset + **6h** (any governed emit = watch ∪ page) |
+| Detection | **Primary:** any alert in `[label_start−12h, label_start+6h]` (`window_m12_p6`, CURIE-004). Legacy grace≤6h is sensitivity analysis only. |
 | Burden | **Interruptive** (urgent/critical) pages only |
+| Label | Challenge `SepsisLabel` begins **~6h before clinical onset**; `onset_iculos` = **label_start** |
+| Timing freeze | [`eval/challenge2019/frozen/timing_primary.v1.json`](../eval/challenge2019/frozen/timing_primary.v1.json) |
 
 ### Holdout setB (n = 20,000)
 
+> Published setB figures below used the **legacy** grace≤6h rule. Re-run with the current harness for primary `window_m12_p6` sensitivities and in-window lead times. Challenge utility remains co-primary.
+
 | Metric | Point | 95% CI |
 |---|---|---|
-| Detection sensitivity (gov = naive) | **81.1%** | [0.79, 0.83] |
+| Detection sensitivity (gov = naive), **legacy grace≤6h** | **81.1%** | [0.79, 0.83] |
 | Interruptive reduction vs naive | **0.132** (~7.6× fewer pages) | [0.13, 0.14] |
 | Interruptive NNA (pages / interruptive TP) | **~94.2** | — |
 | Legacy pages / any-governed TP | **~44** | [42, 48] |
-| Mean lead hours (governed) | **~42** | [38, 46] |
+| Mean lead hours (governed, **unbounded first alert**) | **~42** | [38, 46] |
 
 **Goals:** primary ✓ (sens = naive); co-primary ✓ (interruptive reduction ≤ 0.25).
 Secondary page NNA was previously quoted as ~44 using pages / **any-governed** TP;

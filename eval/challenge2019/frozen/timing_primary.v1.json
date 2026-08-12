@@ -1,0 +1,34 @@
+{
+  "schema_version": "1.0.0",
+  "timing_id": "challenge2019-label-window-m12-p6.v1",
+  "description": "Frozen primary timing definitions for Challenge 2019 / pre-MIMIC eval (CURIE-004).",
+  "label_semantics": {
+    "onset_iculos": "label_start",
+    "note": "PhysioNet Challenge 2019 SepsisLabel begins approximately six hours before clinical sepsis onset. Treat onset_iculos as label_start, not bedside clinical onset."
+  },
+  "primary_detection": {
+    "mode": "window",
+    "before_hours": 12,
+    "after_hours": 6,
+    "rule": "any_alert_hour in [label_start - before_hours, label_start + after_hours]",
+    "detection_mode_id": "window_m12_p6"
+  },
+  "co_primary": {
+    "metric": "challenge_utility",
+    "note": "Official PhysioNet Challenge 2019 normalized utility remains co-primary for Challenge-aligned reporting."
+  },
+  "legacy_sensitivity_analysis": [
+    "grace_0",
+    "grace_6",
+    "grace_12",
+    "early_only",
+    "window_pm12"
+  ],
+  "timing_classes": [
+    "in_window",
+    "too_early",
+    "late",
+    "outside_window",
+    "missed"
+  ]
+}

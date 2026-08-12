@@ -11,7 +11,13 @@ import json
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
-from eval.challenge2019.bootstrap import bootstrap_metric_cis, summarize_stay_metrics
+from eval.challenge2019.bootstrap import (
+    PRIMARY_DETECTION_MODE,
+    TIMING_FREEZE_PATH,
+    bootstrap_metric_cis,
+    load_timing_freeze,
+    summarize_stay_metrics,
+)
 from eval.challenge2019.study_bundle import (
     governance_from_study_bundle,
     load_resolved_study_bundle,
@@ -237,6 +243,7 @@ def run_challenge2019_eval(
         )
 
     grace = detection_grace_hours
+    timing_freeze = load_timing_freeze()
     metrics = summarize_stay_metrics(rows, grace)
     bootstrap = bootstrap_metric_cis(
         rows,
@@ -273,13 +280,20 @@ def run_challenge2019_eval(
 
     notes = [
         "Partial SOFA only (no GCS/UO/pressors in Challenge 2019).",
-        "SepsisLabel is already shifted ~6h before clinical sepsis time (Challenge definition); "
-        "treat onset as label_start, not true clinical onset.",
-        "Primary detection uses first alert at/before label_start + grace "
-        f"({detection_grace_hours}h); also report early_only and ±12h window sensitivities.",
-        "Official Challenge utility is reported under challenge_utility "
+        "Challenge SepsisLabel begins ~6h before clinical sepsis onset; "
+        "onset_iculos is label_start, not bedside clinical onset.",
+        f"PRIMARY detection ({PRIMARY_DETECTION_MODE}): any alert in "
+        f"[label_start−{timing_freeze['primary_detection']['before_hours']}h, "
+        f"label_start+{timing_freeze['primary_detection']['after_hours']}h] "
+        f"(frozen {timing_freeze['timing_id']}). "
+        "Does not reward unbounded early first alerts.",
+        f"Legacy grace_{detection_grace_hours}h first-alert rule retained under "
+        "timing.legacy_grace_* for sensitivity analysis only.",
+        "Official Challenge utility is co-primary under challenge_utility "
         "(emit-hour positives; not a Challenge leaderboard submission).",
-        "Lead time > 0 means alert before label_start.",
+        "Primary lead time: mean_lead_hours_governed_in_window "
+        "(onset − first alert inside the window). "
+        "mean_lead_hours_governed is legacy unbounded first-alert lead.",
         "Detection sensitivity uses any governed emit (watch ∪ interruptive); "
         "interruptive_* metrics count urgent/critical pages only.",
         "interruptive_nna = interruptive_alerts / interruptive_tp stays "
@@ -299,6 +313,14 @@ def run_challenge2019_eval(
         "source": str(base),
         "stays_scored": len(rows),
         "detection_grace_hours": grace,
+        "detection_mode": metrics["detection_mode"],
+        "timing": metrics.get("timing"),
+        "timing_freeze": {
+            "timing_id": timing_freeze["timing_id"],
+            "path": str(TIMING_FREEZE_PATH),
+            "primary": timing_freeze["primary_detection"],
+            "label_semantics": timing_freeze["label_semantics"],
+        },
         "gov_profile": profile_label,
         "gov_config_path": str(gov_config_path) if gov_config_path else None,
         "gov_profile_meta": {

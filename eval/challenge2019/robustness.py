@@ -90,7 +90,7 @@ def rank_profiles(mode_tables: dict[str, dict[str, Any]]) -> dict[str, list[str]
     return ranks
 
 
-def ranking_stable(ranks: dict[str, list[str]], *, reference: str = "grace_6") -> bool:
+def ranking_stable(ranks: dict[str, list[str]], *, reference: str = "window_m12_p6") -> bool:
     ref = ranks.get(reference)
     if not ref:
         return False
@@ -167,11 +167,14 @@ def run_robustness(
         "detection_modes": list(DETECTION_MODES),
         "by_config": by_label,
         "ranking_by_mode": ranks,
+        "ranking_stable_vs_primary": stable,
         "ranking_stable_vs_grace_6": stable,
         "notes": [
-            "grace_N: first alert ICULOS <= onset + N",
+            "PRIMARY window_m12_p6: any alert in [label_start-12h, label_start+6h] (CURIE-004)",
+            "grace_N: legacy first alert ICULOS <= onset + N (sensitivity analysis)",
             "early_only: first alert ICULOS < onset",
             "window_pm12: any alert hour in [onset-12, onset+12]",
+            "Challenge SepsisLabel begins ~6h before clinical onset (label_start).",
             "Alert totals unchanged across modes; only TP/sensitivity re-defined.",
         ],
     }
