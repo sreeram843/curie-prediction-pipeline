@@ -1,0 +1,103 @@
+[
+  {
+    "proposal_id": "prop-already_treated",
+    "category": "already_treated",
+    "title": "Strengthen context suppression for active protocols",
+    "knob": "suppression_flags",
+    "proposed_delta": "already_on_sepsis_protocol",
+    "rationale": "Passive-route when patient already on documented pathway.",
+    "supporting_feedback_ids": [
+      "fb-001"
+    ],
+    "replay_manifest_id": "stewardship-replay.v1",
+    "replay_manifest_path": "eval/stewardship/frozen/replay_manifest.v1.json",
+    "status": "proposed",
+    "human_approved": false,
+    "approved_by": null,
+    "approved_at": null,
+    "evaluation_status": "pending",
+    "mutates_active_rules": false,
+    "activation_blocked_until_human_approval": true
+  },
+  {
+    "proposal_id": "prop-chronic_baseline",
+    "category": "chronic_baseline",
+    "title": "Enable baseline delta gate",
+    "knob": "baseline_enabled",
+    "proposed_delta": "true",
+    "rationale": "Suppress alerts that reflect chronic baselines when evidence supports it.",
+    "supporting_feedback_ids": [
+      "fb-003"
+    ],
+    "replay_manifest_id": "stewardship-replay.v1",
+    "replay_manifest_path": "eval/stewardship/frozen/replay_manifest.v1.json",
+    "status": "proposed",
+    "human_approved": false,
+    "approved_by": null,
+    "approved_at": null,
+    "evaluation_status": "pending",
+    "mutates_active_rules": false,
+    "activation_blocked_until_human_approval": true
+  },
+  {
+    "proposal_id": "prop-incorrect_input",
+    "category": "incorrect_input",
+    "title": "Tighten unit/status validation before scoring",
+    "knob": "validation_gate",
+    "proposed_delta": "reject_invalid_units",
+    "rationale": "Keep bad inputs out of scoring via DLQ rather than paging.",
+    "supporting_feedback_ids": [
+      "fb-004"
+    ],
+    "replay_manifest_id": "stewardship-replay.v1",
+    "replay_manifest_path": "eval/stewardship/frozen/replay_manifest.v1.json",
+    "status": "proposed",
+    "human_approved": false,
+    "approved_by": null,
+    "approved_at": null,
+    "evaluation_status": "pending",
+    "mutates_active_rules": false,
+    "activation_blocked_until_human_approval": true
+  },
+  {
+    "proposal_id": "prop-repeated_episode",
+    "category": "repeated_episode",
+    "title": "Increase episode page refractory",
+    "knob": "page_refractory_minutes",
+    "proposed_delta": "+30",
+    "rationale": "Reduce repeat interruptive pages within the same episode.",
+    "supporting_feedback_ids": [
+      "fb-002",
+      "fb-009"
+    ],
+    "replay_manifest_id": "stewardship-replay.v1",
+    "replay_manifest_path": "eval/stewardship/frozen/replay_manifest.v1.json",
+    "status": "proposed",
+    "human_approved": false,
+    "approved_by": null,
+    "approved_at": null,
+    "evaluation_status": "pending",
+    "mutates_active_rules": false,
+    "activation_blocked_until_human_approval": true
+  },
+  {
+    "proposal_id": "prop-wrong_recipient",
+    "category": "wrong_recipient",
+    "title": "Review routing recipient map (ops only)",
+    "knob": "routing_directory",
+    "proposed_delta": "site_service_review",
+    "rationale": "Directory/ops change \u2014 not a score threshold.",
+    "supporting_feedback_ids": [
+      "fb-006"
+    ],
+    "replay_manifest_id": "stewardship-replay.v1",
+    "replay_manifest_path": "eval/stewardship/frozen/replay_manifest.v1.json",
+    "status": "proposed",
+    "human_approved": false,
+    "approved_by": null,
+    "approved_at": null,
+    "evaluation_status": "pending",
+    "mutates_active_rules": false,
+    "activation_blocked_until_human_approval": true
+  }
+]

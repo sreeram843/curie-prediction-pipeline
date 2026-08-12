@@ -284,7 +284,8 @@ ordering.
 4. **LLM-WF-05:** human-review workbench and feedback capture.
 5. **LLM-WF-06:** grounded patient-episode narrative in the prediction pipeline.
 6. **LLM-WF-01:** mapping proposal and deterministic compiler workflow.
-7. **LLM-WF-09:** feedback analytics and offline rule experiments.
+7. **LLM-WF-09:** feedback analytics and offline rule experiments — see
+   [`alert-stewardship.md`](alert-stewardship.md) (CURIE-024).
 8. **LLM-WF-04/07/08/10:** only after their validation datasets and governance are ready.
 
 ## Release gates for an LLM workflow

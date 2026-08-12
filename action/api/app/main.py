@@ -549,6 +549,134 @@ def get_investor_demo(_auth: Principal | None = Depends(require_auth)) -> dict:
     return run_demo(write=False)
 
 
+class StewardshipClassifyRequest(BaseModel):
+    text: str = Field(min_length=1, max_length=2000)
+    feedback_id: str | None = None
+    alert_id: str | None = None
+    site_id: str = "local"
+    service: str | None = None
+    indicator: str | None = None
+    rule_bundle_id: str | None = None
+    rule_version: str | None = None
+    routing: str | None = None
+
+
+class StewardshipApproveRequest(BaseModel):
+    approved_by: str = Field(min_length=1, max_length=200)
+
+
+@app.get("/stewardship/taxonomy")
+def stewardship_taxonomy(_auth: Principal | None = Depends(require_auth)) -> list[dict]:
+    from eval.stewardship.taxonomy import taxonomy_public
+
+    return taxonomy_public()
+
+
+@app.post("/stewardship/classify")
+def stewardship_classify(
+    body: StewardshipClassifyRequest,
+    _auth: Principal | None = Depends(require_auth),
+) -> dict:
+    """Classify acknowledgement/dismissal text — never mutates rules."""
+    from eval.stewardship.classifier import FeedbackRecord, classify_record
+
+    record = FeedbackRecord(
+        feedback_id=body.feedback_id or "adhoc",
+        text=body.text,
+        alert_id=body.alert_id,
+        site_id=body.site_id,
+        service=body.service,
+        indicator=body.indicator,
+        rule_bundle_id=body.rule_bundle_id,
+        rule_version=body.rule_version,
+        routing=body.routing,  # type: ignore[arg-type]
+    )
+    result = classify_record(record)
+    assert result.mutates_active_rules is False
+    return result.model_dump(mode="json")
+
+
+@app.get("/stewardship/report")
+def stewardship_report(_auth: Principal | None = Depends(require_auth)) -> dict:
+    """Dual-reviewed fixture metrics + offline proposals (CURIE-024)."""
+    import json
+    from pathlib import Path
+
+    from eval.stewardship.classifier import (
+        FeedbackRecord,
+        aggregate_classifications,
+        agreement_metrics,
+        classify_record,
+    )
+    from eval.stewardship.proposals import build_proposals, evaluate_proposal_against_manifest
+
+    fixtures = Path("eval/stewardship/fixtures/dual_reviewed.v1.json")
+    records = [FeedbackRecord.model_validate(r) for r in json.loads(fixtures.read_text())]
+    preds = [classify_record(r) for r in records]
+    proposals = build_proposals(records, preds)
+    return {
+        "metrics": agreement_metrics(records, preds),
+        "aggregates": aggregate_classifications(records, preds),
+        "proposals": [
+            {
+                **p.model_dump(mode="json"),
+                "replay_binding": evaluate_proposal_against_manifest(p),
+            }
+            for p in proposals
+        ],
+        "mutates_active_rules": False,
+    }
+
+
+@app.post("/stewardship/proposals/{proposal_id}/approve")
+def stewardship_approve_proposal(
+    proposal_id: str,
+    body: StewardshipApproveRequest,
+    _auth: Principal | None = Depends(require_ops),
+) -> dict:
+    """Human approval only — still does not activate rule changes."""
+    import json
+    from pathlib import Path
+
+    from eval.stewardship.proposals import (
+        PROPOSALS_PATH,
+        ExperimentProposal,
+        approve_proposal,
+        assert_no_active_rule_mutation,
+        evaluate_proposal_against_manifest,
+    )
+
+    path = PROPOSALS_PATH if PROPOSALS_PATH.is_file() else Path(
+        "eval/stewardship/frozen/proposals.v1.json"
+    )
+    if not path.is_file():
+        raise HTTPException(
+            status_code=404,
+            detail="No proposals; run: python -m eval.stewardship.runner run --write",
+        )
+    rows = json.loads(path.read_text())
+    updated_rows = []
+    approved = None
+    for row in rows:
+        prop = ExperimentProposal.model_validate(row)
+        if prop.proposal_id == proposal_id:
+            prop = approve_proposal(prop, approved_by=body.approved_by)
+            assert_no_active_rule_mutation(prop)
+            bind = evaluate_proposal_against_manifest(prop)
+            if not bind["ok"]:
+                raise HTTPException(status_code=409, detail=bind)
+            approved = prop
+        updated_rows.append(prop.model_dump(mode="json"))
+    if approved is None:
+        raise HTTPException(status_code=404, detail="Proposal not found")
+    path.write_text(json.dumps(updated_rows, indent=2) + "\n")
+    return {
+        "proposal": approved.model_dump(mode="json"),
+        "mutates_active_rules": False,
+        "note": "Approved for offline evaluation queue only — active rules unchanged.",
+    }
+
+
 @app.get("/")
 def dashboard_index() -> FileResponse:
     index = DASHBOARD_DIR / "index.html"

@@ -231,6 +231,7 @@ CDS Hooks / FHIR evidence boundary: [`docs/cds-hooks-integration.md`](docs/cds-h
 Manuscript package: [`docs/manuscript-package.md`](docs/manuscript-package.md) (`make manuscript`).
 Investor demo + claims: [`docs/investor-demo.md`](docs/investor-demo.md) (`make investor-demo`).
 Trusted-fact bridge: [`docs/trusted-clinical-fact-bridge.md`](docs/trusted-clinical-fact-bridge.md) (`make trusted-fact-bridge`).
+Alert stewardship: [`docs/alert-stewardship.md`](docs/alert-stewardship.md) (`make stewardship`).
 
 Lower-risk positioning order if this becomes a company: (1) synthetic replay / event infrastructure, (2) FHIR streaming integration, (3) explainable decision-support *with customer-specific validation*, (4) unstructured extraction / administrative APIs.
 

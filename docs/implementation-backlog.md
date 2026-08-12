@@ -542,9 +542,12 @@ proposals only; never mutate active rules.
 
 **Acceptance criteria**
 
-- [ ] Classification performance is measured against dual-reviewed feedback.
-- [ ] Every suggested rule change is evaluated through a frozen replay manifest.
-- [ ] Human approval is required before activation.
+- [x] Classification performance is measured against dual-reviewed feedback.
+- [x] Every suggested rule change is evaluated through a frozen replay manifest.
+- [x] Human approval is required before activation.
+
+**Artifacts:** [`docs/alert-stewardship.md`](./alert-stewardship.md),
+`make stewardship`, `eval/stewardship/`.
 
 
 

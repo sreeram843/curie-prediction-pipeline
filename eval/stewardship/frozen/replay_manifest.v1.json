@@ -1,0 +1,25 @@
+{
+  "manifest_id": "stewardship-replay.v1",
+  "schema_version": "1.0.0",
+  "curie_ticket": "CURIE-024",
+  "path": "eval/stewardship/frozen/replay_manifest.v1.json",
+  "description": "Frozen offline replay binding for stewardship experiment proposals. Never retunes on locked holdouts.",
+  "evaluation_command": "make mimic-study && python -m eval.stewardship.runner evaluate-proposals",
+  "required_artifacts": [
+    "eval/mimic_study/frozen/protocol.v1.json",
+    "eval/mimic_study/frozen/operating_point.v1.json",
+    "eval/mimic_study/frozen/study_manifest.v1.json",
+    "eval/challenge2019/frozen/p1_setA_winner.json"
+  ],
+  "forbidden": [
+    "mutate_active_rule_bundles",
+    "tune_on_test_split",
+    "tune_on_training_setB",
+    "activate_without_human_approval"
+  ],
+  "activation_policy": {
+    "human_approval_required": true,
+    "mutates_active_rules_from_classifier": false,
+    "mutates_active_rules_from_proposal": false
+  }
+}
