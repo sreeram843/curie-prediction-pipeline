@@ -1,0 +1,105 @@
+{
+  "cohort_flow_mermaid": "flowchart TD\n  A[PhysioNet Challenge 2019 archives] --> B[setA tune]\n  B --> C[Freeze operating point]\n  C --> D[setB holdout once]\n  E[MIMIC-IV protocol v1] --> F[development sweep]\n  F --> G[calibration select]\n  G --> H[test evaluate once]\n  I[Demo-schema fixtures] --> J[Harness + ablation plumbing]\n  J -.->|not Stage B| H\n  style I fill:#eee\n  style J fill:#eee\n",
+  "pareto": [
+    {
+      "candidate_id": "full_p90_gate",
+      "governed_sensitivity": 1.0,
+      "interruptive_reduction_ratio": 0.3333333333333333,
+      "meets_pe1": true,
+      "selected": false,
+      "split": "calibration"
+    },
+    {
+      "candidate_id": "full_p60_gate",
+      "governed_sensitivity": 1.0,
+      "interruptive_reduction_ratio": 0.3333333333333333,
+      "meets_pe1": true,
+      "selected": true,
+      "split": "calibration"
+    },
+    {
+      "candidate_id": "full_no_gate",
+      "governed_sensitivity": 1.0,
+      "interruptive_reduction_ratio": 0.6666666666666666,
+      "meets_pe1": true,
+      "selected": false,
+      "split": "calibration"
+    },
+    {
+      "candidate_id": "strictish",
+      "governed_sensitivity": 1.0,
+      "interruptive_reduction_ratio": 0.3333333333333333,
+      "meets_pe1": true,
+      "selected": false,
+      "split": "calibration"
+    },
+    {
+      "candidate_id": "grid_p0_r90_b0",
+      "governed_sensitivity": 0.8843575418994414,
+      "interruptive_reduction_ratio": 0.12251536914246035,
+      "meets_pe1": true,
+      "selected": true,
+      "split": "challenge_setA"
+    }
+  ],
+  "timing": {
+    "primary_window": {
+      "mode": "window",
+      "before_hours": 12,
+      "after_hours": 6,
+      "rule": "any_alert_hour in [label_start - before_hours, label_start + after_hours]",
+      "detection_mode_id": "window_m12_p6"
+    },
+    "timing_classes": [
+      "in_window",
+      "too_early",
+      "late",
+      "outside_window",
+      "missed"
+    ],
+    "challenge_setA_mean_lead_hours": {
+      "naive": 46.51235684147076,
+      "governed": 46.51235684147076,
+      "interruptive": 44.07151979565773,
+      "note": "Unbounded first-alert lead on setA; primary paper window is window_m12_p6"
+    },
+    "mimic_demo_mean_in_window_lead_hours": 5.0
+  },
+  "calibration": {
+    "source": "mimic demo-schema operating-point selection",
+    "selected_candidate": "full_p60_gate",
+    "calibration_summary": {
+      "stays": 1,
+      "labeled_positive": 1,
+      "naive_sensitivity": 1.0,
+      "governed_sensitivity": 1.0,
+      "interruptive_sensitivity": 1.0,
+      "naive_alerts": 4,
+      "governed_alerts": 3,
+      "interruptive_alerts": 1,
+      "naive_interruptive_alerts": 3,
+      "interruptive_reduction_ratio": 0.3333333333333333,
+      "alerts_per_100_patient_days": 150.0,
+      "interruptive_per_100_patient_days": 50.0,
+      "episodes": 2,
+      "false_episodes_label_negative": 0,
+      "episode_per_100_patient_days": 100.0,
+      "interruptive_nna": 1.0,
+      "mean_in_window_lead_hours": 2.5,
+      "partial_completeness_stays": 1,
+      "patient_days": 2.0,
+      "meets_pe1": true,
+      "meets_pe2": false,
+      "detection_window": {
+        "before_hours": 12.0,
+        "after_hours": 6.0
+      },
+      "split_id": "calibration"
+    },
+    "goals": {
+      "primary": "governed_sensitivity >= naive_sensitivity - 0.10 OR governed_sensitivity >= 0.70",
+      "coprimary": "interruptive_reduction_ratio <= 0.25"
+    },
+    "note": "Not probability calibration (Brier/reliability). Shows operating-point selection metrics on the calibration split only."
+  }
+}

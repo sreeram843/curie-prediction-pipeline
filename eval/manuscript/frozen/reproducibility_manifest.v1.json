@@ -1,0 +1,183 @@
+{
+  "manifest_version": "1.0.0",
+  "package_version": "1.0.0",
+  "curie_ticket": "CURIE-020",
+  "generated_at": "2026-08-12T18:04:41.579668+00:00",
+  "git_sha": "1b7c70ee8663fae61d80bfd2dad056a4f5ad53b0",
+  "regenerate_command": "make manuscript",
+  "module": "python -m eval.manuscript.package build",
+  "phi_policy": {
+    "commits_patient_level_mimic": false,
+    "allowed": [
+      "Aggregate metrics",
+      "Protocol / operating-point / fixture hashes",
+      "Public Challenge aggregate stats already in frozen JSON"
+    ],
+    "forbidden": [
+      "MIMIC row extracts",
+      "hadm_id / subject_id lists",
+      "Note text / PHI",
+      "Local data/archive stay files"
+    ]
+  },
+  "artifact_pins": {
+    "mimic_protocol": {
+      "path": "eval/mimic_study/frozen/protocol.v1.json",
+      "present": true,
+      "sha256": "969d80a5d62e48ef2fc2064db16bfe41b03928b0e8bcb1f006a1347ee6c1ded6",
+      "bytes": 10203,
+      "protocol_id": "mimic-iv-governance-study.v1",
+      "schema_version": "1.0.0"
+    },
+    "mimic_operating_point": {
+      "path": "eval/mimic_study/frozen/operating_point.v1.json",
+      "present": true,
+      "sha256": "9d99179f482bc3d8c0109a67b68f69e1c467b99f0937e371333f6173ee08abfb",
+      "bytes": 2730,
+      "protocol_id": "mimic-iv-governance-study.v1",
+      "schema_version": "1.0.0",
+      "study_version": "0.1.0",
+      "candidate_id": "full_p60_gate",
+      "name": "mimic_demo_schema_operating_point"
+    },
+    "mimic_study_manifest": {
+      "path": "eval/mimic_study/frozen/study_manifest.v1.json",
+      "present": true,
+      "sha256": "43fcc9b1e08af1907e4c5b08dcd579430a30b3a2872029d1ff77c683740ec0e0",
+      "bytes": 10868,
+      "protocol_id": "mimic-iv-governance-study.v1",
+      "study_version": "0.1.0",
+      "manifest_version": "1.0.0"
+    },
+    "mimic_harness_fixture": {
+      "path": "eval/fixtures/mimic_harness/demo_schema_stays.v1.json",
+      "present": true,
+      "sha256": "1bebfd2ac6a29e96c9aec63e1083242e41ebd08b3687cd89e52cbb893fbb6655",
+      "bytes": 6410,
+      "schema_version": "1.0.0"
+    },
+    "challenge_operating_point": {
+      "path": "eval/challenge2019/frozen/p1_setA_winner.json",
+      "present": true,
+      "sha256": "525e1817a034005fc243b22b6fd5059970610abbc790975fc1d6ecd43e035a5c",
+      "bytes": 2330,
+      "candidate_id": "grid_p0_r90_b0",
+      "name": "p1_setA_winner"
+    },
+    "challenge_timing": {
+      "path": "eval/challenge2019/frozen/timing_primary.v1.json",
+      "present": true,
+      "sha256": "e3234f245cd694ca301d89384da76b1e0b342ac64e48cedca281a8a009088274",
+      "bytes": 1063,
+      "schema_version": "1.0.0",
+      "timing_id": "challenge2019-label-window-m12-p6.v1"
+    },
+    "challenge_bundle_sha": {
+      "path": "eval/challenge2019/frozen/sepsis-sofa.challenge2019-p1.v1.sha256",
+      "present": true,
+      "sha256": "08ff5a3455c4958ca61346662b6c14b0db379563adb97e268bc4672d4e5e6ac1",
+      "bytes": 65,
+      "digest_file_contents": "a3b8273a84752a6263e30da9762f3a5783b9a5af6c3d8234baabbb1dbdc3655b"
+    },
+    "challenge_bundle": {
+      "path": "eval/challenge2019/frozen/sepsis-sofa.challenge2019-p1.v1.json",
+      "present": true,
+      "sha256": "0cacb4dcc56f62dadcc5d25fa83409e3add069898001c20633e5646c18a85b1d",
+      "bytes": 5760
+    }
+  },
+  "claim_tiers": {
+    "retrospective_detection": {
+      "status": "demonstrated_on_public_or_demo_artifacts",
+      "includes": [
+        "Challenge 2019 offline detection sensitivity vs SepsisLabel (setA tune / setB holdout)",
+        "Demo-schema MIMIC harness PE-1 plumbing (not Stage B clinical results)",
+        "Deterministic SOFA / governance / episode contracts via golden fixtures"
+      ],
+      "does_not_include": [
+        "Prospective clinical outcomes",
+        "Mortality or length-of-stay improvement"
+      ]
+    },
+    "alert_policy_utility": {
+      "status": "demonstrated_as_burden_metrics",
+      "includes": [
+        "Interruptive reduction ratio vs naive thresholding (Challenge holdout + demo study)",
+        "Ablation of governance knobs on demo-schema fixtures",
+        "Passive vs interruptive lane separation (page gate)"
+      ],
+      "does_not_include": [
+        "Clinician workflow acceptance",
+        "Dismiss-rate improvement in live EHR"
+      ]
+    },
+    "clinical_outcome_effects": {
+      "status": "not_claimed",
+      "includes": [],
+      "does_not_include": [
+        "Reduced mortality, organ failure, or time-to-antibiotics",
+        "Diagnosis of sepsis/AKI",
+        "FDA clearance / SaMD validation",
+        "Superiority to NEWS/qSOFA/vendor CDS"
+      ]
+    }
+  },
+  "cohort_flow": {
+    "challenge2019": {
+      "source": "PhysioNet Challenge 2019 training archives (ODbL; local data/ gitignored)",
+      "tune_split": "training_setA",
+      "holdout_split": "training_setB",
+      "setA_stays_scored": 20336,
+      "setA_sepsis_stays": 1790,
+      "setA_non_sepsis_stays": 18546,
+      "holdout_stays_documented": 20000,
+      "note": "Holdout row-level outputs are not committed; cite docs/challenge-2019-eval.md"
+    },
+    "mimic_iv_protocol": {
+      "protocol_id": "mimic-iv-governance-study.v1",
+      "planned_unit": "ICU stay",
+      "splits": {
+        "development": {
+          "role": "tune",
+          "intime_range": [
+            "2008-01-01",
+            "2016-12-31"
+          ]
+        },
+        "calibration": {
+          "role": "select",
+          "intime_range": [
+            "2017-01-01",
+            "2018-12-31"
+          ]
+        },
+        "test": {
+          "role": "evaluate_once",
+          "intime_range": [
+            "2019-01-01",
+            "2019-12-31"
+          ]
+        }
+      },
+      "stage_b_status": "protocol frozen; full extract not committed"
+    },
+    "mimic_demo_schema_study": {
+      "fixture": "eval/fixtures/mimic_harness/demo_schema_stays.v1.json",
+      "test_stays": 2,
+      "dataset_pin": {
+        "name": "demo-schema-fixtures",
+        "version": "1.0.0",
+        "note": "Local fixtures only \u2014 replace with PhysioNet MIMIC-IV extract hash for Stage B"
+      },
+      "note": "Plumbing / leakage-safe harness only \u2014 not clinical Stage B"
+    }
+  },
+  "methods_pins": {
+    "protocol_doc": "docs/mimic-iv-study-protocol.md",
+    "challenge_eval_doc": "docs/challenge-2019-eval.md",
+    "clinical_validation_doc": "docs/clinical-validation.md",
+    "manuscript_doc": "docs/manuscript-package.md",
+    "rule_selection": "Forbidden on temporal test / Challenge setB"
+  },
+  "content_hash": "ce2ba4c2605462e74b3b9d9e3464ab3ce48bffc8b0bfd586748ecb15c9caf4f5"
+}
