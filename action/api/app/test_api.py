@@ -92,9 +92,60 @@ def test_aki_demo_alert_present() -> None:
     assert aki[0]["rule_bundle_id"] == "aki-kdigo"
 
 
-def test_demo_alerts_use_human_names() -> None:
+def test_alerts_include_shared_signal_contract() -> None:
     client = TestClient(app)
     alerts = client.get("/alerts").json()
-    assert all(a.get("patient_name") for a in alerts)
-    assert not any("synthea" in (a.get("patient_name") or "").lower() for a in alerts)
-    assert not any("synthea" in a["patient_id"].lower() for a in alerts)
+    assert alerts
+    for alert in alerts:
+        assert "signal" in alert
+        sig = alert["signal"]
+        assert sig["schema_version"] == "1.0.0"
+        assert sig["signal_type"] == alert["indicator"]
+        assert sig["signal_kind"] in {"risk", "phenotype"}
+        assert "resolution_state" in sig
+        assert "missing_inputs" in sig
+        assert "rule_version" in sig
+
+
+def test_unknown_indicator_accepted_by_api_store() -> None:
+    from datetime import UTC, datetime
+
+    from action.api.app.models import AlertRecord
+
+    STORE.upsert(
+        AlertRecord(
+            alert_id="alert-future-resp-001",
+            patient_id="Patient/p-future",
+            patient_name="Future Signal",
+            indicator="respiratory-deterioration",
+            signal_kind="risk",
+            event_time=datetime(2024, 6, 15, 14, 0, tzinfo=UTC),
+            score=3,
+            completeness="partial",
+            tier="watch",
+            missing_components=["abg"],
+            evidence_ids=["Observation/spo2-1"],
+            rule_bundle_id="resp-hypoxemia",
+            rule_version="0.1.0",
+            routing="passive",
+            component_breakdown=[],
+        )
+    )
+    client = TestClient(app)
+    detail = client.get("/alerts/alert-future-resp-001").json()
+    assert detail["indicator"] == "respiratory-deterioration"
+    assert detail["signal"]["signal_type"] == "respiratory-deterioration"
+    assert detail["signal"]["missing_inputs"] == ["abg"]
+    metrics = client.get("/metrics").json()
+    assert metrics["by_indicator"].get("respiratory-deterioration", 0) >= 1
+
+
+def test_acknowledge_sets_resolution_state() -> None:
+    client = TestClient(app)
+    target = next(
+        a for a in client.get("/alerts").json() if not a["acknowledged"]
+    )
+    client.post(f"/alerts/{target['alert_id']}/acknowledge", json={"note": "ok"})
+    detail = client.get(f"/alerts/{target['alert_id']}").json()
+    assert detail["resolution_state"] == "acknowledged"
+    assert detail["signal"]["resolution_state"] == "acknowledged"

@@ -87,7 +87,31 @@ function patientIdLabel(id) {
 }
 
 function indicatorGlyph(indicator) {
-  return indicator === "aki" ? "◇" : "◈";
+  const known = { aki: "◇", "sofa-deterioration": "◈", "sepsis-3": "▣", sepsis: "◈" };
+  return known[indicator] || "○";
+}
+
+function signalView(alert) {
+  const s = alert.signal || {};
+  return {
+    type: s.signal_type || alert.indicator || "unknown",
+    kind: s.signal_kind || alert.signal_kind || "risk",
+    severity: s.severity || alert.tier || "none",
+    completeness: s.completeness || alert.completeness || "partial",
+    score: s.score ?? alert.score,
+    stage: s.stage ?? alert.stage,
+    onset: s.onset_time || alert.onset_time,
+    missing: s.missing_inputs || alert.missing_components || [],
+    required: s.required_inputs || alert.required_inputs || [],
+    evidence: s.evidence_ids || alert.evidence_ids || [],
+    exclusions: s.exclusions || alert.exclusions || [],
+    criteria: s.criteria_met || alert.criteria_met || [],
+    resolution: s.resolution_state || alert.resolution_state || (alert.acknowledged ? "acknowledged" : "open"),
+    components: s.components || alert.component_breakdown || [],
+    ruleId: s.rule_bundle_id || alert.rule_bundle_id,
+    ruleVersion: s.rule_version || alert.rule_version,
+    ruleHash: s.rule_bundle_hash || alert.rule_bundle_hash,
+  };
 }
 
 function scoreWidth(score) {
@@ -176,7 +200,8 @@ function renderList() {
       alert.alert_id === state.selectedId ? " active" : ""
     }`;
     const tier = alert.tier || "none";
-    const indicator = alert.indicator || "sofa-deterioration";
+    const view = signalView(alert);
+    const indicator = view.type;
     btn.innerHTML = `
       <div class="card-top">
         <div class="icon-pill ${tier}" aria-hidden="true">${indicatorGlyph(indicator)}</div>
@@ -185,15 +210,15 @@ function renderList() {
       <div class="card-patient">${displayName(alert)}</div>
       <div class="card-score-row">
         <div class="card-score">
-          <span>Score</span>
-          ${alert.score ?? "—"}
+          <span>${view.kind === "phenotype" ? "Met" : "Score"}</span>
+          ${view.score ?? "—"}
         </div>
         <div class="card-meta">${fmtTime(alert.event_time)}</div>
       </div>
       <div class="meter ${tier}" aria-hidden="true"><i style="width:${scoreWidth(alert.score)}"></i></div>
       <div class="card-footer">
         <span class="indicator-tag">${indicator}</span>
-        <span>${alert.routing ? `${alert.routing} · ` : ""}${alert.completeness}${
+        <span>${view.kind} · ${alert.routing ? `${alert.routing} · ` : ""}${view.completeness}${
           alert.acknowledged ? " · acked" : ""
         }</span>
       </div>
@@ -243,7 +268,8 @@ function renderDetail(alert) {
   detailEmpty.classList.add("hidden");
   detailEl.classList.remove("hidden");
 
-  const components = (alert.component_breakdown || [])
+  const view = signalView(alert);
+  const components = (view.components || [])
     .map((c) => {
       if (c.missing) {
         return `<li class="comp-item missing"><div class="comp-head"><strong>${c.name}</strong><span>missing</span></div></li>`;
@@ -260,20 +286,31 @@ function renderDetail(alert) {
     })
     .join("");
 
-  const evidence = (alert.evidence_ids || [])
+  const evidence = (view.evidence || [])
+    .map((e) => `<li><code>${e}</code></li>`)
+    .join("");
+  const missing = (view.missing || [])
+    .map((m) => `<li><code>${m}</code></li>`)
+    .join("");
+  const criteria = (view.criteria || [])
+    .map((c) => `<li><code>${c}</code></li>`)
+    .join("");
+  const exclusions = (view.exclusions || [])
     .map((e) => `<li><code>${e}</code></li>`)
     .join("");
 
   detailEl.innerHTML = `
     <div class="detail-hero">
-      <div class="detail-score"><small>Score</small>${alert.score ?? "—"}</div>
+      <div class="detail-score"><small>${view.kind === "phenotype" ? "Met" : "Score"}</small>${view.score ?? "—"}</div>
       <div>
         <h3>${displayName(alert)}</h3>
         <p class="meta">${alert.alert_id} · ${patientIdLabel(alert.patient_id)}</p>
         <div class="badges">
-          <span class="badge tier-chip ${alert.tier}">${alert.tier}</span>
-          <span class="badge">${alert.indicator || "sofa-deterioration"}</span>
-          <span class="badge">${alert.completeness}</span>
+          <span class="badge tier-chip ${view.severity}">${view.severity}</span>
+          <span class="badge">${view.type}</span>
+          <span class="badge">${view.kind}</span>
+          <span class="badge">${view.completeness}</span>
+          <span class="badge">${view.resolution}</span>
           <span class="badge">${alert.governance_path}</span>
           ${
             alert.routing
@@ -285,13 +322,21 @@ function renderDetail(alert) {
               ? `<span class="badge">deferred: ${alert.page_deferred_reason}</span>`
               : ""
           }
-          <span class="badge">${alert.rule_bundle_id}@${alert.rule_version}</span>
+          ${view.stage != null ? `<span class="badge">stage ${view.stage}</span>` : ""}
+          <span class="badge">${view.ruleId}@${view.ruleVersion}</span>
         </div>
       </div>
     </div>
-    <p class="meta">Event ${fmtTime(alert.event_time)} · Encounter ${alert.encounter_id || "—"}</p>
-    <div class="section-label">Component scores</div>
+    <p class="meta">Event ${fmtTime(alert.event_time)} · Encounter ${alert.encounter_id || "—"}
+      ${view.onset ? ` · Onset ${fmtTime(view.onset)}` : ""}</p>
+    <div class="section-label">Components</div>
     <ul class="comp-list">${components || '<li class="comp-item missing">No components</li>'}</ul>
+    <div class="section-label">Missing inputs</div>
+    <ul class="evidence">${missing || '<li class="missing">None</li>'}</ul>
+    <div class="section-label">Criteria met</div>
+    <ul class="evidence">${criteria || '<li class="missing">None</li>'}</ul>
+    <div class="section-label">Exclusions</div>
+    <ul class="evidence">${exclusions || '<li class="missing">None</li>'}</ul>
     <div class="section-label">Evidence IDs</div>
     <ul class="evidence">${evidence || '<li class="missing">None</li>'}</ul>
     <div class="section-label">Guarded explanation</div>

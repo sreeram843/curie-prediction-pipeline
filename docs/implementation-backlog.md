@@ -239,8 +239,8 @@ version/hash, and resolution state.
 
 **Acceptance criteria**
 
-- [ ] SOFA/sepsis and AKI emit the same top-level schema.
-- [ ] The API and dashboard render an unknown future signal without condition-specific code.
+- [x] SOFA/sepsis and AKI emit the same top-level schema.
+- [x] The API and dashboard render an unknown future signal without condition-specific code.
 
 ---
 

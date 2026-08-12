@@ -48,13 +48,17 @@ class AlertStore:
             alert = self._alerts.get(alert_id)
             if alert is None:
                 return None
-            updated = alert.model_copy(
-                update={
+            data = alert.model_dump()
+            data.update(
+                {
                     "acknowledged": True,
                     "acknowledged_at": datetime.now(UTC),
                     "acknowledge_note": note,
+                    "resolution_state": "acknowledged",
+                    "signal": None,
                 }
             )
+            updated = AlertRecord.model_validate(data)
             self._alerts[alert_id] = updated
             return updated
 
@@ -62,11 +66,13 @@ class AlertStore:
         items = self.list(limit=10_000)
         by_tier: dict[str, int] = {}
         by_routing: dict[str, int] = {}
+        by_indicator: dict[str, int] = {}
         ack = 0
         for a in items:
             by_tier[a.tier] = by_tier.get(a.tier, 0) + 1
             route = a.routing or "unset"
             by_routing[route] = by_routing.get(route, 0) + 1
+            by_indicator[a.indicator] = by_indicator.get(a.indicator, 0) + 1
             if a.acknowledged:
                 ack += 1
         return MetricsSummary(
@@ -75,6 +81,7 @@ class AlertStore:
             acknowledged_alerts=ack,
             by_tier=by_tier,
             by_routing=by_routing,
+            by_indicator=by_indicator,
         )
 
     def attach_narrative(
