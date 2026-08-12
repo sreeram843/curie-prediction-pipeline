@@ -1,0 +1,15 @@
+# Build context for API / Flink packaging (keep images lean)
+.venv/
+.git/
+.tools/
+data/
+physionet.org/
+**/__pycache__/
+**/*.pyc
+.pytest_cache/
+.ruff_cache/
+streaming/flink-jobs/**/target/
+*.log
+.DS_Store
+.cursor/
+agent-transcripts/

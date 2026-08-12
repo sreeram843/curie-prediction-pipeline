@@ -43,6 +43,8 @@ Stages B–E require **IRB / DUA / BAA** as applicable. Synthea does **not** sub
 
 ### 3.1 PhysioNet MIMIC-IV (Stage B)
 
+External data + tooling cheat sheet: [`mimic-data-sources.md`](./mimic-data-sources.md) (PhysioNet, [mimic-code](https://github.com/MIT-LCP/mimic-code/), [MIMIC-IV-Data-Pipeline](https://github.com/healthylaife/MIMIC-IV-Data-Pipeline), vs Curie demo/Challenge).
+
 - [ ] PhysioNet credentialed access + signed DUA  
 - [ ] Full MIMIC-IV (hosp + icu), not only `mimic-iv-demo`  
 - [ ] Document version (e.g. MIMIC-IV 2.2 / 3.x) and extract date  

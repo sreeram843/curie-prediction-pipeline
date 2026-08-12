@@ -19,6 +19,8 @@ streaming/flink-jobs/**/target/
 # Local data & tooling (large / regenerable)
 .tools/
 data/
+# Accidental wget mirror of PhysioNet (use data/archive/ for Challenge 2019)
+physionet.org/
 *.log
 
 # Env / secrets

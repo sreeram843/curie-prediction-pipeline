@@ -45,6 +45,21 @@ services:
         echo "Topics ready."
         /opt/kafka/bin/kafka-topics.sh --bootstrap-server $$BOOT --list
 
+  kafka-ui:
+    image: provectuslabs/kafka-ui:v0.7.2
+    container_name: curie-kafka-ui
+    ports:
+      - "8080:8080"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: curie
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:29092
+      DYNAMIC_CONFIG_ENABLED: "true"
+    depends_on:
+      kafka:
+        condition: service_healthy
+      kafka-init:
+        condition: service_completed_successfully
+
   jobmanager:
     image: flink:1.20-java17
     container_name: curie-flink-jobmanager
@@ -57,6 +72,12 @@ services:
         jobmanager.rpc.address: jobmanager
         parallelism.default: 1
         taskmanager.numberOfTaskSlots: 2
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8081/overview || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
     depends_on:
       kafka:
         condition: service_healthy
@@ -65,10 +86,95 @@ services:
     image: flink:1.20-java17
     container_name: curie-flink-taskmanager
     depends_on:
-      - jobmanager
+      jobmanager:
+        condition: service_healthy
     command: taskmanager
     environment:
       - |
         FLINK_PROPERTIES=
         jobmanager.rpc.address: jobmanager
         taskmanager.numberOfTaskSlots: 2
+
+  # --- profile: full (API + rules seed + package/submit Flink jobs) ---
+
+  api:
+    profiles: ["full"]
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile.api
+    container_name: curie-api
+    ports:
+      - "8000:8000"
+    environment:
+      KAFKA_BOOTSTRAP: kafka:29092
+    depends_on:
+      kafka:
+        condition: service_healthy
+
+  rules-publish:
+    profiles: ["full"]
+    image: apache/kafka:3.8.1
+    container_name: curie-rules-publish
+    depends_on:
+      kafka-init:
+        condition: service_completed_successfully
+    restart: "no"
+    volumes:
+      - ../streaming/rule-registry/bundles:/bundles:ro
+    entrypoint: ["/bin/bash", "-c"]
+    command:
+      - |
+        set -euo pipefail
+        BOOT=kafka:29092
+        for f in sepsis-sofa.v0.2.0.json aki-kdigo.v0.2.0.json; do
+          echo "Publishing $$f → rules"
+          tr -d '\n' < "/bundles/$$f" | /opt/kafka/bin/kafka-console-producer.sh \
+            --bootstrap-server $$BOOT --topic rules
+        done
+        echo "Rules published."
+
+  flink-package:
+    profiles: ["full"]
+    image: maven:3.9.9-eclipse-temurin-17
+    container_name: curie-flink-package
+    working_dir: /w
+    volumes:
+      - ../streaming/flink-jobs:/w
+      - flink-jars:/jars
+      - maven-cache:/root/.m2
+    restart: "no"
+    command:
+      - /bin/bash
+      - -c
+      - |
+        set -euo pipefail
+        mvn -B -pl sofa -am package -DskipTests
+        cp -f sofa/target/curie-sofa-*.jar /jars/curie-sofa.jar
+        ls -la /jars/curie-sofa.jar
+
+  flink-submit:
+    profiles: ["full"]
+    image: flink:1.20-java17
+    container_name: curie-flink-submit
+    depends_on:
+      jobmanager:
+        condition: service_healthy
+      taskmanager:
+        condition: service_started
+      flink-package:
+        condition: service_completed_successfully
+      rules-publish:
+        condition: service_completed_successfully
+    restart: "no"
+    environment:
+      FLINK_JOBMANAGER: jobmanager:8081
+      JAR_PATH: /jars/curie-sofa.jar
+      KAFKA_BOOTSTRAP: kafka:29092
+    volumes:
+      - flink-jars:/jars:ro
+      - ../scripts/flink_submit_compose.sh:/submit.sh:ro
+    entrypoint: ["/bin/bash", "/submit.sh"]
+
+volumes:
+  flink-jars:
+  maven-cache:

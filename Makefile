@@ -1,8 +1,9 @@
-.PHONY: help up down logs topics test lint synthea rules flink-test api replay replay-aki mimic-demo challenge-2019 challenge-2019-sweep challenge-2019-robustness
+.PHONY: help up up-full down logs topics test lint synthea rules flink-test api replay replay-aki mimic-demo challenge-2019 challenge-2019-sweep challenge-2019-robustness
 
 help:
 	@echo "Targets:"
-	@echo "  up          - start Kafka + Flink (Docker Compose)"
+	@echo "  up          - start Kafka + Flink + Kafka UI (Docker Compose)"
+	@echo "  up-full     - Kafka + Flink + Kafka UI + API + publish rules + submit Sofa/AKI jobs"
 	@echo "  down        - stop local stack"
 	@echo "  logs        - tail compose logs"
 	@echo "  topics      - list Kafka topics"
@@ -11,7 +12,7 @@ help:
 	@echo "  synthea     - generate synthetic FHIR (default 10 patients)"
 	@echo "  rules       - publish sepsis-sofa rule bundle to Kafka"
 	@echo "  flink-test  - compile/test Flink modules via Maven Docker image"
-	@echo "  api         - run alert API + dashboard on :8000"
+	@echo "  api         - run alert API + dashboard on :8000 (host; use up-full for container)"
 	@echo "  replay      - run sepsis T2 replay harness (alert-reduction metric)"
 	@echo "  replay-aki  - run AKI T2 replay harness (alert-reduction metric)"
 	@echo "  mimic-demo  - score SOFA/AKI on local MIMIC-IV demo (data/mimic-iv-demo)"
@@ -22,11 +23,14 @@ help:
 up:
 	docker compose -f infra/docker-compose.yml up -d
 
+up-full:
+	docker compose -f infra/docker-compose.yml --profile full up -d --build
+
 down:
-	docker compose -f infra/docker-compose.yml down
+	docker compose -f infra/docker-compose.yml --profile full down
 
 logs:
-	docker compose -f infra/docker-compose.yml logs -f
+	docker compose -f infra/docker-compose.yml --profile full logs -f
 
 topics:
 	docker exec curie-kafka /opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list

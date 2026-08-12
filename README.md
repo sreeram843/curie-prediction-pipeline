@@ -166,30 +166,31 @@ Tracked in detail in [`docs/phases.md`](docs/phases.md). Clinical validity (sepa
 python -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"
 
-# Local Kafka + Flink
+# Local Kafka + Flink + Kafka UI (infra)
 make up
+# Kafka UI: http://localhost:8080
 # Flink UI: http://localhost:8081
 # Kafka:   localhost:9092
 
-# Synthetic FHIR (mechanical/integration only — needs Java for Synthea)
+# Full stack in Compose (API :8000 + seed rules + package/submit SofaJob + AkiJob)
+make up-full
+# Dashboard: http://localhost:8000  |  Kafka UI: :8080  |  Flink UI: :8081
+
+# Synthetic FHIR (mechanical/integration only — needs Java for Synthea; still host-side)
 make synthea N=10
 
 # Checks
 make test
 make lint
 
-# Replay Synthea FHIR into Kafka (after make synthea)
+# Replay Synthea FHIR into Kafka (after make synthea + make up / up-full)
 pip install -e ".[kafka]"
 python -m ingestion.adapters.synthea.replay_producer --fhir-dir data/synthea/fhir --dry-run
 python -m ingestion.adapters.synthea.replay_producer --fhir-dir data/synthea/fhir
 
-# Seed rule bundles (sepsis + AKI) + Flink unit tests
+# Hybrid DX (optional): seed rules / Flink tests / host API with reload
 make rules
 make flink-test
-# Flink jobs (after packaging): SofaJob is the shaded default mainClass;
-# AKI: flink run -c com.curie.sofa.aki.AkiJob path/to/sofa-*.jar
-
-# Alert API + dashboard
 pip install -e ".[api]"
 make api
 # open http://127.0.0.1:8000
@@ -199,7 +200,7 @@ make replay
 make replay-aki
 ```
 
-Useful Make targets: `up`, `down`, `logs`, `topics`, `test`, `lint`, `synthea`.
+Useful Make targets: `up`, `up-full`, `down`, `logs`, `topics`, `test`, `lint`, `synthea`.
 
 ## Test data tiers
 

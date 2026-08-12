@@ -202,6 +202,7 @@ Reproduce: `JOBS=5 LIMIT=0 make challenge-2019-robustness`
 - [ ] Align labels with Sepsis-3 via [mimic-code](https://github.com/MIT-LCP/mimic-code) on full MIMIC-IV  
 - [ ] Compare Challenge-tuned governance on MIMIC labels (external-style check)  
 - [ ] See [clinical-validation.md](./clinical-validation.md) Stages B–E  
+- [ ] Data/tooling map: [mimic-data-sources.md](./mimic-data-sources.md)
 
 ---
 
