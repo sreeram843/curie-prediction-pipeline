@@ -189,15 +189,20 @@ public class SofaAlertFunction
 
     String ingestIso =
         event.ingest_time != null ? event.ingest_time : Instant.ofEpochMilli(eventTimeMs).toString();
+    String indicator =
+        rules.indicator != null && !rules.indicator.isBlank()
+            ? rules.indicator
+            : "sofa-deterioration";
     String alertId =
         AlertIds.of(
             event.patient_id,
             state.encounterId,
-            "sepsis",
+            indicator,
             score.totalScore,
             eventTimeMs,
             rules.version);
     AlertEvent alert = AlertEvent.fromScore(score, tier, alertId, ingestIso);
+    alert.indicator = indicator;
     alert.rule_bundle_id = rules.bundle_id;
     alert.rule_version = rules.version;
     alert.rule_bundle_hash = rules.content_hash;

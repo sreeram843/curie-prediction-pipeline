@@ -1,0 +1,127 @@
+{
+  "bundle_id": "aki-kdigo",
+  "version": "0.4.0",
+  "indicator": "aki",
+  "description": "KDIGO-inspired AKI with stateful 48h/7d creatinine baselines and weight-normalized UO windows (prototype \u2014 not clinically validated). Reuses shared governance.",
+  "citations": [
+    "Kidney Disease: Improving Global Outcomes (KDIGO) Acute Kidney Injury Work Group. KDIGO Clinical Practice Guideline for Acute Kidney Injury. Kidney Int Suppl. 2012."
+  ],
+  "score": {
+    "type": "aki_kdigo",
+    "inputs": [
+      "creatinine_mg_dl",
+      "urine_volume_ml",
+      "urine_duration_hours",
+      "weight_kg",
+      "urine_ml_kg_h"
+    ],
+    "missing_policy": "partial_with_missing_components",
+    "min_components_required": 1,
+    "creatinine_stages": [
+      {
+        "stage": 0,
+        "score": 0,
+        "rule": "no_aki"
+      },
+      {
+        "stage": 1,
+        "score": 2,
+        "rule": "cr_ge_1_5x_baseline_or_delta_ge_0_3"
+      },
+      {
+        "stage": 2,
+        "score": 4,
+        "rule": "cr_ge_2_0x_baseline"
+      },
+      {
+        "stage": 3,
+        "score": 6,
+        "rule": "cr_ge_3_0x_baseline_or_cr_ge_4_0"
+      }
+    ],
+    "urine_output_stages": [
+      {
+        "stage": 1,
+        "rule": "urine_ml_kg_h < 0.5 for duration_hours >= 6"
+      },
+      {
+        "stage": 2,
+        "rule": "urine_ml_kg_h < 0.5 for duration_hours >= 12"
+      },
+      {
+        "stage": 3,
+        "rule": "urine_ml_kg_h < 0.3 for duration_hours >= 24 OR anuria >= 12h"
+      }
+    ],
+    "combine": "max(creatinine_stage, urine_stage)",
+    "timing_notes": {
+      "delta_cr_window": "Within 48h: current - min(Cr in [t-48h,t]) >= 0.3",
+      "ratio_window": "Within 7d: current / min(prior Cr in [t-7d,t]) for 1.5x/2x/3x",
+      "uo_windows_hours": [
+        6,
+        12,
+        24
+      ],
+      "baseline_selection": "eval/aki/timeline.py TIMELINE_VERSION 1.0.0",
+      "timeline_version": "1.0.0"
+    }
+  },
+  "alert": {
+    "naive_threshold": 2,
+    "severity_bands": [
+      {
+        "min": 2,
+        "max": 3,
+        "tier": "watch"
+      },
+      {
+        "min": 4,
+        "max": 5,
+        "tier": "urgent"
+      },
+      {
+        "min": 6,
+        "max": 24,
+        "tier": "critical"
+      }
+    ]
+  },
+  "governance": {
+    "trajectory": {
+      "min_persistence_minutes": 30,
+      "min_crossings": 2
+    },
+    "baseline": {
+      "enabled": true,
+      "lookback_hours": 48,
+      "delta_threshold": 2
+    },
+    "suppression": {
+      "flags": [
+        "comfort_care",
+        "already_on_aki_protocol",
+        "esrd_on_dialysis"
+      ]
+    },
+    "dedup": {
+      "refractory_minutes": 180,
+      "resolution_gap_minutes": 60
+    },
+    "tiering": {
+      "interruptive_tiers": [
+        "urgent",
+        "critical"
+      ],
+      "passive_tiers": [
+        "watch"
+      ]
+    },
+    "page_gate": {
+      "enabled": true,
+      "min_crossings": 2,
+      "trajectory_persistence_minutes": 30,
+      "min_score_delta": 1,
+      "min_positive_components": 1
+    }
+  }
+}

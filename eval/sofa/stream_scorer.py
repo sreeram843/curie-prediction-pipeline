@@ -237,7 +237,7 @@ def alert_id(
     version: str,
     *,
     encounter_id: str | None = None,
-    indicator: str = "sepsis",
+    indicator: str = "sofa-deterioration",
 ) -> str:
     event_time_ms = int(event_time.timestamp() * 1000)
     return canonical_alert_id(
@@ -341,7 +341,7 @@ def main(argv: list[str] | None = None) -> int:
                 ),
                 "patient_id": patient_id,
                 "encounter_id": state.encounter_id,
-                "indicator": "sepsis",
+                "indicator": "sofa-deterioration",
                 "event_time": event_time.isoformat(),
                 "ingest_time": datetime.now(UTC).isoformat(),
                 "score": result.total_score,

@@ -176,7 +176,7 @@ function renderList() {
       alert.alert_id === state.selectedId ? " active" : ""
     }`;
     const tier = alert.tier || "none";
-    const indicator = alert.indicator || "sepsis";
+    const indicator = alert.indicator || "sofa-deterioration";
     btn.innerHTML = `
       <div class="card-top">
         <div class="icon-pill ${tier}" aria-hidden="true">${indicatorGlyph(indicator)}</div>
@@ -272,7 +272,7 @@ function renderDetail(alert) {
         <p class="meta">${alert.alert_id} · ${patientIdLabel(alert.patient_id)}</p>
         <div class="badges">
           <span class="badge tier-chip ${alert.tier}">${alert.tier}</span>
-          <span class="badge">${alert.indicator || "sepsis"}</span>
+          <span class="badge">${alert.indicator || "sofa-deterioration"}</span>
           <span class="badge">${alert.completeness}</span>
           <span class="badge">${alert.governance_path}</span>
           ${

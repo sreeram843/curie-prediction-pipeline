@@ -22,7 +22,7 @@
   "bundle": {
     "bundle_id": "parity-fixture",
     "version": "1.0.0",
-    "indicator": "sepsis",
+    "indicator": "sofa-deterioration",
     "score": {"type": "sofa"},
     "governance": {
       "trajectory": {

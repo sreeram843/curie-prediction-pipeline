@@ -1,8 +1,8 @@
 {
   "bundle_id": "sepsis-sofa",
   "version": "0.3.0",
-  "indicator": "sepsis",
-  "description": "SOFA-style sepsis thresholds with Vincent cardiovascular ladder; governance locked to Challenge 2019 setA winner (grid_p0_r90_b0) dual-lane page gate (prototype \u2014 not clinically validated)",
+  "indicator": "sofa-deterioration",
+  "description": "SOFA organ-dysfunction deterioration signal (not a sepsis diagnosis). Governance locked to Challenge 2019 setA winner (grid_p0_r90_b0) dual-lane page gate (prototype \u2014 not clinically validated). Use sepsis-3 phenotype separately when infection suspicion + acute SOFA rise are both present.",
   "citations": [
     "Vincent JL et al. The SOFA (Sepsis-related Organ Failure Assessment) score. Crit Care Med. 1998.",
     "Singer M et al. The Third International Consensus Definitions for Sepsis and Septic Shock (Sepsis-3). JAMA. 2016."

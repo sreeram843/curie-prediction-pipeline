@@ -3,6 +3,6 @@
   "description": "Active rule-bundle versions for development 'latest' resolution and default publish.",
   "active": {
     "sepsis-sofa": "0.3.0",
-    "aki-kdigo": "0.3.0"
+    "aki-kdigo": "0.4.0"
   }
 }

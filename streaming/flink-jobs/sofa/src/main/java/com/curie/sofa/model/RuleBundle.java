@@ -10,7 +10,7 @@ import java.util.List;
 public class RuleBundle implements Serializable {
   public String bundle_id = "sepsis-sofa";
   public String version = "0.1.0";
-  public String indicator = "sepsis";
+  public String indicator = "sofa-deterioration";
   /** Optional SHA-256 of resolved bundle JSON (set by publishers / registry). */
   public String content_hash;
   public AlertConfig alert = new AlertConfig();

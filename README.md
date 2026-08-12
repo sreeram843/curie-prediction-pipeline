@@ -2,7 +2,7 @@
 
 Streaming platform that ingests FHIR clinical data, computes deterioration risk in real time, and surfaces alerts a clinician will actually trust.
 
-Sepsis (SOFA-based) is the first indicator. Adding indicator #2 is meant to be authoring a rule bundle — not rebuilding infrastructure.
+Sepsis-3 is a separate phenotype (infection + acute SOFA rise). Absolute SOFA scoring surfaces as **sofa-deterioration**, not a sepsis diagnosis. Adding indicator #2 is meant to be authoring a rule bundle — not rebuilding infrastructure.
 
 > **Prototype only.** Synthetic data, no real PHI, not clinically validated, not FDA-cleared, not for patient care. See [Regulatory posture](#regulatory-posture).
 
@@ -25,7 +25,7 @@ Every future indicator inherits that layer. That is the publishable contribution
 |---|---|
 | Event backbone | Apache Kafka |
 | Stream processing | Apache Flink (event time, watermarks, windows, CEP) |
-| First indicator | Sepsis via SOFA-style components |
+| First indicator | SOFA deterioration (`sofa-deterioration`); Sepsis-3 phenotype separate |
 | Test data | Synthea (mechanical / integration only — not clinical validation) |
 | Rules (v1) | Versioned JSON rule bundles (CQL is v2+) |
 | LLM (v2) | Extraction + post-alert narrative only — **never** on the alert-firing path |

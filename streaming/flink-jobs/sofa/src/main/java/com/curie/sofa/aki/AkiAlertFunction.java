@@ -163,16 +163,25 @@ public class AkiAlertFunction
       rules = akiDefaults();
     }
     int threshold = rules.alert != null ? rules.alert.naive_threshold : 2;
-    AkiScorer.Result score =
-        AkiScorer.compute(
-            state.patientId,
-            state.encounterId,
-            eventTimeMs,
-            state.toInput(),
-            rules.version);
-    if ("insufficient_data".equals(score.completeness) || score.totalScore == null) {
+    AkiTimeline.Result timelineScore = state.evaluate(eventTimeMs);
+    if ("insufficient_data".equals(timelineScore.completeness)
+        || "excluded".equals(timelineScore.status)
+        || timelineScore.totalScore == null) {
       return;
     }
+    AkiScorer.Result score = new AkiScorer.Result();
+    score.patientId = state.patientId;
+    score.encounterId = state.encounterId;
+    score.eventTimeEpochMs = eventTimeMs;
+    score.stage = timelineScore.stage;
+    score.creatinineStage = timelineScore.creatinineStage;
+    score.urineStage = timelineScore.urineStage;
+    score.totalScore = timelineScore.totalScore;
+    score.completeness = timelineScore.completeness;
+    score.missingComponents.addAll(timelineScore.missingComponents);
+    score.evidenceIds.addAll(timelineScore.evidenceIds);
+    score.ruleBundleId = rules.bundle_id;
+    score.ruleVersion = rules.version;
     String tier = AkiScorer.tierForScore(score.totalScore, threshold);
 
     String ingest =
@@ -269,7 +278,7 @@ public class AkiAlertFunction
   private static RuleBundle akiDefaults() {
     RuleBundle b = new RuleBundle();
     b.bundle_id = "aki-kdigo";
-    b.version = "0.2.0";
+    b.version = "0.4.0";
     b.indicator = "aki";
     b.alert.naive_threshold = 2;
     return b;

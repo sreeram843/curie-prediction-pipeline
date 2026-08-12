@@ -67,11 +67,21 @@ def test_explain_is_additive(monkeypatch) -> None:
     assert updated["narrative"]
 
 
-def test_indicators_include_aki_and_sepsis() -> None:
+def test_indicators_include_aki_and_sofa_deterioration() -> None:
     client = TestClient(app)
     indicators = {i["indicator"] for i in client.get("/indicators").json()}
-    assert "sepsis" in indicators
+    assert "sofa-deterioration" in indicators
     assert "aki" in indicators
+
+
+def test_demo_sofa_alerts_not_labeled_sepsis() -> None:
+    """CURIE-008: SOFA threshold alone must not read as confirmed sepsis."""
+    client = TestClient(app)
+    alerts = client.get("/alerts").json()
+    sofa = [a for a in alerts if a["indicator"] != "aki"]
+    assert sofa
+    assert all(a["indicator"] == "sofa-deterioration" for a in sofa)
+    assert not any(a["indicator"] == "sepsis" for a in alerts)
 
 
 def test_aki_demo_alert_present() -> None:

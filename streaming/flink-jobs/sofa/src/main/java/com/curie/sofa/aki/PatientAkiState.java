@@ -2,10 +2,18 @@ package com.curie.sofa.aki;
 
 import java.io.Serializable;
 
-/** Encounter-scoped AKI feature state (current Cr, baseline, optional UO). */
+/**
+ * Encounter-scoped AKI feature state with stateful KDIGO histories (CURIE-009).
+ *
+ * <p>Legacy single-value fields remain populated for callers that still use {@link
+ * #toInput()} / {@link AkiScorer}; new code should prefer {@link #evaluate(long)}.
+ */
 public class PatientAkiState implements Serializable {
   public String patientId;
   public String encounterId;
+  public final AkiTimeline.State timeline = new AkiTimeline.State();
+
+  /** @deprecated Prefer timeline histories via {@link #evaluate(long)}. */
   public Double creatinineMgDl;
   public long creatinineEventTimeMs = Long.MIN_VALUE;
   public Double baselineCreatinineMgDl;
@@ -20,6 +28,8 @@ public class PatientAkiState implements Serializable {
 
   public void resetForEncounter(String encounterId) {
     this.encounterId = encounterId;
+    timeline.patientId = patientId;
+    timeline.resetForEncounter(encounterId);
     creatinineMgDl = null;
     creatinineEventTimeMs = Long.MIN_VALUE;
     baselineCreatinineMgDl = null;
@@ -34,6 +44,15 @@ public class PatientAkiState implements Serializable {
   }
 
   public boolean applyCreatinine(double value, long eventTimeMs, String evidenceId, boolean asBaseline) {
+    AkiTimeline.CrObs obs = new AkiTimeline.CrObs();
+    obs.eventTimeMs = eventTimeMs;
+    obs.valueMgDl = value;
+    obs.evidenceId = evidenceId;
+    obs.status = "final";
+    timeline.patientId = patientId;
+    timeline.encounterId = encounterId;
+    timeline.ingestCreatinine(obs);
+
     if (asBaseline) {
       if (baselineEventTimeMs != Long.MIN_VALUE && eventTimeMs < baselineEventTimeMs) {
         return false;
@@ -46,9 +65,9 @@ public class PatientAkiState implements Serializable {
       return true;
     }
     if (creatinineEventTimeMs != Long.MIN_VALUE && eventTimeMs < creatinineEventTimeMs) {
-      return false;
+      // Still accepted into timeline (OOO); legacy "current" only advances forward.
+      return true;
     }
-    // First Cr becomes baseline if none yet
     if (baselineCreatinineMgDl == null) {
       baselineCreatinineMgDl = value;
       baselineEventTimeMs = eventTimeMs;
@@ -66,8 +85,16 @@ public class PatientAkiState implements Serializable {
 
   public boolean applyUrine(
       Double mlKgH, Double durationHours, Boolean anuriaFlag, long eventTimeMs, String evidenceId) {
+    AkiTimeline.UoObs obs = new AkiTimeline.UoObs();
+    obs.endTimeMs = eventTimeMs;
+    obs.evidenceId = evidenceId;
+    obs.mlKgH = mlKgH;
+    obs.durationHours = durationHours;
+    obs.anuria = Boolean.TRUE.equals(anuriaFlag);
+    timeline.ingestUrine(obs);
+
     if (urineEventTimeMs != Long.MIN_VALUE && eventTimeMs < urineEventTimeMs) {
-      return false;
+      return true;
     }
     if (mlKgH != null) {
       urineMlKgH = mlKgH;
@@ -83,6 +110,40 @@ public class PatientAkiState implements Serializable {
       urineEvidenceIds.add(evidenceId);
     }
     return true;
+  }
+
+  public boolean applyUrineVolume(
+      double volumeMl, double durationHours, long eventTimeMs, String evidenceId) {
+    AkiTimeline.UoObs obs = new AkiTimeline.UoObs();
+    obs.endTimeMs = eventTimeMs;
+    obs.evidenceId = evidenceId;
+    obs.volumeMl = volumeMl;
+    obs.durationHours = durationHours;
+    timeline.ingestUrine(obs);
+    return true;
+  }
+
+  public boolean applyWeight(double weightKg, long eventTimeMs, String evidenceId) {
+    AkiTimeline.WeightObs obs = new AkiTimeline.WeightObs();
+    obs.eventTimeMs = eventTimeMs;
+    obs.weightKg = weightKg;
+    obs.evidenceId = evidenceId;
+    timeline.ingestWeight(obs);
+    return true;
+  }
+
+  public void setFlag(String flag, boolean present) {
+    if (present) {
+      timeline.flags.add(flag);
+    } else {
+      timeline.flags.remove(flag);
+    }
+  }
+
+  public AkiTimeline.Result evaluate(long asOfMs) {
+    timeline.patientId = patientId;
+    timeline.encounterId = encounterId;
+    return AkiTimeline.evaluate(timeline, asOfMs);
   }
 
   public AkiScorer.Input toInput() {

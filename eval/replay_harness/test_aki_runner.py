@@ -3,9 +3,9 @@ from eval.replay_harness.aki_runner import run_all_aki
 from eval.replay_harness.governance import GovernanceConfig, PatientGovState, evaluate
 
 
-def test_aki_bundle_registered_alongside_sepsis() -> None:
+def test_aki_bundle_registered_alongside_sofa() -> None:
     indicators = {i["indicator"] for i in list_indicators()}
-    assert "sepsis" in indicators
+    assert "sofa-deterioration" in indicators
     assert "aki" in indicators
     bundle = load_rule_bundle("aki-kdigo")
     assert bundle["score"]["type"] == "aki_kdigo"
@@ -13,7 +13,7 @@ def test_aki_bundle_registered_alongside_sepsis() -> None:
 
 
 def test_aki_reuses_shared_governance_without_core_changes() -> None:
-    """Same evaluate() function used by sepsis — no governance fork."""
+    """Same evaluate() function used by SOFA — no governance fork."""
     config = GovernanceConfig(
         trajectory_persistence_minutes=30,
         min_crossings=2,
@@ -44,4 +44,4 @@ def test_aki_alert_reduction_on_t2_library() -> None:
     assert by_id["t2-aki-absolute-no-baseline"]["governed_alert_count"] >= 1
     assert by_id["t2-aki-uo-oliguria"]["governed_alert_count"] >= 1
     assert by_id["t2-aki-delta-borderline"]["governed_alert_count"] >= 1
-    assert report["rule_bundle"]["version"] == "0.3.0"
+    assert report["rule_bundle"]["version"] == "0.4.0"

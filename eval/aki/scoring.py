@@ -1,7 +1,10 @@
-"""KDIGO-inspired AKI reference scorer (Phase 3 plugin).
+"""KDIGO-inspired AKI reference scorer (legacy caller-provided baseline).
 
 Prototype only — not clinically validated. Missing values are never imputed.
 v0.2: creatinine + urine-output staging; final stage = max of both.
+
+For stateful 48h/7d baselines and weight-normalized UO windows, use
+``eval.aki.timeline.evaluate_aki_timeline`` (CURIE-009 / bundle v0.4.0).
 """
 
 from __future__ import annotations

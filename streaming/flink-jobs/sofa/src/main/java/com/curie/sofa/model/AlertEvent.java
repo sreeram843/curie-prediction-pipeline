@@ -11,7 +11,7 @@ public class AlertEvent implements Serializable {
   public String alert_id;
   public String patient_id;
   public String encounter_id;
-  public String indicator = "sepsis";
+  public String indicator = "sofa-deterioration";
   public String event_time;
   public String ingest_time;
   public Integer score;

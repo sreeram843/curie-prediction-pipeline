@@ -208,8 +208,8 @@ of Kafka arrival order.
 
 **Acceptance criteria**
 
-- [ ] No screen or API labels SOFA threshold alone as confirmed sepsis.
-- [ ] Sepsis phenotype logic has versioned positive, negative, boundary, and missing-data cases.
+- [x] No screen or API labels SOFA threshold alone as confirmed sepsis.
+- [x] Sepsis phenotype logic has versioned positive, negative, boundary, and missing-data cases.
 
 ### CURIE-009 — Implement stateful KDIGO timelines [P0]
 
@@ -225,9 +225,9 @@ of Kafka arrival order.
 
 **Acceptance criteria**
 
-- [ ] KDIGO stages match reviewed fixtures at all temporal boundaries.
-- [ ] Restart, duplicate, and out-of-order tests preserve staging.
-- [ ] The algorithm does not infer a reassuring stage when required inputs are missing.
+- [x] KDIGO stages match reviewed fixtures at all temporal boundaries.
+- [x] Restart, duplicate, and out-of-order tests preserve staging.
+- [x] The algorithm does not infer a reassuring stage when required inputs are missing.
 
 ### CURIE-010 — Define a common clinical-signal output contract [P1]
 

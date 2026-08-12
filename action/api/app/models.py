@@ -20,7 +20,9 @@ class AlertRecord(BaseModel):
     patient_id: str
     patient_name: str | None = None
     encounter_id: str | None = None
-    indicator: Literal["sepsis", "aki"] = "sepsis"
+    indicator: Literal["sofa-deterioration", "sepsis-3", "aki", "sepsis"] = (
+        "sofa-deterioration"
+    )
     event_time: datetime
     ingest_time: datetime | None = None
     score: int | None = None

@@ -19,7 +19,7 @@ public final class AlertIds {
             + "|"
             + (encounterId == null ? "" : encounterId)
             + "|"
-            + (indicator == null ? "sepsis" : indicator)
+            + (indicator == null ? "sofa-deterioration" : indicator)
             + "|"
             + score
             + "|"

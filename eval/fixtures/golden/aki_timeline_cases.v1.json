@@ -1,0 +1,160 @@
+{
+  "schema_version": "1.0.0",
+  "timeline_version": "1.0.0",
+  "description": "CURIE-009 stateful KDIGO timeline fixtures — not clinical validation.",
+  "cases": [
+    {
+      "id": "stage1-delta-within-48h",
+      "events": [
+        {"type": "creatinine", "event_time": "2024-07-01T00:00:00+00:00", "value": 1.0, "evidence_id": "Observation/cr-0"},
+        {"type": "creatinine", "event_time": "2024-07-02T12:00:00+00:00", "value": 1.35, "evidence_id": "Observation/cr-1"}
+      ],
+      "as_of": "2024-07-02T12:00:00+00:00",
+      "expect": {
+        "stage": 1,
+        "criteria_contains": ["delta_cr_ge_0_3_within_48h"],
+        "baseline_7d_mg_dl": 1.0,
+        "reference_48h_mg_dl": 1.0
+      }
+    },
+    {
+      "id": "boundary-delta-just-under-0.3",
+      "events": [
+        {"type": "creatinine", "event_time": "2024-07-01T00:00:00+00:00", "value": 1.0, "evidence_id": "Observation/cr-0"},
+        {"type": "creatinine", "event_time": "2024-07-01T24:00:00+00:00", "value": 1.29, "evidence_id": "Observation/cr-1"}
+      ],
+      "as_of": "2024-07-01T24:00:00+00:00",
+      "expect": {
+        "stage": 0,
+        "criteria_excludes": ["delta_cr_ge_0_3_within_48h"]
+      }
+    },
+    {
+      "id": "stage2-ratio-within-7d",
+      "events": [
+        {"type": "creatinine", "event_time": "2024-06-28T00:00:00+00:00", "value": 1.0, "evidence_id": "Observation/cr-base"},
+        {"type": "creatinine", "event_time": "2024-07-03T00:00:00+00:00", "value": 2.1, "evidence_id": "Observation/cr-now"}
+      ],
+      "as_of": "2024-07-03T00:00:00+00:00",
+      "expect": {
+        "stage": 2,
+        "criteria_contains": ["cr_ge_2_0x_baseline"],
+        "baseline_7d_mg_dl": 1.0
+      }
+    },
+    {
+      "id": "baseline-outside-7d-not-used-for-ratio",
+      "events": [
+        {"type": "creatinine", "event_time": "2024-06-20T00:00:00+00:00", "value": 0.8, "evidence_id": "Observation/cr-old"},
+        {"type": "creatinine", "event_time": "2024-07-01T00:00:00+00:00", "value": 1.0, "evidence_id": "Observation/cr-a"},
+        {"type": "creatinine", "event_time": "2024-07-03T00:00:00+00:00", "value": 1.4, "evidence_id": "Observation/cr-b"}
+      ],
+      "as_of": "2024-07-03T00:00:00+00:00",
+      "expect": {
+        "stage": 1,
+        "baseline_7d_mg_dl": 1.0,
+        "criteria_contains": ["delta_cr_ge_0_3_within_48h"],
+        "criteria_excludes": ["cr_ge_1_5x_baseline"]
+      }
+    },
+    {
+      "id": "uo-stage1-volume-weight-6h",
+      "events": [
+        {"type": "weight", "event_time": "2024-07-01T00:00:00+00:00", "value": 80.0, "evidence_id": "Observation/wt"},
+        {"type": "urine_volume", "event_time": "2024-07-01T06:00:00+00:00", "volume_ml": 192.0, "duration_hours": 6.0, "evidence_id": "Observation/uo-6"}
+      ],
+      "as_of": "2024-07-01T06:00:00+00:00",
+      "expect": {
+        "stage": 1,
+        "urine_stage": 1,
+        "criteria_contains": ["uo_lt_0_5_for_6h"],
+        "weight_kg": 80.0
+      }
+    },
+    {
+      "id": "missing-weight-no-reassuring-uo-stage",
+      "events": [
+        {"type": "urine_volume", "event_time": "2024-07-01T06:00:00+00:00", "volume_ml": 100.0, "duration_hours": 6.0, "evidence_id": "Observation/uo"},
+        {"type": "creatinine", "event_time": "2024-07-01T06:00:00+00:00", "value": 1.0, "evidence_id": "Observation/cr"}
+      ],
+      "as_of": "2024-07-01T06:00:00+00:00",
+      "expect": {
+        "stage": 0,
+        "urine_stage": null,
+        "missing_contains": ["weight_kg"],
+        "completeness": "partial"
+      }
+    },
+    {
+      "id": "corrected-lab-replaces-duplicate",
+      "events": [
+        {"type": "creatinine", "event_time": "2024-07-01T00:00:00+00:00", "value": 1.0, "evidence_id": "Observation/cr-0"},
+        {"type": "creatinine", "event_time": "2024-07-01T12:00:00+00:00", "value": 3.0, "evidence_id": "Observation/cr-1", "status": "final"},
+        {"type": "creatinine", "event_time": "2024-07-01T12:00:00+00:00", "value": 1.1, "evidence_id": "Observation/cr-1", "status": "corrected"}
+      ],
+      "as_of": "2024-07-01T12:00:00+00:00",
+      "expect": {
+        "stage": 0,
+        "criteria_excludes": ["cr_ge_2_0x_baseline", "cr_ge_3_0x_baseline"]
+      }
+    },
+    {
+      "id": "out-of-order-ingest-same-as-sorted",
+      "events": [
+        {"type": "creatinine", "event_time": "2024-07-02T12:00:00+00:00", "value": 1.4, "evidence_id": "Observation/cr-1"},
+        {"type": "creatinine", "event_time": "2024-07-01T00:00:00+00:00", "value": 1.0, "evidence_id": "Observation/cr-0"}
+      ],
+      "as_of": "2024-07-02T12:00:00+00:00",
+      "expect": {
+        "stage": 1,
+        "criteria_contains": ["delta_cr_ge_0_3_within_48h"]
+      }
+    },
+    {
+      "id": "esrd-excluded",
+      "events": [
+        {"type": "flag", "name": "esrd", "present": true},
+        {"type": "creatinine", "event_time": "2024-07-01T00:00:00+00:00", "value": 5.0, "evidence_id": "Observation/cr"}
+      ],
+      "as_of": "2024-07-01T00:00:00+00:00",
+      "expect": {
+        "status": "excluded",
+        "stage": null
+      }
+    },
+    {
+      "id": "rrt-forces-stage3",
+      "events": [
+        {"type": "flag", "name": "rrt_initiated", "present": true},
+        {"type": "creatinine", "event_time": "2024-07-01T00:00:00+00:00", "value": 1.2, "evidence_id": "Observation/cr"}
+      ],
+      "as_of": "2024-07-01T00:00:00+00:00",
+      "expect": {
+        "stage": 3,
+        "criteria_contains": ["rrt"]
+      }
+    },
+    {
+      "id": "anuria-12h-stage3",
+      "events": [
+        {"type": "anuria", "event_time": "2024-07-01T12:00:00+00:00", "duration_hours": 12.0, "evidence_id": "Observation/anuria"}
+      ],
+      "as_of": "2024-07-01T12:00:00+00:00",
+      "expect": {
+        "stage": 3,
+        "urine_stage": 3,
+        "criteria_contains": ["anuria_ge_12h"]
+      }
+    },
+    {
+      "id": "insufficient-no-inputs",
+      "events": [],
+      "as_of": "2024-07-01T00:00:00+00:00",
+      "expect": {
+        "status": "insufficient_data",
+        "stage": null,
+        "missing_contains": ["creatinine"]
+      }
+    }
+  ]
+}

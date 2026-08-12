@@ -1,0 +1,193 @@
+{
+  "schema_version": "1.0.0",
+  "phenotype_id": "sepsis-3",
+  "phenotype_version": "1.0.0",
+  "description": "CURIE-008 Sepsis-3 phenotype fixtures — not clinical validation.",
+  "cases": [
+    {
+      "id": "positive-culture-and-sofa-rise",
+      "inputs": {
+        "as_of": "2024-06-01T12:00:00+00:00",
+        "current_sofa": 4,
+        "baseline_sofa": 1,
+        "infection_events": [
+          {
+            "event_time": "2024-06-01T10:00:00+00:00",
+            "kind": "culture",
+            "evidence_id": "Procedure/blood-culture-1"
+          }
+        ]
+      },
+      "expect": {
+        "met": true,
+        "status": "met",
+        "sofa_delta": 3,
+        "criteria_met": ["infection_culture", "acute_sofa_rise_ge_2"]
+      }
+    },
+    {
+      "id": "positive-antimicrobial-and-sofa-rise",
+      "inputs": {
+        "as_of": "2024-06-01T12:00:00+00:00",
+        "current_sofa": 5,
+        "baseline_sofa": 2,
+        "infection_events": [
+          {
+            "event_time": "2024-06-01T11:00:00+00:00",
+            "kind": "antimicrobial",
+            "evidence_id": "MedicationAdministration/vanc-1"
+          }
+        ]
+      },
+      "expect": {
+        "met": true,
+        "status": "met",
+        "sofa_delta": 3,
+        "criteria_met": ["infection_antimicrobial", "acute_sofa_rise_ge_2"]
+      }
+    },
+    {
+      "id": "negative-sofa-alone-no-infection",
+      "inputs": {
+        "as_of": "2024-06-01T12:00:00+00:00",
+        "current_sofa": 6,
+        "baseline_sofa": 1,
+        "infection_events": []
+      },
+      "expect": {
+        "met": false,
+        "status": "insufficient_data",
+        "missing_inputs": ["infection_suspicion"],
+        "note_contains": "sofa-deterioration"
+      }
+    },
+    {
+      "id": "negative-infection-without-sofa-rise",
+      "inputs": {
+        "as_of": "2024-06-01T12:00:00+00:00",
+        "current_sofa": 3,
+        "baseline_sofa": 2,
+        "infection_events": [
+          {
+            "event_time": "2024-06-01T10:00:00+00:00",
+            "kind": "culture",
+            "evidence_id": "Procedure/culture-2"
+          }
+        ]
+      },
+      "expect": {
+        "met": false,
+        "status": "not_met",
+        "sofa_delta": 1,
+        "criteria_failed": ["acute_sofa_rise_ge_2"]
+      }
+    },
+    {
+      "id": "boundary-sofa-delta-exactly-2",
+      "inputs": {
+        "as_of": "2024-06-01T12:00:00+00:00",
+        "current_sofa": 4,
+        "baseline_sofa": 2,
+        "infection_events": [
+          {
+            "event_time": "2024-06-01T12:00:00+00:00",
+            "kind": "culture",
+            "evidence_id": "Procedure/culture-boundary"
+          }
+        ]
+      },
+      "expect": {
+        "met": true,
+        "status": "met",
+        "sofa_delta": 2,
+        "criteria_met": ["infection_culture", "acute_sofa_rise_ge_2"]
+      }
+    },
+    {
+      "id": "boundary-infection-at-window-edge",
+      "inputs": {
+        "as_of": "2024-06-02T10:00:00+00:00",
+        "current_sofa": 4,
+        "baseline_sofa": 1,
+        "infection_events": [
+          {
+            "event_time": "2024-06-01T10:00:00+00:00",
+            "kind": "culture",
+            "evidence_id": "Procedure/culture-edge"
+          }
+        ],
+        "window_before_hours": 24,
+        "window_after_hours": 24
+      },
+      "expect": {
+        "met": true,
+        "status": "met"
+      }
+    },
+    {
+      "id": "missing-baseline-sofa",
+      "inputs": {
+        "as_of": "2024-06-01T12:00:00+00:00",
+        "current_sofa": 4,
+        "baseline_sofa": null,
+        "infection_events": [
+          {
+            "event_time": "2024-06-01T10:00:00+00:00",
+            "kind": "culture",
+            "evidence_id": "Procedure/culture-3"
+          }
+        ]
+      },
+      "expect": {
+        "met": false,
+        "status": "insufficient_data",
+        "missing_inputs": ["baseline_sofa"]
+      }
+    },
+    {
+      "id": "excluded-comfort-care",
+      "inputs": {
+        "as_of": "2024-06-01T12:00:00+00:00",
+        "current_sofa": 6,
+        "baseline_sofa": 1,
+        "infection_events": [
+          {
+            "event_time": "2024-06-01T10:00:00+00:00",
+            "kind": "culture",
+            "evidence_id": "Procedure/culture-4"
+          }
+        ],
+        "exclusion_flags": ["comfort_care"]
+      },
+      "expect": {
+        "met": false,
+        "status": "excluded",
+        "exclusions_applied": ["comfort_care"]
+      }
+    },
+    {
+      "id": "pre-existing-dysfunction-no-acute-rise",
+      "inputs": {
+        "as_of": "2024-06-01T12:00:00+00:00",
+        "current_sofa": 5,
+        "baseline_sofa": 5,
+        "infection_events": [
+          {
+            "event_time": "2024-06-01T10:00:00+00:00",
+            "kind": "antimicrobial",
+            "evidence_id": "MedicationAdministration/abx-1"
+          }
+        ]
+      },
+      "expect": {
+        "met": false,
+        "status": "not_met",
+        "sofa_delta": 0,
+        "criteria_failed": [
+          "acute_sofa_rise_ge_2",
+          "pre_existing_dysfunction_without_acute_rise"
+        ]
+      }
+    }
+  ]
+}
