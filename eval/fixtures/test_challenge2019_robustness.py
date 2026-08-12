@@ -59,6 +59,7 @@ def test_summarize_modes_on_synthetic_rows() -> None:
 
 def test_ranking_stable_helper() -> None:
     ranks = {
+        "window_m12_p6": ["a", "b"],
         "grace_0": ["a", "b"],
         "grace_6": ["a", "b"],
         "grace_12": ["a", "b"],
@@ -82,5 +83,6 @@ def test_robustness_on_fixture() -> None:
     )
     assert report["stays_scored"] >= 1
     assert "frozen" in report["by_config"]
+    assert "window_m12_p6" in report["by_config"]["frozen"]
     assert "grace_6" in report["by_config"]["frozen"]
     assert "ranking_by_mode" in report
