@@ -63,6 +63,7 @@ flink-test:
 		mvn -B -q test
 
 api:
+	CURIE_ALERT_DB=data/curie_alerts.sqlite \
 	uvicorn action.api.app.main:app --reload --host 127.0.0.1 --port 8000
 
 replay:

@@ -1,4 +1,4 @@
-"""Optional Kafka consumer: alerts topic → in-memory store (idempotent upsert)."""
+"""Optional Kafka consumer: alerts topic → durable store (manual commit)."""
 
 from __future__ import annotations
 
@@ -41,7 +41,6 @@ def kafka_alert_to_record(payload: dict[str, Any]) -> AlertRecord | None:
     data["event_time"] = event_time
     if data.get("ingest_time"):
         data["ingest_time"] = _parse_iso(data["ingest_time"])
-    # Drop unknown-null routing to optional
     if not data.get("routing"):
         data.pop("routing", None)
     try:
@@ -49,6 +48,17 @@ def kafka_alert_to_record(payload: dict[str, Any]) -> AlertRecord | None:
     except Exception:
         logger.exception("Failed to parse alert %s", alert_id)
         return None
+
+
+def _idempotency_key(msg: Any, payload: dict[str, Any], record: AlertRecord) -> str:
+    """Stable key for at-least-once Kafka delivery dedupe."""
+    explicit = payload.get("idempotency_key") or payload.get("alert_id")
+    topic = msg.topic() if hasattr(msg, "topic") else "alerts"
+    partition = msg.partition() if hasattr(msg, "partition") else 0
+    offset = msg.offset() if hasattr(msg, "offset") else None
+    if offset is not None:
+        return f"{topic}:{partition}:{offset}"
+    return str(explicit or record.alert_id)
 
 
 def _loop(bootstrap: str, group_id: str, clear_demo: bool) -> None:
@@ -63,7 +73,8 @@ def _loop(bootstrap: str, group_id: str, clear_demo: bool) -> None:
             "bootstrap.servers": bootstrap,
             "group.id": group_id,
             "auto.offset.reset": "earliest",
-            "enable.auto.commit": True,
+            # CURIE-017: commit only after durable upsert succeeds.
+            "enable.auto.commit": False,
         }
     )
     consumer.subscribe(["alerts"])
@@ -81,15 +92,27 @@ def _loop(bootstrap: str, group_id: str, clear_demo: bool) -> None:
                 payload = json.loads(msg.value().decode("utf-8"))
             except (json.JSONDecodeError, UnicodeDecodeError):
                 logger.warning("Skipping non-JSON alert message")
+                # Poison pill: commit to avoid infinite retry loops on bad payload.
+                consumer.commit(message=msg, asynchronous=False)
                 continue
             record = kafka_alert_to_record(payload)
             if record is None:
+                consumer.commit(message=msg, asynchronous=False)
                 continue
             if clear_demo and not cleared:
                 STORE.clear()
                 cleared = True
                 logger.info("Cleared demo alerts before first live upsert")
-            STORE.upsert(record)
+            key = _idempotency_key(msg, payload, record)
+            try:
+                STORE.ingest_kafka(record, idempotency_key=key)
+            except Exception:
+                logger.exception(
+                    "Durable upsert failed for %s; not committing offset",
+                    record.alert_id,
+                )
+                continue
+            consumer.commit(message=msg, asynchronous=False)
     except KafkaException:
         logger.exception("Kafka consumer failed")
     finally:
@@ -105,9 +128,15 @@ def start_alerts_consumer_if_configured() -> None:
         return
     if _consumer_thread and _consumer_thread.is_alive():
         return
-    bootstrap = os.getenv("KAFKA_BOOTSTRAP", os.getenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092"))
+    bootstrap = os.getenv(
+        "KAFKA_BOOTSTRAP", os.getenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092")
+    )
     group_id = os.getenv("CURIE_KAFKA_ALERTS_GROUP", "curie-api-alerts-v1")
-    clear_demo = os.getenv("CURIE_CLEAR_DEMO_ON_LIVE", "true").lower() in {"1", "true", "yes"}
+    clear_demo = os.getenv("CURIE_CLEAR_DEMO_ON_LIVE", "true").lower() in {
+        "1",
+        "true",
+        "yes",
+    }
     _stop.clear()
     _consumer_thread = threading.Thread(
         target=_loop,

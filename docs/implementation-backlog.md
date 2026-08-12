@@ -368,9 +368,12 @@ tests, retention rules, and bounded query pagination.
 
 **Acceptance criteria**
 
-- [ ] A process restart loses neither alerts nor acknowledgements.
-- [ ] Duplicate Kafka delivery cannot create a duplicate alert or episode transition.
-- [ ] Metrics are not silently truncated at 10,000 records.
+- [x] A process restart loses neither alerts nor acknowledgements.
+- [x] Duplicate Kafka delivery cannot create a duplicate alert or episode transition.
+- [x] Metrics are not silently truncated at 10,000 records.
+
+**Artifacts:** [`docs/durable-alert-store.md`](./durable-alert-store.md),
+`CURIE_ALERT_DB=… make api`.
 
 ### CURIE-018 — Add production security and observability boundaries [P1]
 

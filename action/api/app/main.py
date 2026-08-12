@@ -83,11 +83,13 @@ def list_alerts(
     include_acknowledged: bool = Query(default=True),
     patient_id: str | None = Query(default=None),
     limit: int = Query(default=100, ge=1, le=1000),
+    offset: int = Query(default=0, ge=0),
 ) -> list[AlertRecord]:
     return STORE.list(
         include_acknowledged=include_acknowledged,
         patient_id=patient_id,
         limit=limit,
+        offset=offset,
     )
 
 
@@ -178,7 +180,7 @@ def list_episodes(
 
 @app.get("/episodes/{episode_id}")
 def get_episode(episode_id: str) -> dict:
-    episode = STORE.arbiter.get(episode_id)
+    episode = STORE.get_episode(episode_id)
     if episode is None:
         raise HTTPException(status_code=404, detail="Episode not found")
     return episode.to_public_dict()

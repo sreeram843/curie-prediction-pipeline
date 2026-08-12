@@ -1,15 +1,23 @@
-"""Thread-safe in-memory alert store (v1). Seeded with demo alerts for local UI."""
+"""Alert store backends (CURIE-017).
+
+Default is SQLite-durable when ``CURIE_ALERT_DB`` is set (or ``data/curie_alerts.sqlite``
+when ``CURIE_ALERT_STORE=sqlite``). Tests and local smoke may use ``memory``.
+"""
 
 from __future__ import annotations
 
+import os
 from datetime import UTC, datetime, timedelta
 from threading import RLock
+from typing import Any
 
 from action.api.app.models import AlertRecord, ComponentBreakdown, MetricsSummary
 from eval.episodes.arbiter import EpisodeArbiter, EpisodeConfig
 
 
-class AlertStore:
+class MemoryAlertStore:
+    """In-memory store retained for unit tests and ephemeral demos."""
+
     def __init__(self, *, arbiter: EpisodeArbiter | None = None) -> None:
         self._lock = RLock()
         self._alerts: dict[str, AlertRecord] = {}
@@ -24,9 +32,16 @@ class AlertStore:
                 alert.acknowledge_note = existing.acknowledge_note
                 alert.resolution_state = "acknowledged"
             self._alerts[alert.alert_id] = alert
-            # Fold into patient episode (CURIE-012)
             self.arbiter.ingest(alert)
             return alert
+
+    def ingest_kafka(
+        self, alert: AlertRecord, *, idempotency_key: str
+    ) -> tuple[AlertRecord, bool]:
+        # Memory path: alert_id upsert is the only idempotency key.
+        with self._lock:
+            existed = alert.alert_id in self._alerts
+        return self.upsert(alert), not existed
 
     def list(
         self,
@@ -34,7 +49,10 @@ class AlertStore:
         include_acknowledged: bool = True,
         patient_id: str | None = None,
         limit: int = 100,
+        offset: int = 0,
     ) -> list[AlertRecord]:
+        limit = max(1, min(int(limit), 1000))
+        offset = max(0, int(offset))
         with self._lock:
             items = list(self._alerts.values())
         if patient_id:
@@ -42,7 +60,21 @@ class AlertStore:
         if not include_acknowledged:
             items = [a for a in items if not a.acknowledged]
         items.sort(key=lambda a: a.event_time, reverse=True)
-        return items[:limit]
+        return items[offset : offset + limit]
+
+    def count(
+        self,
+        *,
+        include_acknowledged: bool = True,
+        patient_id: str | None = None,
+    ) -> int:
+        with self._lock:
+            items = list(self._alerts.values())
+        if patient_id:
+            items = [a for a in items if a.patient_id == patient_id]
+        if not include_acknowledged:
+            items = [a for a in items if not a.acknowledged]
+        return len(items)
 
     def get(self, alert_id: str) -> AlertRecord | None:
         with self._lock:
@@ -68,7 +100,9 @@ class AlertStore:
             return updated
 
     def metrics(self) -> MetricsSummary:
-        items = self.list(limit=10_000)
+        # Full scan — no silent 10k truncation (CURIE-017).
+        with self._lock:
+            items = list(self._alerts.values())
         by_tier: dict[str, int] = {}
         by_routing: dict[str, int] = {}
         by_indicator: dict[str, int] = {}
@@ -106,8 +140,8 @@ class AlertStore:
             updated = alert.model_copy(
                 update={
                     "narrative_status": status,
-                    "narrative": narrative,
                     "narrative_claims": claims,
+                    "narrative": narrative,
                     "quarantine_reason": quarantine_reason,
                     "grp_model_name": model_name,
                 }
@@ -121,14 +155,43 @@ class AlertStore:
             self.arbiter = EpisodeArbiter(EpisodeConfig())
 
     def list_episodes(self, *, patient_id: str | None = None, limit: int = 100):
+        limit = max(1, min(int(limit), 1000))
         with self._lock:
             items = self.arbiter.list_all()
         if patient_id:
             items = [e for e in items if e.patient_id == patient_id]
         return items[:limit]
 
+    def get_episode(self, episode_id: str):
+        return self.arbiter.get(episode_id)
 
-def seed_demo_alerts(store: AlertStore) -> None:
+
+# Backward-compatible name
+AlertStore = MemoryAlertStore
+
+
+def open_store() -> Any:
+    """Construct the process-wide store from environment.
+
+    - If ``CURIE_ALERT_DB`` is set → SQLite durable store at that path.
+    - Else if ``CURIE_ALERT_STORE=sqlite`` → ``data/curie_alerts.sqlite``.
+    - Else → in-memory (tests / ephemeral demos).
+    """
+    backend = os.getenv("CURIE_ALERT_STORE", "").strip().lower()
+    db_path = os.getenv("CURIE_ALERT_DB", "").strip()
+    use_sqlite = bool(db_path) or backend in {"sqlite", "durable", "db"}
+    if not use_sqlite:
+        return MemoryAlertStore()
+
+    from action.api.app.durable_store import DurableAlertStore
+
+    path = db_path or "data/curie_alerts.sqlite"
+    retention_raw = os.getenv("CURIE_ALERT_RETENTION_DAYS", "").strip()
+    retention = int(retention_raw) if retention_raw.isdigit() else None
+    return DurableAlertStore(path, retention_days=retention)
+
+
+def seed_demo_alerts(store: Any) -> None:
     """Deterministic demo cohort for local dashboard / API smoke tests."""
     now = datetime(2024, 6, 15, 14, 30, tzinfo=UTC)
     demos = [
@@ -273,7 +336,6 @@ def seed_demo_alerts(store: AlertStore) -> None:
             page_deferred_reason="page_persistence",
             positive_components=1,
         ),
-        # CURIE-012: concurrent multi-signal episode (one page, supporting differential)
         AlertRecord(
             alert_id="alert-demo-episode-sofa-005",
             patient_id="Patient/p-ep-901",
@@ -353,7 +415,6 @@ def seed_demo_alerts(store: AlertStore) -> None:
             routing="interruptive",
             positive_components=1,
         ),
-        # CURIE-013: respiratory deterioration via shared contract (no UI specialty path)
         AlertRecord(
             alert_id="alert-demo-resp-urgent-008",
             patient_id="Patient/p-88201",
@@ -402,7 +463,6 @@ def seed_demo_alerts(store: AlertStore) -> None:
             routing="interruptive",
             positive_components=3,
         ),
-        # Concurrent SOFA + respiratory → one episode (supporting differential)
         AlertRecord(
             alert_id="alert-demo-resp-ep-sofa-009",
             patient_id="Patient/p-ep-902",
@@ -469,5 +529,12 @@ def seed_demo_alerts(store: AlertStore) -> None:
         store.upsert(alert)
 
 
-STORE = AlertStore()
-seed_demo_alerts(STORE)
+def _bootstrap_store() -> Any:
+    store = open_store()
+    seed = os.getenv("CURIE_SEED_DEMO", "true").lower() in {"1", "true", "yes"}
+    if seed and store.count() == 0:
+        seed_demo_alerts(store)
+    return store
+
+
+STORE = _bootstrap_store()
