@@ -1,0 +1,143 @@
+[
+  {
+    "case_id": "u-001",
+    "alert_id": "alert-u-001",
+    "indicator": "sofa-deterioration",
+    "score": 2,
+    "tier": "watch",
+    "completeness": "partial",
+    "routing": "passive",
+    "label_positive": true,
+    "missing_components": ["respiration", "cns"],
+    "evidence_ids": ["Observation/cr-u1", "Observation/plt-u1"],
+    "component_breakdown": [
+      {"name": "renal", "points": 1, "missing": false, "evidence_ids": ["Observation/cr-u1"]},
+      {"name": "coagulation", "points": 1, "missing": false, "evidence_ids": ["Observation/plt-u1"]},
+      {"name": "respiration", "points": null, "missing": true, "evidence_ids": []}
+    ],
+    "reviewer_note": "Possible chronic baseline creatinine."
+  },
+  {
+    "case_id": "u-002",
+    "alert_id": "alert-u-002",
+    "indicator": "sofa-deterioration",
+    "score": 8,
+    "tier": "critical",
+    "completeness": "complete",
+    "routing": "interruptive",
+    "label_positive": true,
+    "missing_components": [],
+    "evidence_ids": ["Observation/map-u2", "Observation/cr-u2", "Observation/bili-u2"],
+    "component_breakdown": [
+      {"name": "cardiovascular", "points": 4, "missing": false, "evidence_ids": ["Observation/map-u2"]},
+      {"name": "renal", "points": 2, "missing": false, "evidence_ids": ["Observation/cr-u2"]},
+      {"name": "liver", "points": 2, "missing": false, "evidence_ids": ["Observation/bili-u2"]}
+    ],
+    "reviewer_note": ""
+  },
+  {
+    "case_id": "u-003",
+    "alert_id": "alert-u-003",
+    "indicator": "aki",
+    "score": 3,
+    "tier": "urgent",
+    "completeness": "partial",
+    "routing": "interruptive",
+    "label_positive": false,
+    "missing_components": ["urine_output"],
+    "evidence_ids": ["Observation/cr-aki-u3"],
+    "component_breakdown": [
+      {"name": "creatinine", "points": 3, "missing": false, "evidence_ids": ["Observation/cr-aki-u3"]},
+      {"name": "urine_output", "points": null, "missing": true, "evidence_ids": []}
+    ],
+    "reviewer_note": "Hemolyzed sample may be measurement artifact."
+  },
+  {
+    "case_id": "u-004",
+    "alert_id": "alert-u-004",
+    "indicator": "sofa-deterioration",
+    "score": 5,
+    "tier": "urgent",
+    "completeness": "complete",
+    "routing": "interruptive",
+    "label_positive": true,
+    "missing_components": [],
+    "evidence_ids": ["Observation/map-u4"],
+    "component_breakdown": [
+      {"name": "cardiovascular", "points": 3, "missing": false, "evidence_ids": ["Observation/map-u4"]},
+      {"name": "renal", "points": 2, "missing": false, "evidence_ids": ["Observation/map-u4"]}
+    ],
+    "reviewer_note": "Patient already on sepsis pathway."
+  },
+  {
+    "case_id": "u-005",
+    "episode_id": "ep-u-005",
+    "dominant_signal_type": "sofa-deterioration",
+    "dominant_severity": "critical",
+    "score": 7,
+    "tier": "critical",
+    "completeness": "partial",
+    "routing": "interruptive",
+    "label_positive": true,
+    "missing_components": ["cns"],
+    "evidence_ids": ["Observation/map-u5", "Observation/cr-u5", "Observation/spo2-u5"],
+    "signals": [
+      {"signal_type": "sofa-deterioration", "severity": "critical", "score": 7, "evidence_ids": ["Observation/map-u5", "Observation/cr-u5"]},
+      {"signal_type": "respiratory-deterioration", "severity": "watch", "score": 1, "evidence_ids": ["Observation/spo2-u5"]}
+    ],
+    "component_breakdown": [
+      {"name": "cardiovascular", "points": 3, "missing": false, "evidence_ids": ["Observation/map-u5"]},
+      {"name": "cns", "points": null, "missing": true, "evidence_ids": []}
+    ],
+    "reviewer_note": ""
+  },
+  {
+    "case_id": "u-006",
+    "alert_id": "alert-u-006",
+    "indicator": "sofa-deterioration",
+    "score": 1,
+    "tier": "none",
+    "completeness": "complete",
+    "routing": "none",
+    "label_positive": false,
+    "missing_components": [],
+    "evidence_ids": ["Observation/cr-u6"],
+    "component_breakdown": [
+      {"name": "renal", "points": 1, "missing": false, "evidence_ids": ["Observation/cr-u6"]}
+    ],
+    "reviewer_note": ""
+  },
+  {
+    "case_id": "u-007",
+    "alert_id": "alert-u-007",
+    "indicator": "hypotension",
+    "score": 2,
+    "tier": "watch",
+    "completeness": "complete",
+    "routing": "passive",
+    "label_positive": false,
+    "missing_components": [],
+    "evidence_ids": ["Observation/map-u7"],
+    "component_breakdown": [
+      {"name": "map", "points": 2, "missing": false, "evidence_ids": ["Observation/map-u7"]}
+    ],
+    "reviewer_note": "Chronic low baseline MAP."
+  },
+  {
+    "case_id": "u-008",
+    "alert_id": "alert-u-008",
+    "indicator": "sofa-deterioration",
+    "score": 4,
+    "tier": "urgent",
+    "completeness": "partial",
+    "routing": "interruptive",
+    "label_positive": true,
+    "missing_components": ["liver"],
+    "evidence_ids": [],
+    "component_breakdown": [
+      {"name": "renal", "points": 2, "missing": false, "evidence_ids": []},
+      {"name": "liver", "points": null, "missing": true, "evidence_ids": []}
+    ],
+    "reviewer_note": "No evidence ids attached — should abstain."
+  }
+]

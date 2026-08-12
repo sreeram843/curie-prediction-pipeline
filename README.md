@@ -232,6 +232,7 @@ Manuscript package: [`docs/manuscript-package.md`](docs/manuscript-package.md) (
 Investor demo + claims: [`docs/investor-demo.md`](docs/investor-demo.md) (`make investor-demo`).
 Trusted-fact bridge: [`docs/trusted-clinical-fact-bridge.md`](docs/trusted-clinical-fact-bridge.md) (`make trusted-fact-bridge`).
 Alert stewardship: [`docs/alert-stewardship.md`](docs/alert-stewardship.md) (`make stewardship`).
+Uncertainty-band: [`docs/uncertainty-band.md`](docs/uncertainty-band.md) (`make uncertainty-band`).
 
 Lower-risk positioning order if this becomes a company: (1) synthetic replay / event infrastructure, (2) FHIR streaming integration, (3) explainable decision-support *with customer-specific validation*, (4) unstructured extraction / administrative APIs.
 

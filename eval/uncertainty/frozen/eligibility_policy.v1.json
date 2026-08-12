@@ -1,0 +1,16 @@
+{
+  "schema_version": "1.0.0",
+  "policy_id": "uncertainty-band.v1",
+  "mode": "retrospective_passive",
+  "allow_suppress_alerts": false,
+  "allow_escalate_alerts": false,
+  "allow_change_routing": false,
+  "near_threshold_scores": [
+    2,
+    3
+  ],
+  "min_missing_components_for_conflict": 1,
+  "min_positive_components_for_conflict": 1,
+  "severity_spread_min_rank_delta": 2,
+  "watch_rising_min_score": 2
+}

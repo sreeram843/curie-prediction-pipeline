@@ -1,4 +1,4 @@
-.PHONY: help up up-full down logs topics test lint synthea rules flink-test api replay replay-aki mimic-demo mimic-study-protocol mimic-harness mimic-study manuscript manuscript-phi investor-demo trusted-fact-bridge stewardship challenge-2019 challenge-2019-sweep challenge-2019-robustness parity
+.PHONY: help up up-full down logs topics test lint synthea rules flink-test api replay replay-aki mimic-demo mimic-study-protocol mimic-harness mimic-study manuscript manuscript-phi investor-demo trusted-fact-bridge stewardship uncertainty-band challenge-2019 challenge-2019-sweep challenge-2019-robustness parity
 
 help:
 	@echo "Targets:"
@@ -25,6 +25,7 @@ help:
 	@echo "  investor-demo - investor timeline demo + claims matrix (CURIE-021)"
 	@echo "  trusted-fact-bridge - validate shared trusted-fact fixtures (CURIE-022)"
 	@echo "  stewardship - feedback classification + offline proposals (CURIE-024)"
+	@echo "  uncertainty-band - passive uncertainty-band study (CURIE-025)"
 	@echo "  challenge-2019 - sepsis alert eval on PhysioNet Challenge 2019 (data/archive)"
 	@echo "  challenge-2019-sweep - setA tune → freeze → setB holdout"
 	@echo "  challenge-2019-robustness - detection-window robustness on setB"
@@ -103,6 +104,9 @@ trusted-fact-bridge:
 
 stewardship:
 	python -m eval.stewardship.runner run --write
+
+uncertainty-band:
+	python -m eval.uncertainty.runner run
 
 # PhysioNet Challenge 2019 archive under data/archive (LIMIT=0 = all stays)
 # PROFILE=accuracy|sensitive|balanced|strict|dual (default accuracy = best detection)

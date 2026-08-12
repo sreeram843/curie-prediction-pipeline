@@ -559,9 +559,12 @@ LLM from suppressing or escalating deterministic alerts.
 
 **Acceptance criteria**
 
-- [ ] The study reports sensitivity, PPV, alert burden, unsupported claims, abstention, and
+- [x] The study reports sensitivity, PPV, alert burden, unsupported claims, abstention, and
   subgroup performance.
-- [ ] No interruptive routing depends on the LLM during retrospective or shadow evaluation.
+- [x] No interruptive routing depends on the LLM during retrospective or shadow evaluation.
+
+**Artifacts:** [`docs/uncertainty-band.md`](./uncertainty-band.md),
+`make uncertainty-band`, `eval/uncertainty/`.
 
 ---
 

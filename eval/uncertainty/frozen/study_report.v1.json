@@ -1,0 +1,391 @@
+{
+  "schema_version": "1.0.0",
+  "curie_ticket": "CURIE-025",
+  "policy_id": "uncertainty-band.v1",
+  "mode": "retrospective_passive",
+  "baseline_detection": {
+    "n_cases": 8,
+    "n_labeled_positive": 5,
+    "n_labeled_negative": 3,
+    "sensitivity": 1.0,
+    "ppv": 0.7142857142857143,
+    "true_positives": 5,
+    "false_positives": 2,
+    "false_negatives": 0,
+    "alert_burden_total": 7,
+    "interruptive_burden": 5
+  },
+  "after_assist_detection": {
+    "n_cases": 8,
+    "n_labeled_positive": 5,
+    "n_labeled_negative": 3,
+    "sensitivity": 1.0,
+    "ppv": 0.7142857142857143,
+    "true_positives": 5,
+    "false_positives": 2,
+    "false_negatives": 0,
+    "alert_burden_total": 7,
+    "interruptive_burden": 5
+  },
+  "detection_unchanged": true,
+  "assistant": {
+    "n_eligible": 5,
+    "n_skipped": 3,
+    "n_pass": 4,
+    "n_abstain": 1,
+    "n_quarantine": 0,
+    "unsupported_claims": 0,
+    "unsupported_claim_rate": 0.0,
+    "abstention_rate": 0.2,
+    "grounded_claims": 13,
+    "total_pass_claims": 13
+  },
+  "subgroups": {
+    "eligible": {
+      "n_cases": 5,
+      "n_labeled_positive": 3,
+      "n_labeled_negative": 2,
+      "sensitivity": 1.0,
+      "ppv": 0.6,
+      "true_positives": 3,
+      "false_positives": 2,
+      "false_negatives": 0,
+      "alert_burden_total": 5,
+      "interruptive_burden": 3
+    },
+    "ineligible": {
+      "n_cases": 3,
+      "n_labeled_positive": 2,
+      "n_labeled_negative": 1,
+      "sensitivity": 1.0,
+      "ppv": 1.0,
+      "true_positives": 2,
+      "false_positives": 0,
+      "false_negatives": 0,
+      "alert_burden_total": 2,
+      "interruptive_burden": 2
+    },
+    "partial_completeness": {
+      "n_cases": 4,
+      "n_labeled_positive": 3,
+      "n_labeled_negative": 1,
+      "sensitivity": 1.0,
+      "ppv": 0.75,
+      "true_positives": 3,
+      "false_positives": 1,
+      "false_negatives": 0,
+      "alert_burden_total": 4,
+      "interruptive_burden": 3
+    },
+    "interruptive": {
+      "n_cases": 5,
+      "n_labeled_positive": 4,
+      "n_labeled_negative": 1,
+      "sensitivity": 1.0,
+      "ppv": 0.8,
+      "true_positives": 4,
+      "false_positives": 1,
+      "false_negatives": 0,
+      "alert_burden_total": 5,
+      "interruptive_burden": 5
+    }
+  },
+  "safety": {
+    "routing_unchanged_all": true,
+    "no_suppress": true,
+    "no_escalate": true,
+    "interruptive_depends_on_llm": false,
+    "interruptive_llm_flag_clear": true
+  },
+  "cases": [
+    {
+      "case_id": "u-001",
+      "eligible": true,
+      "eligibility_reasons": [
+        "near_threshold",
+        "partial_completeness",
+        "conflicting_components",
+        "watch_with_rising_score"
+      ],
+      "status": "pass",
+      "claims": [
+        {
+          "text": "Deterministic signal sofa-deterioration at tier watch score=2 (completeness=partial).",
+          "evidence_ids": [
+            "Observation/cr-u1"
+          ],
+          "grounded": true,
+          "kind": "context"
+        },
+        {
+          "text": "Missing inputs disclosed (not imputed): respiration, cns.",
+          "evidence_ids": [
+            "Observation/cr-u1"
+          ],
+          "grounded": true,
+          "kind": "missing"
+        },
+        {
+          "text": "Conflict band: renal is positive while respiration, cns remain missing.",
+          "evidence_ids": [
+            "Observation/cr-u1"
+          ],
+          "grounded": true,
+          "kind": "conflict"
+        },
+        {
+          "text": "Possible mimic to consider (passive only): chronic_baseline.",
+          "evidence_ids": [
+            "Observation/cr-u1"
+          ],
+          "grounded": true,
+          "kind": "mimic"
+        }
+      ],
+      "mimics": [
+        "chronic_baseline"
+      ],
+      "unsupported_claim_count": 0,
+      "abstained": false,
+      "prompt_version": "uncertainty-context.v1",
+      "model_name": "curie-uncertainty-stub-v1",
+      "routing_before": "passive",
+      "routing_after": "passive",
+      "routing_unchanged": true,
+      "suppressed_alert": false,
+      "escalated_alert": false,
+      "interruptive_depends_on_llm": false
+    },
+    {
+      "case_id": "u-002",
+      "eligible": false,
+      "eligibility_reasons": [
+        "not_eligible"
+      ],
+      "status": "skipped",
+      "claims": [],
+      "mimics": [],
+      "unsupported_claim_count": 0,
+      "abstained": false,
+      "prompt_version": "uncertainty-context.v1",
+      "model_name": "curie-uncertainty-stub-v1",
+      "routing_before": "interruptive",
+      "routing_after": "interruptive",
+      "routing_unchanged": true,
+      "suppressed_alert": false,
+      "escalated_alert": false,
+      "interruptive_depends_on_llm": false
+    },
+    {
+      "case_id": "u-003",
+      "eligible": true,
+      "eligibility_reasons": [
+        "near_threshold",
+        "partial_completeness",
+        "conflicting_components"
+      ],
+      "status": "pass",
+      "claims": [
+        {
+          "text": "Deterministic signal aki at tier urgent score=3 (completeness=partial).",
+          "evidence_ids": [
+            "Observation/cr-aki-u3"
+          ],
+          "grounded": true,
+          "kind": "context"
+        },
+        {
+          "text": "Missing inputs disclosed (not imputed): urine_output.",
+          "evidence_ids": [
+            "Observation/cr-aki-u3"
+          ],
+          "grounded": true,
+          "kind": "missing"
+        },
+        {
+          "text": "Conflict band: creatinine is positive while urine_output remain missing.",
+          "evidence_ids": [
+            "Observation/cr-aki-u3"
+          ],
+          "grounded": true,
+          "kind": "conflict"
+        },
+        {
+          "text": "Possible mimic to consider (passive only): measurement_artifact.",
+          "evidence_ids": [
+            "Observation/cr-aki-u3"
+          ],
+          "grounded": true,
+          "kind": "mimic"
+        }
+      ],
+      "mimics": [
+        "measurement_artifact"
+      ],
+      "unsupported_claim_count": 0,
+      "abstained": false,
+      "prompt_version": "uncertainty-context.v1",
+      "model_name": "curie-uncertainty-stub-v1",
+      "routing_before": "interruptive",
+      "routing_after": "interruptive",
+      "routing_unchanged": true,
+      "suppressed_alert": false,
+      "escalated_alert": false,
+      "interruptive_depends_on_llm": false
+    },
+    {
+      "case_id": "u-004",
+      "eligible": false,
+      "eligibility_reasons": [
+        "not_eligible"
+      ],
+      "status": "skipped",
+      "claims": [],
+      "mimics": [],
+      "unsupported_claim_count": 0,
+      "abstained": false,
+      "prompt_version": "uncertainty-context.v1",
+      "model_name": "curie-uncertainty-stub-v1",
+      "routing_before": "interruptive",
+      "routing_after": "interruptive",
+      "routing_unchanged": true,
+      "suppressed_alert": false,
+      "escalated_alert": false,
+      "interruptive_depends_on_llm": false
+    },
+    {
+      "case_id": "u-005",
+      "eligible": true,
+      "eligibility_reasons": [
+        "partial_completeness",
+        "conflicting_components"
+      ],
+      "status": "pass",
+      "claims": [
+        {
+          "text": "Deterministic signal sofa-deterioration at tier critical score=7 (completeness=partial).",
+          "evidence_ids": [
+            "Observation/map-u5"
+          ],
+          "grounded": true,
+          "kind": "context"
+        },
+        {
+          "text": "Missing inputs disclosed (not imputed): cns.",
+          "evidence_ids": [
+            "Observation/map-u5"
+          ],
+          "grounded": true,
+          "kind": "missing"
+        },
+        {
+          "text": "Conflict band: cardiovascular is positive while cns remain missing.",
+          "evidence_ids": [
+            "Observation/map-u5"
+          ],
+          "grounded": true,
+          "kind": "conflict"
+        }
+      ],
+      "mimics": [],
+      "unsupported_claim_count": 0,
+      "abstained": false,
+      "prompt_version": "uncertainty-context.v1",
+      "model_name": "curie-uncertainty-stub-v1",
+      "routing_before": "interruptive",
+      "routing_after": "interruptive",
+      "routing_unchanged": true,
+      "suppressed_alert": false,
+      "escalated_alert": false,
+      "interruptive_depends_on_llm": false
+    },
+    {
+      "case_id": "u-006",
+      "eligible": false,
+      "eligibility_reasons": [
+        "not_eligible"
+      ],
+      "status": "skipped",
+      "claims": [],
+      "mimics": [],
+      "unsupported_claim_count": 0,
+      "abstained": false,
+      "prompt_version": "uncertainty-context.v1",
+      "model_name": "curie-uncertainty-stub-v1",
+      "routing_before": "none",
+      "routing_after": "none",
+      "routing_unchanged": true,
+      "suppressed_alert": false,
+      "escalated_alert": false,
+      "interruptive_depends_on_llm": false
+    },
+    {
+      "case_id": "u-007",
+      "eligible": true,
+      "eligibility_reasons": [
+        "near_threshold",
+        "watch_with_rising_score"
+      ],
+      "status": "pass",
+      "claims": [
+        {
+          "text": "Deterministic signal hypotension at tier watch score=2 (completeness=complete).",
+          "evidence_ids": [
+            "Observation/map-u7"
+          ],
+          "grounded": true,
+          "kind": "context"
+        },
+        {
+          "text": "Possible mimic to consider (passive only): chronic_baseline.",
+          "evidence_ids": [
+            "Observation/map-u7"
+          ],
+          "grounded": true,
+          "kind": "mimic"
+        }
+      ],
+      "mimics": [
+        "chronic_baseline"
+      ],
+      "unsupported_claim_count": 0,
+      "abstained": false,
+      "prompt_version": "uncertainty-context.v1",
+      "model_name": "curie-uncertainty-stub-v1",
+      "routing_before": "passive",
+      "routing_after": "passive",
+      "routing_unchanged": true,
+      "suppressed_alert": false,
+      "escalated_alert": false,
+      "interruptive_depends_on_llm": false
+    },
+    {
+      "case_id": "u-008",
+      "eligible": true,
+      "eligibility_reasons": [
+        "partial_completeness",
+        "conflicting_components"
+      ],
+      "status": "abstain",
+      "claims": [
+        {
+          "text": "No evidence IDs available for grounded uncertainty context.",
+          "evidence_ids": [],
+          "grounded": false,
+          "kind": "abstain_note"
+        }
+      ],
+      "mimics": [],
+      "unsupported_claim_count": 0,
+      "abstained": true,
+      "prompt_version": "uncertainty-context.v1",
+      "model_name": "curie-uncertainty-stub-v1",
+      "routing_before": "interruptive",
+      "routing_after": "interruptive",
+      "routing_unchanged": true,
+      "suppressed_alert": false,
+      "escalated_alert": false,
+      "interruptive_depends_on_llm": false
+    }
+  ]
+}

@@ -287,6 +287,8 @@ ordering.
 7. **LLM-WF-09:** feedback analytics and offline rule experiments — see
    [`alert-stewardship.md`](alert-stewardship.md) (CURIE-024).
 8. **LLM-WF-04/07/08/10:** only after their validation datasets and governance are ready.
+   LLM-WF-07 uncertainty-band passive study: [`uncertainty-band.md`](uncertainty-band.md)
+   (CURIE-025).
 
 ## Release gates for an LLM workflow
 
