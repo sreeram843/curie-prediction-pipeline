@@ -107,7 +107,7 @@ curie-prediction-pipeline/
     envelope/            # canonical event envelope schema + validation
   streaming/
     flink-jobs/
-      sofa/              # sepsis indicator: score + alert operators
+      sofa/              # sepsis SofaJob + AKI AkiJob (score + alert operators)
       governance/        # shared trajectory/baseline/suppression/dedup/tiering
     rule-registry/       # versioned JSON rule bundles + broadcast publisher
   reasoning/             # phase 2: GRP (context → model → claim validator → gate)
@@ -119,13 +119,36 @@ curie-prediction-pipeline/
     replay_harness/      # backtest runner, governance metrics
     fixtures/            # T0 contract fixtures
     sofa/                # reference SOFA scorer (aligned with Flink)
+    mimic_demo/          # score SOFA/AKI on PhysioNet MIMIC-IV demo
+  data/                  # local only (gitignored): synthea/, mimic-iv-demo/
   docs/
     prd.md
 ```
 
+**MIMIC-IV demo (optional):** place the PhysioNet open demo at `data/mimic-iv-demo/` (or set `CURIE_MIMIC_DEMO_DIR`), then:
+
+```bash
+make mimic-demo
+# or: LIMIT=20 make mimic-demo
+```
+
+**Challenge 2019 sepsis eval (optional):** place the PhysioNet Challenge 2019 training sets at `data/archive/` (or set `CURIE_CHALLENGE2019_DIR`), then:
+
+```bash
+make challenge-2019          # default: first 200 stays, PROFILE=accuracy
+LIMIT=0 make challenge-2019  # all ~40k stays
+PROFILE=dual LIMIT=0 make challenge-2019
+SET=training_setA make challenge-2019
+JOBS=11 LIMIT=0 make challenge-2019-sweep          # setA tune → freeze → setB
+JOBS=5 LIMIT=0 make challenge-2019-robustness      # grace / early / ±12h windows
+GOV_CONFIG=eval/challenge2019/frozen/p1_setA_winner.json SET=training_setB LIMIT=0 make challenge-2019
+```
+
+Reports naive vs governed (watch ∪ page) and interruptive page metrics vs `SepsisLabel`. Locked operating point: [`eval/challenge2019/frozen/p1_setA_winner.json`](eval/challenge2019/frozen/p1_setA_winner.json). Profiles: `accuracy`, `dual`, `sensitive`, `balanced`, `strict`. See [`docs/challenge-2019-eval.md`](docs/challenge-2019-eval.md).
+
 ## Build order
 
-Tracked in detail in [`docs/phases.md`](docs/phases.md).
+Tracked in detail in [`docs/phases.md`](docs/phases.md). Clinical validity (separate from engineering CI): [`docs/clinical-validation.md`](docs/clinical-validation.md).
 
 | Phase | Goal | Status |
 |---|---|---|
@@ -160,9 +183,11 @@ pip install -e ".[kafka]"
 python -m ingestion.adapters.synthea.replay_producer --fhir-dir data/synthea/fhir --dry-run
 python -m ingestion.adapters.synthea.replay_producer --fhir-dir data/synthea/fhir
 
-# Seed rule bundle + Flink unit tests
+# Seed rule bundles (sepsis + AKI) + Flink unit tests
 make rules
 make flink-test
+# Flink jobs (after packaging): SofaJob is the shaded default mainClass;
+# AKI: flink run -c com.curie.sofa.aki.AkiJob path/to/sofa-*.jar
 
 # Alert API + dashboard
 pip install -e ".[api]"
@@ -189,7 +214,9 @@ Useful Make targets: `up`, `down`, `logs`, `topics`, `test`, `lint`, `synthea`.
 
 ## Regulatory posture
 
-This prototype does not touch real patients or real PHI. Do not describe it as clinically validated, FDA-cleared, or ready for deployment. Public writeups should frame it as an architecture/engineering exploration on synthetic data, with clinical validation (T5) explicitly out of scope.
+This prototype does not touch real patients or real PHI. Do not describe it as clinically validated, FDA-cleared, or ready for deployment. Public writeups should frame it as an architecture/engineering exploration on synthetic data, with clinical validation (T5) explicitly out of scope. See [`docs/clinical-validation.md`](docs/clinical-validation.md) for the planned validity test matrix.
+
+**Demo API is not internet-safe:** `action/api` uses `allow_origins=["*"]`, no authentication, and an in-memory alert store. Fine for local prototype only — do not expose it publicly or copy that posture into a real deployment.
 
 Lower-risk positioning order if this becomes a company: (1) synthetic replay / event infrastructure, (2) FHIR streaming integration, (3) explainable decision-support *with customer-specific validation*, (4) unstructured extraction / administrative APIs.
 

@@ -1,0 +1,65 @@
+{
+  "name": "p1_setA_winner",
+  "candidate_id": "grid_p0_r90_b0",
+  "source_set": "training_setA",
+  "selected_at": "2026-08-12T02:02:50.748366+00:00",
+  "goals": {
+    "primary": "governed_sensitivity >= naive_sensitivity - 0.10 or >= 0.70",
+    "coprimary_burden": "interruptive_reduction_ratio <= 0.25 (else alert_reduction)",
+    "secondary": "prefer lower NNA then higher sensitivity"
+  },
+  "setA": {
+    "stays_scored": 20336,
+    "meets_primary": true,
+    "meets_coprimary": true,
+    "burden_ratio": 0.12251536914246035,
+    "metrics": {
+      "alerts": {
+        "naive_total": 529958,
+        "governed_total": 270281,
+        "watch_total": 205353,
+        "interruptive_total": 64928,
+        "alert_reduction_ratio": 0.5100045663996015,
+        "interruptive_reduction_ratio": 0.12251536914246035
+      },
+      "detection": {
+        "naive_tp": 1583,
+        "governed_tp": 1583,
+        "interruptive_tp": 674,
+        "naive_sensitivity": 0.8843575418994414,
+        "governed_sensitivity": 0.8843575418994414,
+        "interruptive_sensitivity": 0.376536312849162,
+        "naive_fp_non_sepsis": 13826,
+        "governed_fp_non_sepsis": 13826,
+        "interruptive_fp_non_sepsis": 5452,
+        "naive_nna": 334.7807959570436,
+        "governed_nna": 170.73973468098546,
+        "interruptive_nna": 41.01579279848389,
+        "mean_lead_hours_naive": 46.51235684147076,
+        "mean_lead_hours_governed": 46.51235684147076,
+        "mean_lead_hours_interruptive": 44.07151979565773
+      },
+      "cohort": {
+        "sepsis_stays": 1790,
+        "non_sepsis_stays": 18546,
+        "stays_scored": 20336
+      }
+    }
+  },
+  "knobs": {
+    "description": "balanced-grid persist=0 refractory=90 baseline=False",
+    "trajectory_persistence_minutes": 0,
+    "min_crossings": 1,
+    "baseline_enabled": false,
+    "baseline_delta_threshold": 2,
+    "baseline_lookback_hours": 24,
+    "refractory_minutes": 90,
+    "min_components_required": 2,
+    "naive_threshold": null,
+    "page_gate_enabled": true,
+    "page_min_crossings": 2,
+    "page_trajectory_persistence_minutes": 30,
+    "page_min_score_delta": 1,
+    "page_min_positive_components": 2
+  }
+}

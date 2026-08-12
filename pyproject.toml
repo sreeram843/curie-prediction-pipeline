@@ -15,6 +15,9 @@ dependencies = [
 dev = [
   "pytest>=8.2",
   "ruff>=0.5",
+  # Needed so `make test` / CI can collect API + GRP tests without `[api]`.
+  "fastapi>=0.111",
+  "httpx>=0.27",
 ]
 api = [
   "fastapi>=0.111",
@@ -28,6 +31,9 @@ kafka = [
 [tool.pytest.ini_options]
 testpaths = ["eval", "ingestion", "action", "reasoning"]
 pythonpath = ["."]
+markers = [
+  "integration: needs local data/mimic-iv-demo (PhysioNet open demo)",
+]
 
 [tool.ruff]
 line-length = 100

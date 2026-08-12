@@ -1,4 +1,4 @@
-.PHONY: help up down logs topics test lint synthea rules flink-test api replay replay-aki
+.PHONY: help up down logs topics test lint synthea rules flink-test api replay replay-aki mimic-demo challenge-2019 challenge-2019-sweep challenge-2019-robustness
 
 help:
 	@echo "Targets:"
@@ -14,6 +14,10 @@ help:
 	@echo "  api         - run alert API + dashboard on :8000"
 	@echo "  replay      - run sepsis T2 replay harness (alert-reduction metric)"
 	@echo "  replay-aki  - run AKI T2 replay harness (alert-reduction metric)"
+	@echo "  mimic-demo  - score SOFA/AKI on local MIMIC-IV demo (data/mimic-iv-demo)"
+	@echo "  challenge-2019 - sepsis alert eval on PhysioNet Challenge 2019 (data/archive)"
+	@echo "  challenge-2019-sweep - setA tune → freeze → setB holdout"
+	@echo "  challenge-2019-robustness - detection-window robustness on setB"
 
 up:
 	docker compose -f infra/docker-compose.yml up -d
@@ -54,3 +58,32 @@ replay:
 
 replay-aki:
 	python -m eval.replay_harness.aki_runner
+
+mimic-demo:
+	python -m eval.mimic_demo.runner $(if $(LIMIT),--limit $(LIMIT),)
+
+# PhysioNet Challenge 2019 archive under data/archive (LIMIT=0 = all stays)
+# PROFILE=accuracy|sensitive|balanced|strict|dual (default accuracy = best detection)
+# dual = accuracy watch lane + harder interruptive page gate
+challenge-2019:
+	python -m eval.challenge2019.runner $(if $(LIMIT),--limit $(LIMIT),--limit 200) \
+		--gov-profile $${PROFILE:-accuracy} \
+		$(if $(SET),--set $(SET),) $(if $(JSON_OUT),--json-out $(JSON_OUT),) \
+		$(if $(BOOTSTRAP),--bootstrap $(BOOTSTRAP),) \
+		$(if $(GOV_CONFIG),--gov-config $(GOV_CONFIG),)
+
+# Tune on training_setA, freeze winner, score training_setB (LIMIT=0 = all)
+# JOBS=N parallel candidate workers (default: cpu_count-1)
+challenge-2019-sweep:
+	python -m eval.challenge2019.sweep $(if $(LIMIT),--limit $(LIMIT),--limit 0) \
+		$(if $(JOBS),--jobs $(JOBS),) \
+		$(if $(SWEEP_JSON),--sweep-json-out $(SWEEP_JSON),) \
+		$(if $(HOLDOUT_JSON),--holdout-json-out $(HOLDOUT_JSON),) \
+		$(if $(BOOTSTRAP),--bootstrap $(BOOTSTRAP),)
+
+# Detection definitions on setB (grace 0/6/12, early-only, ±12h window)
+challenge-2019-robustness:
+	python -m eval.challenge2019.robustness $(if $(LIMIT),--limit $(LIMIT),--limit 0) \
+		$(if $(JOBS),--jobs $(JOBS),) \
+		$(if $(JSON_OUT),--json-out $(JSON_OUT),) \
+		$(if $(SET),--set $(SET),)
