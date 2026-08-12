@@ -61,9 +61,12 @@ class AlertStore:
     def metrics(self) -> MetricsSummary:
         items = self.list(limit=10_000)
         by_tier: dict[str, int] = {}
+        by_routing: dict[str, int] = {}
         ack = 0
         for a in items:
             by_tier[a.tier] = by_tier.get(a.tier, 0) + 1
+            route = a.routing or "unset"
+            by_routing[route] = by_routing.get(route, 0) + 1
             if a.acknowledged:
                 ack += 1
         return MetricsSummary(
@@ -71,6 +74,7 @@ class AlertStore:
             open_alerts=len(items) - ack,
             acknowledged_alerts=ack,
             by_tier=by_tier,
+            by_routing=by_routing,
         )
 
     def attach_narrative(
@@ -150,6 +154,8 @@ def seed_demo_alerts(store: AlertStore) -> None:
                 "Observation/map-9",
             ],
             governance_path="governed",
+            routing="interruptive",
+            positive_components=4,
         ),
         AlertRecord(
             alert_id="alert-demo-urgent-002",
@@ -180,6 +186,8 @@ def seed_demo_alerts(store: AlertStore) -> None:
             ],
             evidence_ids=["Observation/plt-21", "Observation/cr-21", "Observation/gcs-21"],
             governance_path="governed",
+            routing="interruptive",
+            positive_components=3,
         ),
         AlertRecord(
             alert_id="alert-demo-watch-003",
@@ -205,6 +213,8 @@ def seed_demo_alerts(store: AlertStore) -> None:
             ],
             evidence_ids=["Observation/cr-3", "Observation/bili-3"],
             governance_path="governed",
+            routing="passive",
+            positive_components=2,
             acknowledged=True,
             acknowledged_at=now - timedelta(hours=2),
             acknowledge_note="Reviewed — trending down",
@@ -234,8 +244,11 @@ def seed_demo_alerts(store: AlertStore) -> None:
             ],
             evidence_ids=["Observation/cr-aki-now", "Observation/cr-aki-base"],
             rule_bundle_id="aki-kdigo",
-            rule_version="0.2.0",
+            rule_version="0.3.0",
             governance_path="governed",
+            routing="passive",
+            page_deferred_reason="page_persistence",
+            positive_components=1,
         ),
     ]
     for alert in demos:

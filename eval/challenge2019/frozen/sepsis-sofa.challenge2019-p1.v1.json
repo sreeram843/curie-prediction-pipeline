@@ -1,0 +1,256 @@
+{
+  "alert": {
+    "naive_threshold": 2,
+    "severity_bands": [
+      {
+        "max": 3,
+        "min": 2,
+        "tier": "watch"
+      },
+      {
+        "max": 6,
+        "min": 4,
+        "tier": "urgent"
+      },
+      {
+        "max": 24,
+        "min": 7,
+        "tier": "critical"
+      }
+    ]
+  },
+  "bundle_id": "sepsis-sofa-challenge2019-p1",
+  "citations": [
+    "Vincent JL et al. The SOFA (Sepsis-related Organ Failure Assessment) score. Crit Care Med. 1998.",
+    "Singer M et al. The Third International Consensus Definitions for Sepsis and Septic Shock (Sepsis-3). JAMA. 2016."
+  ],
+  "description": "Immutable Challenge 2019 P1 resolved study bundle. Separate from product sepsis-sofa.v0.3.0 (which uses min_components_required=3).",
+  "governance": {
+    "baseline": {
+      "delta_threshold": 2,
+      "enabled": false,
+      "lookback_hours": 24
+    },
+    "dedup": {
+      "refractory_minutes": 90
+    },
+    "operating_point": {
+      "candidate_id": "grid_p0_r90_b0",
+      "product_base": "sepsis-sofa@0.3.0",
+      "source": "eval/challenge2019/frozen/p1_setA_winner.json"
+    },
+    "page_gate": {
+      "enabled": true,
+      "min_crossings": 2,
+      "min_positive_components": 2,
+      "min_score_delta": 1,
+      "trajectory_persistence_minutes": 30
+    },
+    "suppression": {
+      "flags": [
+        "comfort_care",
+        "already_on_sepsis_protocol"
+      ]
+    },
+    "tiering": {
+      "interruptive_tiers": [
+        "urgent",
+        "critical"
+      ],
+      "passive_tiers": [
+        "watch"
+      ]
+    },
+    "trajectory": {
+      "min_crossings": 1,
+      "min_persistence_minutes": 0
+    }
+  },
+  "indicator": "sepsis",
+  "score": {
+    "component_thresholds": {
+      "cardiovascular": {
+        "map_mmhg_lt": 70,
+        "map_mmhg_lt_70_points": 1,
+        "params": {
+          "dopamine_p2_max_inclusive": 5,
+          "dopamine_p3_max_inclusive": 15,
+          "epi_norepi_p3_max_inclusive": 0.1,
+          "unknown_dose_points": 3
+        },
+        "vasopressor_ladder": [
+          {
+            "points": 2,
+            "rule": "dopamine <= 5 ug/kg/min OR any dobutamine"
+          },
+          {
+            "points": 3,
+            "rule": "dopamine > 5 OR epi/norepi <= 0.1 ug/kg/min OR unknown dose"
+          },
+          {
+            "points": 4,
+            "rule": "dopamine > 15 OR epi/norepi > 0.1 ug/kg/min"
+          }
+        ]
+      },
+      "cns": {
+        "bands": [
+          {
+            "gcs_lt": 6,
+            "points": 4
+          },
+          {
+            "gcs_le": 9,
+            "points": 3
+          },
+          {
+            "gcs_le": 12,
+            "points": 2
+          },
+          {
+            "gcs_le": 14,
+            "points": 1
+          },
+          {
+            "gcs_eq": 15,
+            "points": 0
+          }
+        ],
+        "unit": "GCS"
+      },
+      "coagulation": {
+        "bands": [
+          {
+            "max_exclusive": 20,
+            "points": 4
+          },
+          {
+            "max_exclusive": 50,
+            "points": 3
+          },
+          {
+            "max_exclusive": 100,
+            "points": 2
+          },
+          {
+            "max_exclusive": 150,
+            "points": 1
+          },
+          {
+            "min_inclusive": 150,
+            "points": 0
+          }
+        ],
+        "unit": "platelets 10^9/L"
+      },
+      "liver": {
+        "bands": [
+          {
+            "min_inclusive": 12.0,
+            "points": 4
+          },
+          {
+            "min_inclusive": 6.0,
+            "points": 3
+          },
+          {
+            "min_inclusive": 2.0,
+            "points": 2
+          },
+          {
+            "min_inclusive": 1.2,
+            "points": 1
+          },
+          {
+            "max_exclusive": 1.2,
+            "points": 0
+          }
+        ],
+        "unit": "bilirubin mg/dL"
+      },
+      "renal": {
+        "combine": "max(creatinine_points, urine_points)",
+        "creatinine_mg_dl": [
+          {
+            "min_inclusive": 5.0,
+            "points": 4
+          },
+          {
+            "min_inclusive": 3.5,
+            "points": 3
+          },
+          {
+            "min_inclusive": 2.0,
+            "points": 2
+          },
+          {
+            "min_inclusive": 1.2,
+            "points": 1
+          },
+          {
+            "max_exclusive": 1.2,
+            "points": 0
+          }
+        ],
+        "urine_output_ml_day": [
+          {
+            "max_exclusive": 200,
+            "points": 4
+          },
+          {
+            "max_exclusive": 500,
+            "points": 3
+          },
+          {
+            "min_inclusive": 500,
+            "points": 0
+          }
+        ]
+      },
+      "respiration": {
+        "bands": [
+          {
+            "points": 4,
+            "rule": "ratio < 100 AND mechanically_ventilated"
+          },
+          {
+            "points": 3,
+            "rule": "ratio < 200 AND mechanically_ventilated"
+          },
+          {
+            "points": 2,
+            "rule": "ratio < 300"
+          },
+          {
+            "points": 1,
+            "rule": "ratio < 400"
+          },
+          {
+            "points": 0,
+            "rule": "ratio >= 400"
+          }
+        ],
+        "params": {
+          "p1_ratio_lt": 400,
+          "p2_ratio_lt": 300,
+          "p3_ratio_lt": 200,
+          "p4_ratio_lt": 100
+        },
+        "ratio_source": "pao2_fio2 preferred else spo2_fio2"
+      }
+    },
+    "components": [
+      "respiration",
+      "coagulation",
+      "liver",
+      "cardiovascular",
+      "cns",
+      "renal"
+    ],
+    "min_components_required": 2,
+    "missing_policy": "partial_with_missing_components",
+    "type": "sofa"
+  },
+  "study_artifact": true,
+  "version": "1.0.0"
+}

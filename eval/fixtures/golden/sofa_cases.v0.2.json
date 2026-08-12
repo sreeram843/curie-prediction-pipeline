@@ -1,7 +1,7 @@
 {
   "schema_version": "1.0.0",
   "rule_bundle_id": "sepsis-sofa",
-  "rule_version": "0.2.0",
+  "rule_version": "0.3.0",
   "description": "Canonical golden cases — Python and Java scorers must match.",
   "cases": [
     {

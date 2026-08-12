@@ -14,7 +14,7 @@
 
 | Item | Value |
 |---|---|
-| Config | `grid_p0_r90_b0` → `p1_setA_winner.json` |
+| Config | `grid_p0_r90_b0` → `p1_setA_winner.json` + resolved study bundle `sepsis-sofa.challenge2019-p1.v1.json` |
 | Knobs | persist **0**, crossings **1**, baseline **off**, refractory **90** min, min_comp **2**, **page gate on** (↑score, ≥2 crossings, ≥2 components, page persist **30** m) |
 | Tune / holdout | setA → freeze → **setB** (blinded) |
 | Detection | First alert ≤ onset + **6h** (any governed emit = watch ∪ page) |
@@ -26,10 +26,14 @@
 |---|---|---|
 | Detection sensitivity (gov = naive) | **81.1%** | [0.79, 0.83] |
 | Interruptive reduction vs naive | **0.132** (~7.6× fewer pages) | [0.13, 0.14] |
-| Interruptive NNA (pages / detection TP) | **~44** | [42, 48] |
+| Interruptive NNA (pages / interruptive TP) | **~94.2** | — |
+| Legacy pages / any-governed TP | **~44** | [42, 48] |
 | Mean lead hours (governed) | **~42** | [38, 46] |
 
-**Goals:** primary ✓ (sens = naive); co-primary ✓ (interruptive reduction ≤ 0.25); secondary NNA on pages ~44 (all-alert NNA remains ~173 because watch volume is high by design).
+**Goals:** primary ✓ (sens = naive); co-primary ✓ (interruptive reduction ≤ 0.25).
+Secondary page NNA was previously quoted as ~44 using pages / **any-governed** TP;
+the corrected definition (pages / **interruptive** TP) is **~94.2** (`41158 / 437`).
+All-alert governed NNA remains ~173 because watch volume is high by design.
 
 Reproduce holdout:
 
@@ -123,7 +127,9 @@ Naive alert totals differ slightly vs `strict` because `min_components_required`
 
 - **Partial SOFA:** Challenge 2019 has no GCS, urine output, or vasopressor dose ladder → many scores are partial; respiration rarely reaches points 3–4 (no reliable mechanical-vent flag).  
 - **Label ≠ Sepsis-3 chart review:** `SepsisLabel` is the Challenge definition (onset-aligned).  
-- **Not the Challenge utility metric:** we report Curie metrics (sensitivity, NNA, reduction), not the official PhysioNet utility.  
+- **Not a Challenge leaderboard entry:** we report Curie metrics plus an offline
+  Challenge utility (`challenge_utility`) with emit-hour positives — not a
+  submitted entry.
 - **Holdout protocol:** knobs tuned on setA only; setB reported once with frozen sidecar (see Operating point). Historical §2 baselines scored setA+setB together.  
 - **Forward-fill** last observation — simple; may differ from bedside charting practice.  
 - **Watch vs page:** detection sensitivity includes passive watch emits; interruptive metrics are the page-burden numbers to quote for “optimal alerts.”
@@ -138,7 +144,7 @@ Naive alert totals differ slightly vs `strict` because `min_components_required`
 |---|---|---|
 | Primary | Governed sensitivity ≥ **naive − 10 pp** (or ≥ **70%** absolute) on **holdout setB** | **81.1% = naive** ✓ |
 | Co-primary | **Interruptive** reduction ≤ **0.25** (pages vs naive) | **0.132** ✓ |
-| Secondary | Interruptive NNA ≤ **50**; report lead-time | **~44**; mean lead ~42h ✓ |
+| Secondary | Interruptive NNA ≤ **50** (pages / interruptive TP) | **~94.2** (legacy pages/gov TP ~44) |
 
 ### Phase P0 — Eval profiles (done)
 
@@ -201,8 +207,10 @@ Reproduce: `JOBS=5 LIMIT=0 make challenge-2019-robustness`
 
 - [ ] Align labels with Sepsis-3 via [mimic-code](https://github.com/MIT-LCP/mimic-code) on full MIMIC-IV  
 - [ ] Compare Challenge-tuned governance on MIMIC labels (external-style check)  
-- [ ] See [clinical-validation.md](./clinical-validation.md) Stages B–E  
+- [ ] See [clinical-validation.md](./clinical-validation.md) Stages B–E
 - [ ] Data/tooling map: [mimic-data-sources.md](./mimic-data-sources.md)
+- [x] Deploy frozen page-gate governance into Flink rule bundle (`sepsis-sofa.v0.3.0`) — see [runtime-gov-parity.md](./runtime-gov-parity.md)
+- [x] Resolved Challenge study artifact (`sepsis-sofa.challenge2019-p1.v1`) with SHA-256 gate — **product v0.3.0 is not identical** (product `min_components_required=3`; study uses **2**)
 
 ---
 
@@ -214,7 +222,8 @@ Reproduce: `JOBS=5 LIMIT=0 make challenge-2019-robustness`
 | 2026-08-11 | All 40,336 | **`accuracy`** | **85.6% / 85.6%** | **0.51** | ~171 | Detection-first; `challenge2019_eval_accuracy.json` |
 | 2026-08-11 | All 40,336 | `sensitive` | 85.6% / 85.6% | 0.51 | ~171 | Same as accuracy on hourly spacing |
 | 2026-08-11 | setA 20,336 | **`grid_p0_r90_b0`** (frozen) | 88.4% / 88.4% | int. **0.123** | int. NNA ~41 | Page-gate winner; watch carries detection |
-| 2026-08-11 | **setB 20,000 holdout** | frozen `p1_setA_winner` | **81.1% / 81.1%** | int. **0.132** | int. NNA ~44 | **Goals met**; 95% CI sens [0.79, 0.83], int. red. [0.13, 0.14] |
+| 2026-08-11 | **setB 20,000 holdout** | frozen `p1_setA_winner` | **81.1% / 81.1%** | int. **0.132** | int. NNA ~44† | **Goals met** on sens/burden; 95% CI sens [0.79, 0.83], int. red. [0.13, 0.14] |
+| 2026-08-12 | metric fix CURIE-003 | — | — | — | int. NNA **~94.2** | Corrected: pages/interruptive_tp; †prior ~44 was pages/governed_tp |
 | 2026-08-11 | setB robustness | frozen + 4 profiles | grace6 81.1%; early 54.8%; ±12h 83.3% | — | — | Ranking **stable** across 5 detection defs |
 
 ---

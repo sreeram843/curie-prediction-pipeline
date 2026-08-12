@@ -148,7 +148,9 @@ Reports naive vs governed (watch ∪ page) and interruptive page metrics vs `Sep
 
 ## Build order
 
-Tracked in detail in [`docs/phases.md`](docs/phases.md). Clinical validity (separate from engineering CI): [`docs/clinical-validation.md`](docs/clinical-validation.md).
+Tracked in detail in [`docs/phases.md`](docs/phases.md). The active, Cursor-ready engineering
+backlog is [`docs/implementation-backlog.md`](docs/implementation-backlog.md). Clinical validity
+(separate from engineering CI): [`docs/clinical-validation.md`](docs/clinical-validation.md).
 
 | Phase | Goal | Status |
 |---|---|---|

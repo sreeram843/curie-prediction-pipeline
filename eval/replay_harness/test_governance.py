@@ -111,3 +111,97 @@ def test_page_gate_requires_positive_components() -> None:
     assert d.emit is True
     assert d.routing == "passive"
     assert d.alert.get("page_deferred_reason") == "page_components"
+
+
+def test_late_out_of_order_does_not_mutate_or_emit() -> None:
+    config = GovernanceConfig(
+        trajectory_persistence_minutes=0,
+        min_crossings=1,
+        baseline_enabled=False,
+        refractory_minutes=0,
+        page_gate_enabled=False,
+    )
+    state = PatientGovState()
+    first = evaluate(
+        {
+            "score": 5,
+            "tier": "urgent",
+            "event_time": "2024-01-01T01:00:00+00:00",
+            "patient_id": "Patient/1",
+            "positive_components": 3,
+        },
+        state,
+        config,
+    )
+    assert first.emit is True
+    crossings = state.crossings_above_threshold
+    late = evaluate(
+        {
+            "score": 8,
+            "tier": "critical",
+            "event_time": "2024-01-01T00:30:00+00:00",
+            "patient_id": "Patient/1",
+            "positive_components": 3,
+        },
+        state,
+        config,
+    )
+    assert late.emit is False
+    assert late.reason == "late_out_of_order"
+    assert state.crossings_above_threshold == crossings
+
+
+def test_arrival_order_permutations_same_emitted_ids() -> None:
+    """Ordered event-times yield a stable emit sequence; late arrivals are dropped."""
+    config = GovernanceConfig(
+        trajectory_persistence_minutes=0,
+        min_crossings=1,
+        baseline_enabled=False,
+        refractory_minutes=0,
+        page_gate_enabled=True,
+        page_min_crossings=2,
+        page_trajectory_persistence_minutes=0,
+        page_min_score_delta=0,
+        page_min_positive_components=0,
+    )
+    base = [
+        {
+            "score": 4,
+            "tier": "urgent",
+            "event_time": "2024-01-01T00:00:00+00:00",
+            "patient_id": "P",
+        },
+        {
+            "score": 5,
+            "tier": "urgent",
+            "event_time": "2024-01-01T00:10:00+00:00",
+            "patient_id": "P",
+        },
+        {
+            "score": 6,
+            "tier": "urgent",
+            "event_time": "2024-01-01T00:20:00+00:00",
+            "patient_id": "P",
+        },
+    ]
+
+    def run(order: list[dict]) -> list[tuple[str, str]]:
+        state = PatientGovState()
+        out: list[tuple[str, str]] = []
+        for alert in order:
+            d = evaluate(dict(alert), state, config)
+            if d.emit:
+                out.append((alert["event_time"], d.routing))
+        return out
+
+    chronological = run(base)
+    assert chronological == [
+        ("2024-01-01T00:00:00+00:00", "passive"),
+        ("2024-01-01T00:10:00+00:00", "interruptive"),
+        ("2024-01-01T00:20:00+00:00", "interruptive"),
+    ]
+    # Newer-first then older: older is late_out_of_order and must not appear
+    scrambled = [base[1], base[0], base[2]]
+    scrambled_result = run(scrambled)
+    assert scrambled_result[0] == ("2024-01-01T00:10:00+00:00", "passive")
+    assert all(t != "2024-01-01T00:00:00+00:00" for t, _ in scrambled_result)

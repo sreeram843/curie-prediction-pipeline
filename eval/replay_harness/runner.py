@@ -8,7 +8,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
-from eval.indicators.registry import load_rule_bundle
+from eval.indicators.registry import governance_dataclass_from_bundle, load_rule_bundle
 from eval.replay_harness.governance import (
     GovernanceConfig,
     PatientGovState,
@@ -41,6 +41,8 @@ class Scenario:
     events: list[ScenarioEvent]
     expected_label: str  # positive | negative | borderline | suppressed
     context_flags: list[str] = field(default_factory=list)
+    # Explicit overrides only — default is full bundle governance (CURIE-005)
+    governance_overrides: dict | None = None
 
 
 def _inp(name: SofaComponentName, **kwargs: object) -> SofaComponentInput:
@@ -184,7 +186,7 @@ def built_in_scenarios() -> list[Scenario]:
         Scenario(
             scenario_id="t2-noisy-flicker",
             patient_id="Patient/t2-bord-001",
-            description="Single-tick spike then recovery — governance should suppress",
+            description="Single-tick spike then recovery — page gate keeps non-interruptive",
             expected_label="borderline",
             events=[
                 ScenarioEvent(
@@ -504,17 +506,8 @@ def built_in_scenarios() -> list[Scenario]:
 def replay_scenario(scenario: Scenario, config: GovernanceConfig | None = None) -> dict:
     bundle = load_rule_bundle("sepsis-sofa")
     if config is None:
-        from eval.indicators.registry import governance_config_from_bundle
-
-        knobs = governance_config_from_bundle(bundle)
-        config = GovernanceConfig(
-            trajectory_persistence_minutes=knobs["trajectory_persistence_minutes"],
-            min_crossings=knobs["min_crossings"],
-            baseline_enabled=False,
-            refractory_minutes=knobs["refractory_minutes"],
-            suppression_flags=knobs["suppression_flags"],
-            interruptive_tiers=knobs["interruptive_tiers"],
-            passive_tiers=knobs["passive_tiers"],
+        config = governance_dataclass_from_bundle(
+            bundle, overrides=scenario.governance_overrides
         )
     start = datetime(2024, 1, 1, 8, 0, tzinfo=UTC)
     latest: dict[SofaComponentName, SofaComponentInput] = {}
@@ -544,6 +537,9 @@ def replay_scenario(scenario: Scenario, config: GovernanceConfig | None = None) 
         tier = tier_for_score(
             result.total_score, naive_threshold=threshold, severity_bands=bands
         )
+        positive_components = sum(
+            1 for c in result.components if not c.missing and (c.points or 0) > 0
+        )
         qualifying = result.total_score is not None and tier != AcuityTier.NONE
         if was_qualifying and not qualifying:
             note_below_threshold(gov_state)
@@ -562,6 +558,7 @@ def replay_scenario(scenario: Scenario, config: GovernanceConfig | None = None) 
             "context_flags": list(scenario.context_flags),
             "rule_bundle_id": result.rule_bundle_id,
             "rule_version": result.rule_version,
+            "positive_components": positive_components,
         }
         naive_alerts.append(alert)
         decision = evaluate(alert, gov_state, config)

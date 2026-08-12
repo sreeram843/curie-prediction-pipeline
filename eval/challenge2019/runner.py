@@ -1,7 +1,7 @@
 """Offline sepsis alert evaluation on PhysioNet Challenge 2019 archive.
 
 Replays each stay hour-by-hour through Curie SOFA + shared governance and scores
-against ``SepsisLabel`` onset (not the challenge utility function).
+against ``SepsisLabel`` (Curie detection metrics + official Challenge utility).
 """
 
 from __future__ import annotations
@@ -12,6 +12,14 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from eval.challenge2019.bootstrap import bootstrap_metric_cis, summarize_stay_metrics
+from eval.challenge2019.study_bundle import (
+    governance_from_study_bundle,
+    load_resolved_study_bundle,
+)
+from eval.challenge2019.utility import (
+    binary_predictions_from_alert_hours,
+    normalize_cohort_utility,
+)
 from eval.indicators.registry import load_rule_bundle
 from eval.replay_harness.gov_profiles import PROFILES, apply_gov_knobs, apply_gov_profile
 from eval.replay_harness.governance import (
@@ -120,6 +128,8 @@ def _replay_stay(
         "hours": len(hours),
         "sepsis": onset is not None,
         "onset_iculos": onset,
+        "sepsis_labels": [int(h.sepsis_label) for h in hours],
+        "iculos_hours": [int(h.iculos) for h in hours],
         "naive_alert_count": len(naive_hours),
         "governed_alert_count": len(governed_hours),
         "watch_alert_count": len(watch_hours),
@@ -155,11 +165,41 @@ def run_challenge2019_eval(
     bundle_in = load_rule_bundle("sepsis-sofa")
 
     frozen_meta: dict | None = None
+    study_bundle_path: Path | None = None
     if gov_config_path is not None:
         frozen_meta = json.loads(Path(gov_config_path).read_text())
-        knobs = frozen_meta.get("knobs") or frozen_meta
-        bundle, gov_config, profile_meta = apply_gov_knobs(bundle_in, knobs)
-        profile_label = frozen_meta.get("name") or frozen_meta.get("candidate_id") or "frozen"
+        # Prefer immutable resolved study artifact when the sidecar points at it
+        resolved = frozen_meta.get("resolved_bundle") or frozen_meta.get(
+            "resolved_bundle_path"
+        )
+        if resolved:
+            study_bundle_path = Path(resolved)
+            if not study_bundle_path.is_absolute():
+                study_bundle_path = (
+                    Path(gov_config_path).resolve().parent / study_bundle_path
+                )
+
+        if study_bundle_path is not None and study_bundle_path.exists():
+            bundle = load_resolved_study_bundle(study_bundle_path)
+            gov_config = governance_from_study_bundle(bundle)
+            profile_meta = {
+                "description": bundle.get("description"),
+                "study_artifact": True,
+                "resolved_bundle": str(study_bundle_path),
+                "content_hash": bundle.get("content_hash"),
+            }
+            profile_label = (
+                frozen_meta.get("name")
+                or frozen_meta.get("candidate_id")
+                or bundle.get("bundle_id")
+                or "frozen-study"
+            )
+        else:
+            knobs = frozen_meta.get("knobs") or frozen_meta
+            bundle, gov_config, profile_meta = apply_gov_knobs(bundle_in, knobs)
+            profile_label = (
+                frozen_meta.get("name") or frozen_meta.get("candidate_id") or "frozen"
+            )
     elif gov_knobs is not None:
         bundle, gov_config, profile_meta = apply_gov_knobs(bundle_in, gov_knobs)
         profile_label = str(
@@ -206,12 +246,44 @@ def run_challenge2019_eval(
         alpha=bootstrap_alpha,
     )
 
+    stay_labels = [r["sepsis_labels"] for r in rows]
+    hour_indexes = [r["iculos_hours"] for r in rows]
+
+    def _path_utility(alert_key: str) -> dict[str, float]:
+        preds = [
+            binary_predictions_from_alert_hours(
+                len(labels),
+                row[alert_key],
+                hour_index=hours,
+            )
+            for labels, hours, row in zip(stay_labels, hour_indexes, rows, strict=True)
+        ]
+        return normalize_cohort_utility(stay_labels, preds)
+
+    challenge_utility = {
+        "naive": _path_utility("naive_alert_hours"),
+        "governed": _path_utility("governed_alert_hours"),
+        "interruptive": _path_utility("interruptive_alert_hours"),
+        "note": (
+            "Normalized PhysioNet Challenge 2019 utility "
+            "(physionetchallenges/evaluation-2019); positives = emit hours only "
+            "(not latched)."
+        ),
+    }
+
     notes = [
         "Partial SOFA only (no GCS/UO/pressors in Challenge 2019).",
-        "SepsisLabel onset is the challenge label, not Sepsis-3 chart review.",
-        "Lead time > 0 means alert before onset.",
+        "SepsisLabel is already shifted ~6h before clinical sepsis time (Challenge definition); "
+        "treat onset as label_start, not true clinical onset.",
+        "Primary detection uses first alert at/before label_start + grace "
+        f"({detection_grace_hours}h); also report early_only and ±12h window sensitivities.",
+        "Official Challenge utility is reported under challenge_utility "
+        "(emit-hour positives; not a Challenge leaderboard submission).",
+        "Lead time > 0 means alert before label_start.",
         "Detection sensitivity uses any governed emit (watch ∪ interruptive); "
         "interruptive_* metrics count urgent/critical pages only.",
+        "interruptive_nna = interruptive_alerts / interruptive_tp stays "
+        "(not / governed_tp); see interruptive_nna_per_governed_tp for the legacy ratio.",
         f"Governance profile={profile_label}: {profile_meta.get('description')}",
     ]
     if gov_config_path is not None:
@@ -247,10 +319,16 @@ def run_challenge2019_eval(
             "page_min_score_delta": gov_config.page_min_score_delta,
             "page_min_positive_components": gov_config.page_min_positive_components,
         },
-        "rule_bundle": {"id": bundle["bundle_id"], "version": bundle["version"]},
+        "rule_bundle": {
+            "id": bundle["bundle_id"],
+            "version": bundle["version"],
+            "content_hash": bundle.get("content_hash"),
+        },
         "cohort": metrics["cohort"],
         "alerts": metrics["alerts"],
         "detection": metrics["detection"],
+        "metric_details": metrics.get("metric_details"),
+        "challenge_utility": challenge_utility,
         "bootstrap": bootstrap,
         "notes": notes,
     }

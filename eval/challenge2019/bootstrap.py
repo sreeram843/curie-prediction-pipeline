@@ -82,6 +82,23 @@ def _mean(xs: list[float | int]) -> float | None:
     return sum(xs) / len(xs) if xs else None
 
 
+def ratio(
+    numerator: float | int,
+    denominator: float | int,
+    *,
+    unit: str,
+) -> dict[str, Any]:
+    """Ratio with explicit numerator/denominator (None value when denom is 0)."""
+    num = float(numerator)
+    den = float(denominator)
+    return {
+        "value": (num / den) if den else None,
+        "numerator": num,
+        "denominator": den,
+        "unit": unit,
+    }
+
+
 def summarize_stay_metrics(
     rows: list[dict],
     grace_hours: int = 6,
@@ -92,6 +109,11 @@ def summarize_stay_metrics(
 
     If ``detection_mode`` is set, it overrides ``grace_hours`` for TP / sensitivity.
     Alert totals and FP stays are mode-independent.
+
+    NNA definitions (CURIE-003):
+    - ``naive_nna`` / ``governed_nna``: alerts / path TP stays
+    - ``interruptive_nna``: interruptive alerts / interruptive TP stays
+    - ``interruptive_nna_per_governed_tp``: pages / any-governed TP (legacy page burden)
     """
     sepsis = [r for r in rows if r["sepsis"]]
     non = [r for r in rows if not r["sepsis"]]
@@ -110,6 +132,9 @@ def summarize_stay_metrics(
     watch_alerts = sum(r["watch_alert_count"] for r in rows)
     interruptive_alerts = sum(r["interruptive_alert_count"] for r in rows)
 
+    gov_alerts_on_sepsis = sum(r["governed_alert_count"] for r in sepsis)
+    interruptive_alerts_on_sepsis = sum(r["interruptive_alert_count"] for r in sepsis)
+
     lead_naive = [
         r["onset_iculos"] - r["first_naive_iculos"]
         for r in sepsis
@@ -127,12 +152,75 @@ def summarize_stay_metrics(
     ]
 
     n_sepsis = len(sepsis)
+    patient_hours = sum(int(r.get("hours") or 0) for r in rows)
+    patient_days = patient_hours / 24.0 if patient_hours else 0.0
+
+    def _pct(xs: list[float | int], p: float) -> float | None:
+        if not xs:
+            return None
+        s = sorted(float(x) for x in xs)
+        return _percentile(s, p)
+
+    early_gov_tp = sum(
+        1 for r in sepsis if is_detected(r, path="governed", mode="early_only")
+    )
+    window_gov_tp = sum(
+        1 for r in sepsis if is_detected(r, path="governed", mode="window_pm12")
+    )
+
+    naive_nna = ratio(
+        naive_alerts,
+        naive_tp,
+        unit="alerts_per_detected_sepsis_stay",
+    )
+    governed_nna = ratio(
+        gov_alerts,
+        gov_tp,
+        unit="alerts_per_detected_sepsis_stay",
+    )
+    # Primary page NNA: pages per interruptive true-positive stay
+    interruptive_nna = ratio(
+        interruptive_alerts,
+        interruptive_tp,
+        unit="interruptive_alerts_per_interruptive_tp_stay",
+    )
+    # Legacy companion: pages per any-governed TP (previously mislabeled interruptive_nna)
+    interruptive_nna_per_governed_tp = ratio(
+        interruptive_alerts,
+        gov_tp,
+        unit="interruptive_alerts_per_governed_tp_stay",
+    )
+
+    stay_ppv_governed = ratio(
+        gov_tp,
+        gov_tp + gov_fp,
+        unit="detected_sepsis_stays_per_stay_with_governed_alert",
+    )
+    stay_ppv_interruptive = ratio(
+        interruptive_tp,
+        interruptive_tp + interruptive_fp,
+        unit="interruptive_tp_stays_per_stay_with_interruptive_alert",
+    )
+    # Crude event-level: fraction of alerts that occurred on sepsis stays
+    event_ppv_governed = ratio(
+        gov_alerts_on_sepsis,
+        gov_alerts,
+        unit="governed_alerts_on_sepsis_stays_per_all_governed_alerts",
+    )
+    event_ppv_interruptive = ratio(
+        interruptive_alerts_on_sepsis,
+        interruptive_alerts,
+        unit="interruptive_alerts_on_sepsis_stays_per_all_interruptive_alerts",
+    )
+
     return {
         "detection_mode": mode,
         "cohort": {
             "sepsis_stays": n_sepsis,
             "non_sepsis_stays": len(non),
             "stays_scored": len(rows),
+            "patient_hours": patient_hours,
+            "patient_days": patient_days,
         },
         "alerts": {
             "naive_total": naive_alerts,
@@ -142,6 +230,12 @@ def summarize_stay_metrics(
             "alert_reduction_ratio": (gov_alerts / naive_alerts) if naive_alerts else 0.0,
             "interruptive_reduction_ratio": (
                 (interruptive_alerts / naive_alerts) if naive_alerts else 0.0
+            ),
+            "governed_alerts_per_patient_day": (
+                (gov_alerts / patient_days) if patient_days else None
+            ),
+            "interruptive_alerts_per_patient_day": (
+                (interruptive_alerts / patient_days) if patient_days else None
             ),
         },
         "detection": {
@@ -153,15 +247,57 @@ def summarize_stay_metrics(
             "interruptive_sensitivity": (
                 (interruptive_tp / n_sepsis) if n_sepsis else None
             ),
+            "early_only_governed_tp": early_gov_tp,
+            "early_only_governed_sensitivity": (
+                (early_gov_tp / n_sepsis) if n_sepsis else None
+            ),
+            "window_pm12_governed_tp": window_gov_tp,
+            "window_pm12_governed_sensitivity": (
+                (window_gov_tp / n_sepsis) if n_sepsis else None
+            ),
             "naive_fp_non_sepsis": naive_fp,
             "governed_fp_non_sepsis": gov_fp,
             "interruptive_fp_non_sepsis": interruptive_fp,
-            "naive_nna": (naive_alerts / naive_tp) if naive_tp else None,
-            "governed_nna": (gov_alerts / gov_tp) if gov_tp else None,
-            "interruptive_nna": (interruptive_alerts / gov_tp) if gov_tp else None,
+            # Flat scalars for bootstrap / sweep (values only)
+            "governed_ppv_stay": stay_ppv_governed["value"],
+            "interruptive_ppv_stay": stay_ppv_interruptive["value"],
+            "naive_nna": naive_nna["value"],
+            "governed_nna": governed_nna["value"],
+            "interruptive_nna": interruptive_nna["value"],
+            "interruptive_nna_per_governed_tp": interruptive_nna_per_governed_tp[
+                "value"
+            ],
             "mean_lead_hours_naive": _mean(lead_naive),
             "mean_lead_hours_governed": _mean(lead_gov),
             "mean_lead_hours_interruptive": _mean(lead_interruptive),
+            "lead_hours_governed_p25": _pct(lead_gov, 0.25),
+            "lead_hours_governed_p50": _pct(lead_gov, 0.50),
+            "lead_hours_governed_p75": _pct(lead_gov, 0.75),
+        },
+        "metric_details": {
+            "nna": {
+                "naive": naive_nna,
+                "governed": governed_nna,
+                "interruptive": interruptive_nna,
+                "interruptive_per_governed_tp": interruptive_nna_per_governed_tp,
+            },
+            "ppv": {
+                "stay_level": {
+                    "governed": stay_ppv_governed,
+                    "interruptive": stay_ppv_interruptive,
+                },
+                "event_level": {
+                    "governed": event_ppv_governed,
+                    "interruptive": event_ppv_interruptive,
+                    "note": (
+                        "Crude: alerts on sepsis stays / all alerts; not timed to onset."
+                    ),
+                },
+                "episode_level": {
+                    "value": None,
+                    "note": "Requires episode aggregation (CURIE-012).",
+                },
+            },
         },
     }
 
@@ -173,6 +309,9 @@ _BOOTSTRAP_METRICS: tuple[tuple[str, str], ...] = (
     ("detection", "interruptive_sensitivity"),
     ("detection", "governed_nna"),
     ("detection", "interruptive_nna"),
+    ("detection", "interruptive_nna_per_governed_tp"),
+    ("detection", "governed_ppv_stay"),
+    ("detection", "interruptive_ppv_stay"),
     ("detection", "mean_lead_hours_governed"),
     ("alerts", "alert_reduction_ratio"),
     ("alerts", "interruptive_reduction_ratio"),

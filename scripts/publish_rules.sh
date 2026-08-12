@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
-# Publish rule bundles to the Kafka `rules` topic (latest sepsis + AKI by default).
+# Publish rule bundles to the Kafka `rules` topic.
+# Default: versions from streaming/rule-registry/activation.json (not lexical "latest").
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BUNDLES_DIR="$ROOT/streaming/rule-registry/bundles"
+ACTIVATION="$ROOT/streaming/rule-registry/activation.json"
 
 if ! docker ps --format '{{.Names}}' | grep -q '^curie-kafka$'; then
   echo "curie-kafka container not running. Start with: make up" >&2
@@ -16,7 +18,19 @@ publish_one() {
     echo "Rule bundle not found: $bundle" >&2
     exit 1
   fi
-  tr -d '\n' < "$bundle" | docker exec -i curie-kafka /opt/kafka/bin/kafka-console-producer.sh \
+  # Inject content_hash so Flink alerts carry provenance
+  local payload
+  payload="$(python3 - "$bundle" <<'PY'
+import hashlib, json, sys
+path = sys.argv[1]
+data = json.loads(open(path).read())
+data.pop("content_hash", None)
+canonical = json.dumps(data, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
+data["content_hash"] = hashlib.sha256(canonical.encode()).hexdigest()
+print(json.dumps(data, separators=(",", ":"), ensure_ascii=True))
+PY
+)"
+  printf '%s' "$payload" | docker exec -i curie-kafka /opt/kafka/bin/kafka-console-producer.sh \
     --bootstrap-server localhost:9092 \
     --topic rules
   echo "Published $(basename "$bundle") → topic rules"
@@ -27,6 +41,19 @@ if [[ $# -gt 0 ]]; then
     publish_one "$b"
   done
 else
-  publish_one "$BUNDLES_DIR/sepsis-sofa.v0.2.0.json"
-  publish_one "$BUNDLES_DIR/aki-kdigo.v0.2.0.json"
+  while IFS= read -r b; do
+    [[ -n "$b" ]] || continue
+    publish_one "$b"
+  done < <(python3 - "$ACTIVATION" "$BUNDLES_DIR" <<'PY'
+import json, sys
+from pathlib import Path
+act = json.loads(Path(sys.argv[1]).read_text())["active"]
+root = Path(sys.argv[2])
+for bid, ver in sorted(act.items()):
+    path = root / f"{bid}.v{ver}.json"
+    if not path.exists():
+        raise SystemExit(f"Active bundle missing: {path}")
+    print(path)
+PY
+)
 fi

@@ -107,6 +107,10 @@ services:
       - "8000:8000"
     environment:
       KAFKA_BOOTSTRAP: kafka:29092
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      CURIE_KAFKA_ALERTS_CONSUMER: "true"
+      CURIE_CLEAR_DEMO_ON_LIVE: "true"
+      CURIE_KAFKA_ALERTS_GROUP: curie-api-alerts-v1
     depends_on:
       kafka:
         condition: service_healthy
@@ -126,7 +130,7 @@ services:
       - |
         set -euo pipefail
         BOOT=kafka:29092
-        for f in sepsis-sofa.v0.2.0.json aki-kdigo.v0.2.0.json; do
+        for f in sepsis-sofa.v0.3.0.json aki-kdigo.v0.3.0.json; do
           echo "Publishing $$f → rules"
           tr -d '\n' < "/bundles/$$f" | /opt/kafka/bin/kafka-console-producer.sh \
             --bootstrap-server $$BOOT --topic rules

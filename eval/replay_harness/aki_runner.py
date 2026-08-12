@@ -4,11 +4,11 @@ from __future__ import annotations
 
 import argparse
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 
 from eval.aki.scoring import AkiInput, compute_aki_score, tier_for_aki_score
-from eval.indicators.registry import governance_config_from_bundle, load_rule_bundle
+from eval.indicators.registry import governance_dataclass_from_bundle, load_rule_bundle
 from eval.replay_harness.governance import (
     GovernanceConfig,
     PatientGovState,
@@ -39,7 +39,10 @@ class AkiScenario:
     expected_label: str
     events: list[AkiEvent]
     context_flags: list[str] | None = None
-
+    # T2 demos turn off patient-score baseline so trajectory/page gates are visible
+    governance_overrides: dict | None = field(
+        default_factory=lambda: {"baseline_enabled": False}
+    )
 
 def built_in_aki_scenarios() -> list[AkiScenario]:
     return [
@@ -154,17 +157,8 @@ def replay_aki_scenario(
 ) -> dict:
     bundle = load_rule_bundle("aki-kdigo")
     if config is None:
-        knobs = governance_config_from_bundle(bundle)
-        # For reduction demo vs naive threshold, disable patient baseline gate
-        # (trajectory/dedup still apply — the platform differentiator).
-        config = GovernanceConfig(
-            trajectory_persistence_minutes=knobs["trajectory_persistence_minutes"],
-            min_crossings=knobs["min_crossings"],
-            baseline_enabled=False,
-            refractory_minutes=knobs["refractory_minutes"],
-            suppression_flags=knobs["suppression_flags"],
-            interruptive_tiers=knobs["interruptive_tiers"],
-            passive_tiers=knobs["passive_tiers"],
+        config = governance_dataclass_from_bundle(
+            bundle, overrides=scenario.governance_overrides
         )
 
     start = datetime(2024, 2, 1, 9, 0, tzinfo=UTC)
@@ -198,6 +192,9 @@ def replay_aki_scenario(
         tier = tier_for_aki_score(result.total_score, naive_threshold=threshold)
         if result.total_score is None or tier == AcuityTier.NONE:
             continue
+        positive_components = sum(
+            1 for c in result.components if not c.missing and (c.points or 0) > 0
+        )
         alert = {
             "alert_id": f"{scenario.scenario_id}-{event.offset_minutes}",
             "patient_id": scenario.patient_id,
@@ -211,6 +208,7 @@ def replay_aki_scenario(
             "context_flags": list(scenario.context_flags or []),
             "rule_bundle_id": result.rule_bundle_id,
             "rule_version": result.rule_version,
+            "positive_components": positive_components,
         }
         naive_alerts.append(alert)
         decision = evaluate(alert, gov_state, config)

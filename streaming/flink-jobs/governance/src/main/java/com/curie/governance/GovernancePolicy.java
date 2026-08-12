@@ -53,6 +53,40 @@ public final class GovernancePolicy {
         Set<String> suppressionFlags,
         Set<String> interruptive,
         Set<String> passive) {
+      return fromBundleKnobs(
+          persistenceMinutes,
+          minCrossings,
+          baselineEnabled,
+          baselineDelta,
+          lookbackHours,
+          refractoryMinutes,
+          resolutionGapMinutes,
+          suppressionFlags,
+          interruptive,
+          passive,
+          false,
+          2,
+          30,
+          1,
+          0);
+    }
+
+    public static Config fromBundleKnobs(
+        int persistenceMinutes,
+        int minCrossings,
+        boolean baselineEnabled,
+        int baselineDelta,
+        int lookbackHours,
+        int refractoryMinutes,
+        int resolutionGapMinutes,
+        Set<String> suppressionFlags,
+        Set<String> interruptive,
+        Set<String> passive,
+        boolean pageGateEnabled,
+        int pageMinCrossings,
+        int pagePersistenceMinutes,
+        int pageMinScoreDelta,
+        int pageMinPositiveComponents) {
       Config c = new Config();
       c.trajectoryPersistenceMs = persistenceMinutes * 60L * 1000L;
       c.minCrossings = minCrossings;
@@ -70,6 +104,11 @@ public final class GovernancePolicy {
       if (passive != null && !passive.isEmpty()) {
         c.passiveTiers = new HashSet<>(passive);
       }
+      c.pageGateEnabled = pageGateEnabled;
+      c.pageMinCrossings = pageMinCrossings;
+      c.pageTrajectoryPersistenceMs = Math.max(0, pagePersistenceMinutes) * 60L * 1000L;
+      c.pageMinScoreDelta = pageMinScoreDelta;
+      c.pageMinPositiveComponents = pageMinPositiveComponents;
       return c;
     }
   }
@@ -83,6 +122,8 @@ public final class GovernancePolicy {
     public Integer firstCrossingScore;
     public Integer baselineScore;
     public long baselineSetAtMs = Long.MIN_VALUE;
+    /** Highest event-time processed for this key (arrival-order guard). */
+    public long lastProcessedEventTimeMs = Long.MIN_VALUE;
     public String encounterId;
     public final Set<String> contextFlags = new HashSet<>();
 
@@ -161,6 +202,16 @@ public final class GovernancePolicy {
       return new Decision(false, true, "no_alert", "none", naive);
     }
     long eventTimeMs = parseMs(naive.eventTime);
+
+    // Explicit late-data policy: do not mutate state for out-of-order arrivals.
+    if (state.lastProcessedEventTimeMs != Long.MIN_VALUE
+        && eventTimeMs < state.lastProcessedEventTimeMs) {
+      naive.suppressed = true;
+      naive.suppressionReason = "late_out_of_order";
+      naive.governancePath = "governed";
+      return new Decision(false, true, "late_out_of_order", "none", naive);
+    }
+    state.lastProcessedEventTimeMs = eventTimeMs;
 
     applyEncounterScope(state, naive.encounterId);
 

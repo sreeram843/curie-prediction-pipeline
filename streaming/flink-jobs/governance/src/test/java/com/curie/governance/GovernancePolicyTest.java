@@ -205,4 +205,26 @@ class GovernancePolicyTest {
         GovernancePolicy.evaluate(alert(5, "urgent", "2024-01-01T00:02:00Z"), state, config)
             .reason);
   }
+
+  @Test
+  void lateOutOfOrderDoesNotMutateState() {
+    GovernancePolicy.Config config = new GovernancePolicy.Config();
+    config.baselineEnabled = false;
+    config.trajectoryPersistenceMs = 0;
+    config.minCrossings = 1;
+    config.refractoryMs = 0;
+    config.pageGateEnabled = false;
+
+    GovernancePolicy.PatientGovState state = new GovernancePolicy.PatientGovState();
+    GovernancePolicy.Decision first =
+        GovernancePolicy.evaluate(alert(5, "urgent", "2024-01-01T01:00:00Z"), state, config);
+    assertTrue(first.emit);
+    int crossings = state.crossingsAboveThreshold;
+
+    GovernancePolicy.Decision late =
+        GovernancePolicy.evaluate(alert(8, "critical", "2024-01-01T00:30:00Z"), state, config);
+    assertFalse(late.emit);
+    assertEquals("late_out_of_order", late.reason);
+    assertEquals(crossings, state.crossingsAboveThreshold);
+  }
 }

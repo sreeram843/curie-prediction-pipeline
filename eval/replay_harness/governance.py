@@ -47,6 +47,7 @@ class PatientGovState:
     baseline_score: int | None = None
     baseline_set_at: datetime | None = None
     encounter_id: str | None = None
+    last_processed_event_time: datetime | None = None
     context_flags: set[str] = field(default_factory=set)
 
     def reset_trajectory(self) -> None:
@@ -127,6 +128,13 @@ def evaluate(alert: dict, state: PatientGovState, config: GovernanceConfig) -> D
     event_time = datetime.fromisoformat(str(alert["event_time"]).replace("Z", "+00:00"))
     out = dict(alert)
     out["governance_path"] = "governed"
+
+    # Explicit late-data policy: ignore out-of-order arrivals without mutating state.
+    if state.last_processed_event_time is not None and event_time < state.last_processed_event_time:
+        out["suppressed"] = True
+        out["suppression_reason"] = "late_out_of_order"
+        return Decision(False, "late_out_of_order", "none", out)
+    state.last_processed_event_time = event_time
 
     _apply_encounter_scope(state, alert.get("encounter_id"))
 

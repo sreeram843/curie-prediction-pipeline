@@ -5,6 +5,7 @@ import com.curie.sofa.model.AlertIds;
 import com.curie.sofa.model.CanonicalEvent;
 import com.curie.sofa.model.DlqEvent;
 import com.curie.sofa.model.RuleBundle;
+import com.curie.sofa.model.RuleVersions;
 import com.curie.sofa.operators.SofaAlertFunction;
 import com.curie.sofa.state.IdempotencyCache;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -58,6 +59,14 @@ public class AkiAlertFunction
   public void processBroadcastElement(RuleBundle value, Context ctx, Collector<AlertEvent> out)
       throws Exception {
     if (value == null || value.bundle_id == null) {
+      return;
+    }
+    RuleBundle current =
+        ctx.getBroadcastState(SofaAlertFunction.RULE_STATE_DESC).get(value.bundle_id);
+    if (current != null
+        && current.version != null
+        && value.version != null
+        && RuleVersions.compare(value.version, current.version) < 0) {
       return;
     }
     ctx.getBroadcastState(SofaAlertFunction.RULE_STATE_DESC).put(value.bundle_id, value);
@@ -179,6 +188,9 @@ public class AkiAlertFunction
             eventTimeMs,
             rules.version);
     AlertEvent alert = AlertEvent.fromAki(score, tier, alertId, ingest);
+    alert.rule_bundle_id = rules.bundle_id;
+    alert.rule_version = rules.version;
+    alert.rule_bundle_hash = rules.content_hash;
     if (event.context_flags != null) {
       alert.context_flags = new ArrayList<>(event.context_flags);
     }

@@ -31,9 +31,13 @@ class AlertRecord(BaseModel):
     evidence_ids: list[str] = Field(default_factory=list)
     rule_bundle_id: str = "sepsis-sofa"
     rule_version: str = "0.1.0"
+    rule_bundle_hash: str | None = None
     governance_path: Literal["naive", "governed"] = "governed"
     suppressed: bool = False
     suppression_reason: str | None = None
+    routing: Literal["interruptive", "passive", "none"] | None = None
+    page_deferred_reason: str | None = None
+    positive_components: int | None = None
     acknowledged: bool = False
     acknowledged_at: datetime | None = None
     acknowledge_note: str | None = None
@@ -62,6 +66,7 @@ class MetricsSummary(BaseModel):
     open_alerts: int
     acknowledged_alerts: int
     by_tier: dict[str, int]
+    by_routing: dict[str, int] = Field(default_factory=dict)
 
 
 def alert_from_dict(data: dict[str, Any]) -> AlertRecord:

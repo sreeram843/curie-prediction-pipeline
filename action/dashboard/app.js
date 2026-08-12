@@ -193,7 +193,9 @@ function renderList() {
       <div class="meter ${tier}" aria-hidden="true"><i style="width:${scoreWidth(alert.score)}"></i></div>
       <div class="card-footer">
         <span class="indicator-tag">${indicator}</span>
-        <span>${alert.completeness}${alert.acknowledged ? " · acked" : ""}</span>
+        <span>${alert.routing ? `${alert.routing} · ` : ""}${alert.completeness}${
+          alert.acknowledged ? " · acked" : ""
+        }</span>
       </div>
     `;
     btn.addEventListener("click", () => {
@@ -273,6 +275,16 @@ function renderDetail(alert) {
           <span class="badge">${alert.indicator || "sepsis"}</span>
           <span class="badge">${alert.completeness}</span>
           <span class="badge">${alert.governance_path}</span>
+          ${
+            alert.routing
+              ? `<span class="badge routing-chip ${alert.routing}">${alert.routing}</span>`
+              : ""
+          }
+          ${
+            alert.page_deferred_reason
+              ? `<span class="badge">deferred: ${alert.page_deferred_reason}</span>`
+              : ""
+          }
           <span class="badge">${alert.rule_bundle_id}@${alert.rule_version}</span>
         </div>
       </div>

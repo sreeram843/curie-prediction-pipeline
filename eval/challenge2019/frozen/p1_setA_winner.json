@@ -3,6 +3,8 @@
   "candidate_id": "grid_p0_r90_b0",
   "source_set": "training_setA",
   "selected_at": "2026-08-12T02:02:50.748366+00:00",
+  "resolved_bundle": "sepsis-sofa.challenge2019-p1.v1.json",
+  "resolved_bundle_sha256": "a3b8273a84752a6263e30da9762f3a5783b9a5af6c3d8234baabbb1dbdc3655b",
   "goals": {
     "primary": "governed_sensitivity >= naive_sensitivity - 0.10 or >= 0.70",
     "coprimary_burden": "interruptive_reduction_ratio <= 0.25 (else alert_reduction)",

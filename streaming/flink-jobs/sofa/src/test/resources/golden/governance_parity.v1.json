@@ -1,0 +1,74 @@
+{
+  "schema_version": "1.0.0",
+  "id": "governance-parity-v1",
+  "description": "Shared Python/Java governance field fixture (CURIE-005). Defaults documented when omitted.",
+  "defaults_when_missing": {
+    "trajectory.min_persistence_minutes": 30,
+    "trajectory.min_crossings": 2,
+    "baseline.enabled": true,
+    "baseline.lookback_hours": 24,
+    "baseline.delta_threshold": 2,
+    "dedup.refractory_minutes": 120,
+    "dedup.resolution_gap_minutes": 60,
+    "suppression.flags": ["comfort_care", "already_on_sepsis_protocol"],
+    "tiering.interruptive_tiers": ["urgent", "critical"],
+    "tiering.passive_tiers": ["watch"],
+    "page_gate.enabled": false,
+    "page_gate.min_crossings": 2,
+    "page_gate.trajectory_persistence_minutes": 30,
+    "page_gate.min_score_delta": 1,
+    "page_gate.min_positive_components": 0
+  },
+  "bundle": {
+    "bundle_id": "parity-fixture",
+    "version": "1.0.0",
+    "indicator": "sepsis",
+    "score": {"type": "sofa"},
+    "governance": {
+      "trajectory": {
+        "min_persistence_minutes": 15,
+        "min_crossings": 3
+      },
+      "baseline": {
+        "enabled": false,
+        "lookback_hours": 12,
+        "delta_threshold": 1
+      },
+      "suppression": {
+        "flags": ["comfort_care", "custom_flag"]
+      },
+      "dedup": {
+        "refractory_minutes": 45,
+        "resolution_gap_minutes": 90
+      },
+      "tiering": {
+        "interruptive_tiers": ["critical"],
+        "passive_tiers": ["watch", "urgent"]
+      },
+      "page_gate": {
+        "enabled": true,
+        "min_crossings": 4,
+        "trajectory_persistence_minutes": 20,
+        "min_score_delta": 2,
+        "min_positive_components": 3
+      }
+    }
+  },
+  "expect": {
+    "trajectory_persistence_minutes": 15,
+    "min_crossings": 3,
+    "baseline_enabled": false,
+    "baseline_lookback_hours": 12,
+    "baseline_delta_threshold": 1,
+    "refractory_minutes": 45,
+    "resolution_gap_minutes": 90,
+    "suppression_flags": ["comfort_care", "custom_flag"],
+    "interruptive_tiers": ["critical"],
+    "passive_tiers": ["watch", "urgent"],
+    "page_gate_enabled": true,
+    "page_min_crossings": 4,
+    "page_trajectory_persistence_minutes": 20,
+    "page_min_score_delta": 2,
+    "page_min_positive_components": 3
+  }
+}

@@ -348,6 +348,16 @@ body {
   color: var(--watch);
 }
 
+.routing-chip.interruptive {
+  background: var(--critical-soft, #fde8e8);
+  color: var(--critical, #8b1e1e);
+}
+
+.routing-chip.passive {
+  background: var(--watch-soft);
+  color: var(--watch);
+}
+
 .card-patient {
   font-size: 0.82rem;
   color: var(--muted);

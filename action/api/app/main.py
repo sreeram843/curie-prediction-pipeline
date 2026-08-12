@@ -10,6 +10,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
+from action.api.app.alerts_consumer import start_alerts_consumer_if_configured, stop_alerts_consumer
 from action.api.app.models import (
     AcknowledgeRequest,
     AcknowledgeResponse,
@@ -26,9 +27,20 @@ DASHBOARD_DIR = Path(__file__).resolve().parents[2] / "dashboard"
 
 app = FastAPI(
     title="Curie Prediction Pipeline API",
-    version="0.2.0",
+    version="0.3.0",
     description="Prototype only — synthetic data, not for clinical use.",
 )
+
+
+@app.on_event("startup")
+def _startup() -> None:
+    start_alerts_consumer_if_configured()
+
+
+@app.on_event("shutdown")
+def _shutdown() -> None:
+    stop_alerts_consumer()
+
 
 app.add_middleware(
     CORSMiddleware,

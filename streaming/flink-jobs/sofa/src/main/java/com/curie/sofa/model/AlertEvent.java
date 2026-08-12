@@ -22,9 +22,17 @@ public class AlertEvent implements Serializable {
   public List<String> evidence_ids = new ArrayList<>();
   public String rule_bundle_id;
   public String rule_version;
+  /** SHA-256 of the active rule bundle when known. */
+  public String rule_bundle_hash;
   public String governance_path = "naive";
   public boolean suppressed = false;
   public String suppression_reason;
+  /** interruptive | passive | none — set by governance (dual-lane). */
+  public String routing;
+  /** Why an interruptive page was deferred to watch (page_crossings, …). */
+  public String page_deferred_reason;
+  /** Count of scored components with points &gt; 0 (page gate). */
+  public Integer positive_components;
   public java.util.List<String> context_flags = new java.util.ArrayList<>();
 
   public static class ComponentBreakdown implements Serializable {
@@ -48,6 +56,7 @@ public class AlertEvent implements Serializable {
     a.rule_bundle_id = score.ruleBundleId;
     a.rule_version = score.ruleVersion;
     a.evidence_ids = new ArrayList<>(score.evidenceIds);
+    int positive = 0;
     for (SofaScorer.ComponentScore c : score.components) {
       ComponentBreakdown b = new ComponentBreakdown();
       b.name = c.name.wireName();
@@ -57,8 +66,11 @@ public class AlertEvent implements Serializable {
       a.component_breakdown.add(b);
       if (c.missing) {
         a.missing_components.add(c.name.wireName());
+      } else if (c.points != null && c.points > 0) {
+        positive++;
       }
     }
+    a.positive_components = positive;
     return a;
   }
 
@@ -86,6 +98,8 @@ public class AlertEvent implements Serializable {
     stage.points = score.stage;
     stage.missing = score.stage == null;
     a.component_breakdown.add(stage);
+    a.positive_components =
+        (score.stage != null && score.stage > 0) ? 1 : 0;
     return a;
   }
 }

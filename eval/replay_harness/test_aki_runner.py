@@ -44,4 +44,4 @@ def test_aki_alert_reduction_on_t2_library() -> None:
     assert by_id["t2-aki-absolute-no-baseline"]["governed_alert_count"] >= 1
     assert by_id["t2-aki-uo-oliguria"]["governed_alert_count"] >= 1
     assert by_id["t2-aki-delta-borderline"]["governed_alert_count"] >= 1
-    assert report["rule_bundle"]["version"] == "0.2.0"
+    assert report["rule_bundle"]["version"] == "0.3.0"

@@ -42,7 +42,11 @@ def test_eval_on_fixture_dir() -> None:
     assert "interruptive_total" in report["alerts"]
     assert "interruptive_reduction_ratio" in report["alerts"]
     assert "interruptive_nna" in report["detection"]
+    assert "interruptive_nna_per_governed_tp" in report["detection"]
     assert "interruptive_sensitivity" in report["detection"]
+    assert report["metric_details"]["nna"]["interruptive"]["unit"].startswith(
+        "interruptive_alerts_per_interruptive_tp"
+    )
     # Dual-tier partition: watch + interruptive == governed (routing none should not emit)
     assert (
         report["alerts"]["watch_total"] + report["alerts"]["interruptive_total"]
