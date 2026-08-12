@@ -1,0 +1,253 @@
+{
+  "schema_version": "1.0.0",
+  "protocol_id": "mimic-iv-governance-study.v1",
+  "status": "frozen",
+  "frozen_at": "2026-08-12",
+  "curie_task": "CURIE-014",
+  "description": "Pre-registered MIMIC-IV retrospective study protocol. Freeze before inspecting the temporal holdout. Demo-schema compatible until credentialed access arrives.",
+  "disclaimer": "Prototype engineering study design — not IRB-approved clinical research, not FDA evidence, not for patient care.",
+
+  "dataset": {
+    "name": "MIMIC-IV Clinical Database",
+    "target_version": "3.1",
+    "modules": ["hosp", "icu"],
+    "physionet_project": "https://physionet.org/content/mimiciv/",
+    "demo_fallback": {
+      "name": "MIMIC-IV Clinical Database Demo",
+      "path_env": "CURIE_MIMIC_DEMO_DIR",
+      "role": "plumbing / CURIE-015 harness only — never the primary analysis cohort"
+    },
+    "access": "PhysioNet credentialed download or cloud + signed DUA required for Stage B",
+    "pin_policy": "Record exact PhysioNet version string + extract date + content hash of derived stay list at first Stage B extract. Do not change for the primary analysis."
+  },
+
+  "mimic_code": {
+    "repo": "https://github.com/MIT-LCP/mimic-code",
+    "concepts_path": "mimic-iv/concepts",
+    "pin_policy": "Record git commit SHA + Zenodo release (if any) used for sepsis/AKI derived concepts before label generation. Primary analysis uses that pin only.",
+    "planned_concepts": [
+      "sepsis-3 / suspicion of infection + SOFA delta (adapted)",
+      "KDIGO creatinine / urine where available"
+    ]
+  },
+
+  "cohort": {
+    "unit": "icu_stay",
+    "inclusion": [
+      "Adult ICU stay (anchor_age >= 18 at admission)",
+      "First ICU stay per hospital admission (hadm_id) for primary analysis",
+      "Stay duration >= 4 hours"
+    ],
+    "exclusions_primary": [
+      "Pediatric (age < 18)",
+      "ICU stay < 4 hours",
+      "Missing intime/outtime"
+    ],
+    "exclusions_or_subgroups": {
+      "comfort_care": "subgroup + suppression analysis; not hard-excluded from detection denominator unless chart-confirmed",
+      "esrd_on_dialysis": "AKI endpoint: exclude from AKI primary denominator; report as subgroup",
+      "or_transfer_gaps": "report missingness; do not impute"
+    },
+    "bootstrap_unit": "icu_stay"
+  },
+
+  "labels": {
+    "primary_event": {
+      "name": "sepsis3_onset",
+      "definition": "Sepsis-3-aligned: suspected infection + acute SOFA rise >= 2 from baseline within infection window (mimic-code concept pin)",
+      "onset_time": "availability-time of the observation that first completes the phenotype",
+      "note": "Do not use discharge ICD sepsis codes as primary onset"
+    },
+    "secondary_events": [
+      {
+        "name": "aki_kdigo_stage_ge_1",
+        "definition": "KDIGO stage >= 1 by creatinine and/or covered UO (align with aki-kdigo v0.4 timeline)"
+      },
+      {
+        "name": "respiratory_deterioration_proxy",
+        "definition": "Exploratory — ventilation escalation or severe hypoxemia per resp-deterioration v0.1; not primary"
+      }
+    ]
+  },
+
+  "indicators_under_test": {
+    "primary": ["sofa-deterioration", "sepsis-3"],
+    "secondary": ["aki"],
+    "exploratory": ["respiratory-deterioration"],
+    "rule_bundles_pin_at_freeze": {
+      "sepsis-sofa": "active at operating-point freeze time",
+      "aki-kdigo": "active at operating-point freeze time",
+      "resp-deterioration": "exploratory only"
+    }
+  },
+
+  "prediction_cadence": {
+    "mode": "event_driven_replay",
+    "description": "Replay FHIR/canonical envelopes in availability-time order; score on each usable observation update (not fixed hourly bins for primary).",
+    "hourly_sensitivity_analysis": "Optional hourly re-bin for Challenge-comparable tables only"
+  },
+
+  "availability_time_policy": {
+    "order_key": "availability_time",
+    "forbidden_before_availability": [
+      "discharge_diagnoses",
+      "future_lab_corrections_as_of_charttime_only",
+      "later_note_text",
+      "post-discharge mortality labels as features"
+    ],
+    "corrections": "Amended/corrected observations replace prior value only at their own availability_time",
+    "leakage_tests": "CURIE-015 automated tests must fail closed if future information is introduced"
+  },
+
+  "splits": {
+    "scheme": "temporal_by_icu_intime",
+    "development": {
+      "split_id": "development",
+      "role": "tune",
+      "intime_range": ["2008-01-01", "2016-12-31"],
+      "allowed_commands": ["sweep", "ablation_design", "feature_debug"]
+    },
+    "calibration": {
+      "split_id": "calibration",
+      "role": "select",
+      "intime_range": ["2017-01-01", "2018-12-31"],
+      "allowed_commands": ["operating_point_selection", "threshold_choice", "report_dev_metrics"]
+    },
+    "test": {
+      "split_id": "test",
+      "role": "evaluate_once",
+      "intime_range": ["2019-01-01", "2019-12-31"],
+      "allowed_commands": ["locked_primary_eval", "locked_ablation_eval", "bootstrap_ci"],
+      "forbidden_commands": ["sweep", "tune", "grid_search", "threshold_search", "operating_point_selection"]
+    },
+    "notes": [
+      "If the pinned MIMIC-IV version uses a different calendar span, rescale ranges proportionally but keep three temporal roles.",
+      "Demo schema maps synthetic stay years into the same split_ids for harness smoke only."
+    ]
+  },
+
+  "detection_timing": {
+    "primary_mode_id": "window_m12_p6",
+    "before_hours": 12,
+    "after_hours": 6,
+    "rule": "any governed or naive alert with event_time in [onset - 12h, onset + 6h]",
+    "inherited_from": "eval/challenge2019/frozen/timing_primary.v1.json",
+    "sensitivity_analyses": ["grace_0", "grace_6", "grace_12", "window_pm12", "early_only"]
+  },
+
+  "primary_endpoint": {
+    "id": "PE-1",
+    "name": "noninferior_governed_sensitivity",
+    "metric": "governed_sensitivity",
+    "definition": "Among labeled-positive stays, fraction with >=1 true-positive alert inside the primary detection window",
+    "comparator": "naive_sensitivity on the same stays and window",
+    "success_rule": "governed_sensitivity >= naive_sensitivity - 0.10 OR governed_sensitivity >= 0.70",
+    "noninferiority_margin_pp": 10,
+    "evaluated_on": "test",
+    "one_shot": true
+  },
+
+  "coprimary_endpoint": {
+    "id": "PE-2",
+    "name": "interruptive_burden_reduction",
+    "metric": "interruptive_reduction_ratio",
+    "definition": "interruptive_alert_count_governed / interruptive_alert_count_naive",
+    "success_rule": "interruptive_reduction_ratio <= 0.25",
+    "burden_unit_report": "interruptive alerts per 100 patient-days",
+    "evaluated_on": "test",
+    "one_shot": true
+  },
+
+  "operating_point_selection": {
+    "id": "OPS-1",
+    "rule": "On development, sweep governance knobs + page-gate settings with fixed score bundles. On calibration, select the candidate that minimizes interruptive_reduction_ratio subject to PE-1 success_rule. Freeze winner JSON. Never re-select using test.",
+    "forbidden_on_test": true,
+    "freeze_artifact": "eval/mimic_study/frozen/operating_point.v1.json",
+    "selection_objective": "min interruptive_reduction_ratio s.t. PE-1 on calibration",
+    "tie_breakers": ["lower interruptive_nna", "higher governed_sensitivity", "lexicographically smaller candidate_id"]
+  },
+
+  "secondary_endpoints": [
+    "interruptive_nna",
+    "mean_in_window_lead_hours",
+    "episode_count_per_100_patient_days",
+    "aki secondary PE-1/PE-2 analogue",
+    "false_episode_rate_on_label_negative_stays"
+  ],
+
+  "ablations": {
+    "pre_specified": [
+      "threshold_only_naive",
+      "full_governance",
+      "drop_persistence",
+      "drop_crossings",
+      "drop_baseline",
+      "drop_refractory",
+      "drop_context_suppression",
+      "drop_page_gate",
+      "drop_episode_arbitration",
+      "drop_late_event_buffer"
+    ],
+    "rule": "Ablation configs frozen before test evaluation; report all on test once"
+  },
+
+  "subgroups": [
+    "age_band",
+    "sex",
+    "admission_type",
+    "first_day_sofa_tertile",
+    "completeness_partial_vs_complete",
+    "comfort_care_flag"
+  ],
+
+  "missing_data_analyses": [
+    "score completeness distribution by split",
+    "sensitivity among partial vs complete scores",
+    "component-missing rates for respiration/FiO2 and creatinine/UO",
+    "no ambient FiO2 assumption without room_air (C-SAFE-3)"
+  ],
+
+  "product_claims_evidence_map": [
+    {
+      "claim_id": "C1",
+      "claim": "Shared alert governance reduces interruptive alert volume vs threshold-only scoring while preserving detection of labeled deterioration within a clinically meaningful window.",
+      "required_evidence": ["PE-1 on test", "PE-2 on test", "bootstrap stay-level CIs"],
+      "status": "pending_stage_b"
+    },
+    {
+      "claim_id": "C2",
+      "claim": "Episode arbitration produces one actionable patient episode instead of independent alert floods for concurrent signals.",
+      "required_evidence": ["episode_count_per_100_patient_days vs alert_count", "CURIE-012 fixtures", "MIMIC concurrent-signal subgroup"],
+      "status": "engineering_done_clinical_pending"
+    },
+    {
+      "claim_id": "C3",
+      "claim": "Adding an indicator is a plugin/bundle task without a new platform path.",
+      "required_evidence": ["CURIE-010/011/013 engineering gates", "resp-deterioration activation via plugin"],
+      "status": "engineering_done"
+    },
+    {
+      "claim_id": "C4",
+      "claim": "Availability-time replay does not use future information.",
+      "required_evidence": ["CURIE-015 leakage tests", "identical output hashes on repeat"],
+      "status": "pending_curie_015"
+    },
+    {
+      "claim_id": "NON",
+      "claim": "Clinical validation / FDA clearance / superiority to NEWS/qSOFA / SaMD readiness",
+      "required_evidence": ["explicitly out of scope until Stage C–F"],
+      "status": "non_claim"
+    }
+  ],
+
+  "analysis_rules": {
+    "no_threshold_fishing_on_test": true,
+    "bootstrap": {
+      "unit": "icu_stay",
+      "n_replicates": 1000,
+      "seed": 42,
+      "interval": "percentile_95"
+    },
+    "multiple_comparisons": "Primary + co-primary pre-specified; secondaries and subgroups descriptive unless marked confirmatory"
+  }
+}

@@ -47,9 +47,9 @@ External data + tooling cheat sheet: [`mimic-data-sources.md`](./mimic-data-sour
 
 - [ ] PhysioNet credentialed access + signed DUA  
 - [ ] Full MIMIC-IV (hosp + icu), not only `mimic-iv-demo`  
-- [ ] Document version (e.g. MIMIC-IV 2.2 / 3.x) and extract date  
-- [ ] Cohort definition: adult ICU stays, inclusion/exclusion, first stay vs all stays  
-- [ ] Freeze rule-bundle versions used for the run (`sepsis-sofa`, `aki-kdigo`)
+- [x] Document version target + pin policy (see [`mimic-iv-study-protocol.md`](./mimic-iv-study-protocol.md))  
+- [x] Cohort definition: adult ICU stays, inclusion/exclusion, first stay vs all stays  
+- [ ] Freeze rule-bundle versions used for the run (`sepsis-sofa`, `aki-kdigo`) at operating-point selection
 
 ### 3.1b PhysioNet Challenge 2019 (Stage B light — in progress)
 
@@ -199,13 +199,19 @@ For each indicator (sepsis, AKI), on **holdout** stays:
 
 ---
 
-## 9. Open decisions (resolve before Stage B run)
+## 9. Open decisions (resolved by CURIE-014)
 
-- [ ] Primary endpoint: NNA at fixed sensitivity vs sensitivity at fixed alert rate?  
-- [ ] Onset window T for “detected in time” (e.g. 0–6h, 0–24h)?  
-- [ ] Score sepsis, AKI, or both in the first paper?  
-- [ ] Governance config for “production-like” eval (persistence, crossings, refractory)?  
-- [ ] Exclude comfort care / ESRD or report as subgroups?
+Frozen protocol: [`mimic-iv-study-protocol.md`](./mimic-iv-study-protocol.md) /
+[`eval/mimic_study/frozen/protocol.v1.json`](../eval/mimic_study/frozen/protocol.v1.json).
+
+| Decision | Resolution |
+|---|---|
+| Primary endpoint | **PE-1** non-inferior governed sensitivity (naive − 10 pp or ≥ 70% absolute) on locked test |
+| Co-primary | **PE-2** interruptive reduction ratio ≤ 0.25 |
+| Onset window | `window_m12_p6` (−12h / +6h) |
+| First paper indicators | SOFA deterioration + sepsis-3 primary; AKI secondary; respiratory exploratory |
+| Governance config | Selected on calibration (OPS-1); frozen before test |
+| Comfort care / ESRD | Subgroup / AKI denominator rules — see protocol cohort section |
 
 ---
 
@@ -213,4 +219,5 @@ For each indicator (sepsis, AKI), on **holdout** stays:
 
 | Date | Change |
 |---|---|
+| 2026-08-12 | CURIE-014: open decisions resolved via frozen MIMIC-IV protocol |
 | 2026-08-11 | Initial clinical validation test plan |

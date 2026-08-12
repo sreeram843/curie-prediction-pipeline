@@ -1,4 +1,4 @@
-.PHONY: help up up-full down logs topics test lint synthea rules flink-test api replay replay-aki mimic-demo challenge-2019 challenge-2019-sweep challenge-2019-robustness parity
+.PHONY: help up up-full down logs topics test lint synthea rules flink-test api replay replay-aki mimic-demo mimic-study-protocol challenge-2019 challenge-2019-sweep challenge-2019-robustness parity
 
 help:
 	@echo "Targets:"
@@ -17,6 +17,7 @@ help:
 	@echo "  replay      - run sepsis T2 replay harness (alert-reduction metric)"
 	@echo "  replay-aki  - run AKI T2 replay harness (alert-reduction metric)"
 	@echo "  mimic-demo  - score SOFA/AKI on local MIMIC-IV demo (data/mimic-iv-demo)"
+	@echo "  mimic-study-protocol - show frozen MIMIC-IV study protocol (CURIE-014)"
 	@echo "  challenge-2019 - sepsis alert eval on PhysioNet Challenge 2019 (data/archive)"
 	@echo "  challenge-2019-sweep - setA tune → freeze → setB holdout"
 	@echo "  challenge-2019-robustness - detection-window robustness on setB"
@@ -70,6 +71,9 @@ replay-aki:
 
 mimic-demo:
 	python -m eval.mimic_demo.runner $(if $(LIMIT),--limit $(LIMIT),)
+
+mimic-study-protocol:
+	python -m eval.mimic_study.sweep show
 
 # PhysioNet Challenge 2019 archive under data/archive (LIMIT=0 = all stays)
 # PROFILE=accuracy|sensitive|balanced|strict|dual (default accuracy = best detection)

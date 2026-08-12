@@ -120,10 +120,11 @@ Do **not** commit PhysioNet dumps or derived patient-level extracts to git (`dat
 ## 5. Recommended path when we pick Stage B back up
 
 1. Keep Challenge 2019 as the locked **governance operating-point** benchmark.  
-2. Obtain full MIMIC-IV DUA access.  
-3. Use **mimic-code** for stay cohorts + sepsis (or AKI) labels; document MIMIC version + concept SHAs.  
-4. Build a Curie “MIMIC eval harness” (stay timeline → envelopes → score → governance → metrics) — see [clinical-validation.md](./clinical-validation.md) Stage B.  
-5. Optionally use **MIMIC-IV-Data-Pipeline** only if we need their cohort UI / multimodal tensors for a separate ML experiment — do not conflate with streaming alert claims.
+2. Follow the frozen MIMIC protocol: [`mimic-iv-study-protocol.md`](./mimic-iv-study-protocol.md).  
+3. Obtain full MIMIC-IV DUA access.  
+4. Use **mimic-code** for stay cohorts + sepsis (or AKI) labels; document MIMIC version + concept SHAs.  
+5. Build a Curie “MIMIC eval harness” (stay timeline → envelopes → score → governance → metrics) — CURIE-015 / [clinical-validation.md](./clinical-validation.md) Stage B.  
+6. Optionally use **MIMIC-IV-Data-Pipeline** only if we need their cohort UI / multimodal tensors for a separate ML experiment — do not conflate with streaming alert claims.
 
 ---
 

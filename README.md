@@ -151,6 +151,9 @@ Reports naive vs governed (watch ∪ page) and interruptive page metrics vs `Sep
 Tracked in detail in [`docs/phases.md`](docs/phases.md). The active, Cursor-ready engineering
 backlog is [`docs/implementation-backlog.md`](docs/implementation-backlog.md). Clinical validity
 (separate from engineering CI): [`docs/clinical-validation.md`](docs/clinical-validation.md).
+Cross-project LLM workflows with
+[`curie-fhir`](https://github.com/sreeram843/curie-fhir) are documented in
+[`docs/llm-workflows.md`](docs/llm-workflows.md).
 
 | Phase | Goal | Status |
 |---|---|---|

@@ -291,8 +291,8 @@ this as another bespoke job.
 
 **Acceptance criteria**
 
-- [ ] The new indicator needs no dashboard-specific rendering path.
-- [ ] It participates in the shared episode arbiter and governance layer.
+- [x] The new indicator needs no dashboard-specific rendering path.
+- [x] It participates in the shared episode arbiter and governance layer.
 
 ---
 
@@ -310,9 +310,13 @@ margin, ablations, subgroup analyses, bootstrap unit, and missing-data analyses.
 
 **Acceptance criteria**
 
-- [ ] The protocol identifies one primary endpoint and operating-point selection rule.
-- [ ] The test split cannot be used by sweep/tuning commands.
-- [ ] Product claims are mapped to the evidence required to support them.
+- [x] The protocol identifies one primary endpoint and operating-point selection rule.
+- [x] The test split cannot be used by sweep/tuning commands.
+- [x] Product claims are mapped to the evidence required to support them.
+
+**Artifacts:** [`docs/mimic-iv-study-protocol.md`](./mimic-iv-study-protocol.md),
+[`eval/mimic_study/frozen/protocol.v1.json`](../eval/mimic_study/frozen/protocol.v1.json),
+`python -m eval.mimic_study.sweep`.
 
 ### CURIE-015 — Build a leakage-safe MIMIC timeline harness [P0]
 
@@ -404,6 +408,63 @@ the corresponding evidence.
 
 ---
 
+## Milestone 6 — Cross-project LLM workflows
+
+Detailed designs, safety boundaries, and metrics are in
+[`llm-workflows.md`](llm-workflows.md). `curie-fhir` owns normalization, candidate extraction,
+validation, and interface review; this project owns deterministic surveillance, episode state,
+alert routing, and post-decision explanation.
+
+### CURIE-022 — Define the trusted clinical-fact bridge [P1]
+
+Create a versioned envelope shared with `curie-fhir` containing clinical and availability times,
+trust status, source spans, validation results, extraction provenance, and a stable idempotency key.
+Reject or quarantine candidate facts, unknown schemas, failed validation, and missing provenance.
+
+**Acceptance criteria**
+
+- [ ] Both projects validate the same contract fixtures.
+- [ ] LLM-derived and deterministic facts are distinguishable in audit output.
+- [ ] Only trusted facts can mutate scoring state.
+
+### CURIE-023 — Build grounded patient-episode narratives [P1]
+
+Extend the current Guarded Reasoning Pipeline from individual alerts to immutable patient-episode
+snapshots. Require sentence-level evidence IDs, missing-data disclosure, routing rationale, model
+and prompt versions, abstention, quarantine, timeout, and prompt-injection tests.
+
+**Acceptance criteria**
+
+- [ ] Narrative failure cannot delay or change alert delivery.
+- [ ] Every displayed clinical claim maps to allowed episode evidence.
+- [ ] Unsupported or malformed output is quarantined and audited.
+
+### CURIE-024 — Add LLM feedback classification for alert stewardship [P2]
+
+Classify acknowledgement and dismissal feedback into a reviewed taxonomy. Aggregate findings by
+site, service, indicator, rule version, and routing lane. Generate offline replay experiment
+proposals only; never mutate active rules.
+
+**Acceptance criteria**
+
+- [ ] Classification performance is measured against dual-reviewed feedback.
+- [ ] Every suggested rule change is evaluated through a frozen replay manifest.
+- [ ] Human approval is required before activation.
+
+### CURIE-025 — Evaluate uncertainty-band contextual reasoning [P2]
+
+Define a frozen eligibility policy for borderline/conflicting cases and evaluate source-grounded
+context and mimic extraction retrospectively. Start as passive decision support and prohibit the
+LLM from suppressing or escalating deterministic alerts.
+
+**Acceptance criteria**
+
+- [ ] The study reports sensitivity, PPV, alert burden, unsupported claims, abstention, and
+  subgroup performance.
+- [ ] No interruptive routing depends on the LLM during retrospective or shadow evaluation.
+
+---
+
 ## Recommended first five Cursor tasks
 
 Run these as separate changes in this order:
@@ -425,4 +486,3 @@ make flink-test
 
 Then rerun the frozen configuration only as a regression report—not as another opportunity to tune
 against Challenge set B.
-
