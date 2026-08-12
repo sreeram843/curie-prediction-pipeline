@@ -11,11 +11,27 @@ from action.api.app.store import STORE, seed_demo_alerts
 def setup_function() -> None:
     STORE.clear()
     seed_demo_alerts(STORE)
+    # Reset kill switches left by CURIE-018 tests
+    from action.api.app.ops import KILL_SWITCHES
+
+    KILL_SWITCHES.update(
+        {
+            "alerts_ingest": True,
+            "interruptive_lane": True,
+            "passive_lane": True,
+            "explain_lane": True,
+            "extract_lane": True,
+        }
+    )
 
 
 def test_health() -> None:
     client = TestClient(app)
-    assert client.get("/health").json()["status"] == "ok"
+    body = client.get("/health").json()
+    assert body["status"] == "ok"
+    ready = client.get("/ready").json()
+    assert ready["status"] == "ready"
+    assert "flags" in ready
 
 
 def test_list_and_acknowledge() -> None:

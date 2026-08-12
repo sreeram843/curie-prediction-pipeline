@@ -222,7 +222,11 @@ Useful Make targets: `up`, `up-full`, `down`, `logs`, `topics`, `test`, `lint`, 
 
 This prototype does not touch real patients or real PHI. Do not describe it as clinically validated, FDA-cleared, or ready for deployment. Public writeups should frame it as an architecture/engineering exploration on synthetic data, with clinical validation (T5) explicitly out of scope. See [`docs/clinical-validation.md`](docs/clinical-validation.md) for the planned validity test matrix.
 
-**Demo API is not internet-safe:** `action/api` uses `allow_origins=["*"]`, no authentication, and an in-memory alert store. Fine for local prototype only — do not expose it publicly or copy that posture into a real deployment.
+**Demo API security (CURIE-018):** Wildcard CORS is refused in production; development
+defaults to localhost origins only. Set `CURIE_ENV=production` with `CURIE_API_KEYS`
+(and TLS at the proxy via `CURIE_TLS_TERMINATED=true`) before any non-local exposure.
+See [`docs/security-observability.md`](docs/security-observability.md). Durable alerts:
+`CURIE_ALERT_DB` / [`docs/durable-alert-store.md`](docs/durable-alert-store.md).
 
 Lower-risk positioning order if this becomes a company: (1) synthetic replay / event infrastructure, (2) FHIR streaming integration, (3) explainable decision-support *with customer-specific validation*, (4) unstructured extraction / administrative APIs.
 

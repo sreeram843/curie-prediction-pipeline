@@ -1,21 +1,38 @@
-"""Curie alert API — list, detail, acknowledge, additive GRP explain. Prototype only."""
+"""Curie alert API — secure ops boundaries (CURIE-018). Prototype only."""
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from action.api.app.alerts_consumer import start_alerts_consumer_if_configured, stop_alerts_consumer
+from action.api.app.alerts_consumer import (
+    start_alerts_consumer_if_configured,
+    stop_alerts_consumer,
+)
+from action.api.app.logging_config import configure_phi_safe_logging
 from action.api.app.models import (
     AcknowledgeRequest,
     AcknowledgeResponse,
     AlertRecord,
     MetricsSummary,
+)
+from action.api.app.ops import (
+    KILL_SWITCHES,
+    OPS_COUNTERS,
+    build_ops_status,
+)
+from action.api.app.security import (
+    PUBLIC_PATHS,
+    constant_time_key_match,
+    get_security_settings,
+    reset_security_settings,
+    role_for_principal,
 )
 from action.api.app.store import STORE
 from ingestion.extraction.adapter import extract_note_to_fhir
@@ -23,18 +40,119 @@ from ingestion.extraction.models import ExtractionResult
 from ingestion.extraction.settings import settings
 from reasoning.pipeline import explain_alert
 
+logger = logging.getLogger(__name__)
+
 DASHBOARD_DIR = Path(__file__).resolve().parents[2] / "dashboard"
 
 app = FastAPI(
     title="Curie Prediction Pipeline API",
-    version="0.3.0",
+    version="0.4.0",
     description="Prototype only — synthetic data, not for clinical use.",
 )
 
 
+def _principal_from_headers(
+    authorization: str | None,
+    x_api_key: str | None,
+) -> str | None:
+    sec = get_security_settings()
+    keys = sec.api_key_set()
+    token = None
+    if x_api_key:
+        token = x_api_key.strip()
+    elif authorization and authorization.lower().startswith("bearer "):
+        token = authorization.split(" ", 1)[1].strip()
+    if token and constant_time_key_match(token, keys):
+        return token
+    # Optional OIDC: accept Bearer tokens only when issuer configured and token
+    # matches an allowlisted key OR insecure-dev JWT decode is enabled.
+    if token and sec.oidc_issuer and _oidc_token_acceptable(token):
+        return f"oidc:{hash(token) & 0xFFFFFFFF:x}"
+    return None
+
+
+def _oidc_token_acceptable(token: str) -> bool:
+    """Prototype OIDC gate — full JWKS verification is a deployment concern."""
+    import os
+
+    sec = get_security_settings()
+    # Allowlisted opaque tokens still work via api_keys; here we only do a
+    # structural JWT check when insecure-dev is explicitly enabled.
+    if os.getenv("CURIE_OIDC_INSECURE_DEV", "").lower() not in {"1", "true", "yes"}:
+        return False
+    parts = token.split(".")
+    if len(parts) != 3:
+        return False
+    try:
+        import base64
+        import json
+
+        pad = "=" * (-len(parts[1]) % 4)
+        payload = json.loads(base64.urlsafe_b64decode(parts[1] + pad))
+    except Exception:
+        return False
+    if sec.oidc_issuer and payload.get("iss") != sec.oidc_issuer:
+        return False
+    if sec.oidc_audience and payload.get("aud") not in {
+        sec.oidc_audience,
+        [sec.oidc_audience],
+    }:
+        aud = payload.get("aud")
+        if aud != sec.oidc_audience and (
+            not isinstance(aud, list) or sec.oidc_audience not in aud
+        ):
+            return False
+    return True
+
+
+class Principal(BaseModel):
+    id: str
+    role: str
+
+
+async def require_auth(
+    authorization: str | None = Header(default=None),
+    x_api_key: str | None = Header(default=None, alias="X-API-Key"),
+) -> Principal | None:
+    sec = get_security_settings()
+    if not sec.auth_required:
+        return None
+    principal = _principal_from_headers(authorization, x_api_key)
+    if not principal:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    return Principal(id=principal, role=role_for_principal(principal))
+
+
+def require_ops(principal: Principal | None = Depends(require_auth)) -> Principal | None:
+    sec = get_security_settings()
+    if not sec.auth_required:
+        return principal
+    assert principal is not None
+    if principal.role not in {"ops", "admin"}:
+        raise HTTPException(status_code=403, detail="Ops role required")
+    return principal
+
+
 @app.on_event("startup")
 def _startup() -> None:
+    configure_phi_safe_logging()
+    reset_security_settings()
+    sec = get_security_settings()
+    problems = sec.validate_production_posture()
+    if problems:
+        msg = "; ".join(problems)
+        logger.error("Production security posture invalid: %s", msg)
+        raise RuntimeError(f"CURIE-018 security gate: {msg}")
+    KILL_SWITCHES.reload()
     start_alerts_consumer_if_configured()
+    logger.info(
+        "API started env=%s auth_required=%s cors=%s tenant=%s site=%s",
+        sec.env,
+        sec.auth_required,
+        sec.cors_origin_list(),
+        sec.tenant_id,
+        sec.site_id,
+    )
 
 
 @app.on_event("shutdown")
@@ -42,12 +160,36 @@ def _shutdown() -> None:
     stop_alerts_consumer()
 
 
+_sec_boot = get_security_settings()
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=_sec_boot.cors_origin_list(),
+    allow_credentials=False,
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["Authorization", "X-API-Key", "Content-Type"],
 )
+
+
+@app.middleware("http")
+async def enforce_auth_middleware(request: Request, call_next):
+    path = request.url.path
+    if path in PUBLIC_PATHS or path.startswith("/static"):
+        return await call_next(request)
+    # Dashboard HTML is local-only; still require auth in production for API JSON.
+    sec = get_security_settings()
+    if not sec.auth_required:
+        return await call_next(request)
+    if path == "/" and request.method == "GET" and not sec.is_production:
+        return await call_next(request)
+    principal = _principal_from_headers(
+        request.headers.get("authorization"),
+        request.headers.get("x-api-key"),
+    )
+    if not principal:
+        return JSONResponse({"detail": "Authentication required"}, status_code=401)
+    request.state.principal = principal
+    request.state.role = role_for_principal(principal)
+    return await call_next(request)
 
 
 class ExtractRequest(BaseModel):
@@ -64,11 +206,44 @@ class ExplainRequest(BaseModel):
     )
 
 
+class KillSwitchPatch(BaseModel):
+    alerts_ingest: bool | None = None
+    interruptive_lane: bool | None = None
+    passive_lane: bool | None = None
+    explain_lane: bool | None = None
+    extract_lane: bool | None = None
+    indicators: dict[str, bool] | None = None
+    bundles: dict[str, bool] | None = None
+
+
+class LagUpdate(BaseModel):
+    kafka_lag_seconds: float | None = None
+    flink_watermark_lag_seconds: float | None = None
+    dlq_depth: int | None = None
+
+
 @app.get("/health")
 def health() -> dict[str, object]:
+    """Liveness probe — no auth, no dependency checks."""
+    return {"status": "ok", "service": "curie-api"}
+
+
+@app.get("/ready")
+def ready() -> dict[str, object]:
+    """Readiness — store reachable + kill switches loaded."""
+    try:
+        _ = STORE.metrics()
+        switches = KILL_SWITCHES.get()
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=503, detail=f"not ready: {exc}") from exc
+    sec = get_security_settings()
     return {
-        "status": "ok",
+        "status": "ready",
         "service": "curie-api",
+        "env": sec.env,
+        "auth_required": sec.auth_required,
+        "kill_switches_loaded": True,
+        "alerts_ingest_enabled": switches.alerts_ingest,
         "flags": {
             "enable_extraction": settings.enable_extraction,
             "enable_grp": settings.enable_grp,
@@ -78,12 +253,54 @@ def health() -> dict[str, object]:
     }
 
 
+@app.get("/ops/status")
+def ops_status(_auth: Principal | None = Depends(require_auth)) -> dict:
+    """Operator snapshot: active bundles, lag, rates, kill switches, alarms."""
+    return build_ops_status(STORE, get_security_settings())
+
+
+@app.get("/ops/kill-switches")
+def get_kill_switches(_auth: Principal | None = Depends(require_ops)) -> dict:
+    return KILL_SWITCHES.get().to_dict()
+
+
+@app.post("/ops/kill-switches")
+def patch_kill_switches(
+    body: KillSwitchPatch,
+    _auth: Principal | None = Depends(require_ops),
+) -> dict:
+    """Disable/enable lanes or indicators without redeploying."""
+    patch = body.model_dump(exclude_none=True)
+    updated = KILL_SWITCHES.update(patch)
+    logger.info("Kill switches updated keys=%s", sorted(patch.keys()))
+    return updated.to_dict()
+
+
+@app.post("/ops/lag")
+def update_lag(
+    body: LagUpdate,
+    _auth: Principal | None = Depends(require_ops),
+) -> dict:
+    """Ingest lag gauges from an external scraper / Flink sidecar."""
+    OPS_COUNTERS.set_lag(
+        kafka_lag_seconds=body.kafka_lag_seconds,
+        flink_watermark_lag_seconds=body.flink_watermark_lag_seconds,
+        dlq_depth=body.dlq_depth,
+    )
+    return {
+        "kafka_lag_seconds": OPS_COUNTERS.kafka_lag_seconds,
+        "flink_watermark_lag_seconds": OPS_COUNTERS.flink_watermark_lag_seconds,
+        "dlq_depth": OPS_COUNTERS.dlq_depth,
+    }
+
+
 @app.get("/alerts", response_model=list[AlertRecord])
 def list_alerts(
     include_acknowledged: bool = Query(default=True),
     patient_id: str | None = Query(default=None),
     limit: int = Query(default=100, ge=1, le=1000),
     offset: int = Query(default=0, ge=0),
+    _auth: Principal | None = Depends(require_auth),
 ) -> list[AlertRecord]:
     return STORE.list(
         include_acknowledged=include_acknowledged,
@@ -94,7 +311,9 @@ def list_alerts(
 
 
 @app.get("/alerts/{alert_id}", response_model=AlertRecord)
-def get_alert(alert_id: str) -> AlertRecord:
+def get_alert(
+    alert_id: str, _auth: Principal | None = Depends(require_auth)
+) -> AlertRecord:
     alert = STORE.get(alert_id)
     if alert is None:
         raise HTTPException(status_code=404, detail="Alert not found")
@@ -102,7 +321,11 @@ def get_alert(alert_id: str) -> AlertRecord:
 
 
 @app.post("/alerts/{alert_id}/acknowledge", response_model=AcknowledgeResponse)
-def acknowledge_alert(alert_id: str, body: AcknowledgeRequest | None = None) -> AcknowledgeResponse:
+def acknowledge_alert(
+    alert_id: str,
+    body: AcknowledgeRequest | None = None,
+    _auth: Principal | None = Depends(require_auth),
+) -> AcknowledgeResponse:
     note = body.note if body else None
     alert = STORE.acknowledge(alert_id, note=note)
     if alert is None:
@@ -116,8 +339,14 @@ def acknowledge_alert(alert_id: str, body: AcknowledgeRequest | None = None) -> 
 
 
 @app.post("/alerts/{alert_id}/explain", response_model=AlertRecord)
-def explain_alert_endpoint(alert_id: str, body: ExplainRequest | None = None) -> AlertRecord:
+def explain_alert_endpoint(
+    alert_id: str,
+    body: ExplainRequest | None = None,
+    _auth: Principal | None = Depends(require_auth),
+) -> AlertRecord:
     """Additive GRP narrative. Does not change score/tier. Feature-flagged."""
+    if not KILL_SWITCHES.get().explain_lane:
+        raise HTTPException(status_code=503, detail="explain_lane disabled by kill switch")
     alert = STORE.get(alert_id)
     if alert is None:
         raise HTTPException(status_code=404, detail="Alert not found")
@@ -133,15 +362,18 @@ def explain_alert_endpoint(alert_id: str, body: ExplainRequest | None = None) ->
         model_name=decision.model_name,
     )
     assert updated is not None
-    # Hard invariant: score unchanged
     assert updated.score == alert.score
     assert updated.tier == alert.tier
     return updated
 
 
 @app.post("/extract", response_model=ExtractionResult)
-def extract_endpoint(body: ExtractRequest) -> ExtractionResult:
+def extract_endpoint(
+    body: ExtractRequest, _auth: Principal | None = Depends(require_auth)
+) -> ExtractionResult:
     """Text→FHIR extraction. Never fires alerts."""
+    if not KILL_SWITCHES.get().extract_lane:
+        raise HTTPException(status_code=503, detail="extract_lane disabled by kill switch")
     return extract_note_to_fhir(
         body.note_text,
         note_id=body.note_id,
@@ -151,16 +383,14 @@ def extract_endpoint(body: ExtractRequest) -> ExtractionResult:
 
 
 @app.get("/indicators")
-def list_indicator_bundles() -> list[dict]:
-    """Rule bundles with an installed scorer plugin (CURIE-011)."""
+def list_indicator_bundles(_auth: Principal | None = Depends(require_auth)) -> list[dict]:
     from eval.indicators.registry import list_indicators
 
     return list_indicators(installed_only=True)
 
 
 @app.get("/plugins")
-def list_indicator_plugins() -> list[dict]:
-    """Registered indicator plugins (score.type → runtime mapping)."""
+def list_indicator_plugins(_auth: Principal | None = Depends(require_auth)) -> list[dict]:
     from eval.indicators.plugin import list_plugins
 
     return [p.to_public_dict() for p in list_plugins()]
@@ -170,8 +400,8 @@ def list_indicator_plugins() -> list[dict]:
 def list_episodes(
     patient_id: str | None = Query(default=None),
     limit: int = Query(default=100, ge=1, le=1000),
+    _auth: Principal | None = Depends(require_auth),
 ) -> list[dict]:
-    """Patient episodes (CURIE-012 cross-condition arbitration)."""
     return [
         e.to_public_dict()
         for e in STORE.list_episodes(patient_id=patient_id, limit=limit)
@@ -179,7 +409,9 @@ def list_episodes(
 
 
 @app.get("/episodes/{episode_id}")
-def get_episode(episode_id: str) -> dict:
+def get_episode(
+    episode_id: str, _auth: Principal | None = Depends(require_auth)
+) -> dict:
     episode = STORE.get_episode(episode_id)
     if episode is None:
         raise HTTPException(status_code=404, detail="Episode not found")
@@ -187,7 +419,7 @@ def get_episode(episode_id: str) -> dict:
 
 
 @app.get("/metrics", response_model=MetricsSummary)
-def metrics() -> MetricsSummary:
+def metrics(_auth: Principal | None = Depends(require_auth)) -> MetricsSummary:
     return STORE.metrics()
 
 

@@ -383,9 +383,12 @@ metrics, DLQ monitoring, rule-activation audit, alert-volume alarms, and kill sw
 
 **Acceptance criteria**
 
-- [ ] No prototype service is internet-accessible with wildcard CORS and no authentication.
-- [ ] Operators can identify the active bundle, processing lag, missing-data rate, and alert rate.
-- [ ] A rule or alert lane can be disabled without redeploying code.
+- [x] No prototype service is internet-accessible with wildcard CORS and no authentication.
+- [x] Operators can identify the active bundle, processing lag, missing-data rate, and alert rate.
+- [x] A rule or alert lane can be disabled without redeploying code.
+
+**Artifacts:** [`docs/security-observability.md`](./security-observability.md),
+`GET /ops/status`, `POST /ops/kill-switches`.
 
 ### CURIE-019 — Add standards-based integration boundary [P2]
 

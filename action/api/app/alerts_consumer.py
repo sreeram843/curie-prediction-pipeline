@@ -10,6 +10,7 @@ from datetime import datetime
 from typing import Any
 
 from action.api.app.models import AlertRecord, alert_from_dict
+from action.api.app.ops import KILL_SWITCHES, OPS_COUNTERS
 from action.api.app.store import STORE
 
 logger = logging.getLogger(__name__)
@@ -103,9 +104,32 @@ def _loop(bootstrap: str, group_id: str, clear_demo: bool) -> None:
                 STORE.clear()
                 cleared = True
                 logger.info("Cleared demo alerts before first live upsert")
+            switches = KILL_SWITCHES.get()
+            if not switches.alerts_ingest:
+                OPS_COUNTERS.note_ingest(suppressed=True)
+                consumer.commit(message=msg, asynchronous=False)
+                continue
+            if not switches.indicator_enabled(record.indicator):
+                OPS_COUNTERS.note_ingest(suppressed=True)
+                consumer.commit(message=msg, asynchronous=False)
+                continue
+            if not switches.bundle_enabled(record.rule_bundle_id):
+                OPS_COUNTERS.note_ingest(suppressed=True)
+                consumer.commit(message=msg, asynchronous=False)
+                continue
+            if not switches.routing_allowed(record.routing):
+                # Downgrade interruptive → drop page; keep as suppressed ingest metric.
+                if record.routing == "interruptive" and switches.passive_lane:
+                    record.routing = "passive"
+                    record.page_deferred_reason = "kill_switch_interruptive_lane"
+                else:
+                    OPS_COUNTERS.note_ingest(suppressed=True)
+                    consumer.commit(message=msg, asynchronous=False)
+                    continue
             key = _idempotency_key(msg, payload, record)
             try:
                 STORE.ingest_kafka(record, idempotency_key=key)
+                OPS_COUNTERS.note_ingest(suppressed=False)
             except Exception:
                 logger.exception(
                     "Durable upsert failed for %s; not committing offset",
