@@ -3,8 +3,8 @@
 **Status:** Operating point locked on holdout setB (2026-08-11) — eval task track complete  
 **Harness:** `make challenge-2019` / `challenge-2019-sweep` / `challenge-2019-robustness`  
 **Data:** PhysioNet Challenge 2019 under `data/archive/` (ODbL; cite PhysioNet)  
-**Frozen config:** [`eval/challenge2019/frozen/p1_setA_winner.json`](../eval/challenge2019/frozen/p1_setA_winner.json)  
-**Related:** [clinical-validation.md](./clinical-validation.md), [sofa-contract.md](./sofa-contract.md)
+**Frozen config:** [`eval/challenge2019/frozen/p1_setA_winner.json`](../../eval/challenge2019/frozen/p1_setA_winner.json)
+**Related:** [clinical-validation.md](./clinical-validation.md), [sofa-contract.md](../contracts/sofa-contract.md)
 
 > This is a **retrospective offline** evaluation of Curie SOFA + governance against Challenge `SepsisLabel`. It is **not** clinical validation, FDA evidence, or the official Challenge utility score.
 
@@ -20,14 +20,14 @@
 | Detection | **Primary:** any alert in `[label_start−12h, label_start+6h]` (`window_m12_p6`, CURIE-004). Legacy grace≤6h is sensitivity analysis only. |
 | Burden | **Interruptive** (urgent/critical) pages only |
 | Label | Challenge `SepsisLabel` begins **~6h before clinical onset**; `onset_iculos` = **label_start** |
-| Timing freeze | [`eval/challenge2019/frozen/timing_primary.v1.json`](../eval/challenge2019/frozen/timing_primary.v1.json) |
+| Timing freeze | [`eval/challenge2019/frozen/timing_primary.v1.json`](../../eval/challenge2019/frozen/timing_primary.v1.json) |
 
 ### Holdout setB (n = 20,000) — primary `window_m12_p6`
 
 Pinned artifact:
-[`eval/challenge2019/frozen/holdout_primary_window_m12_p6.v1.json`](../eval/challenge2019/frozen/holdout_primary_window_m12_p6.v1.json).
+[`eval/challenge2019/frozen/holdout_primary_window_m12_p6.v1.json`](../../eval/challenge2019/frozen/holdout_primary_window_m12_p6.v1.json).
 Miss attribution stub:
-[`eval/challenge2019/frozen/miss_analysis.v1.json`](../eval/challenge2019/frozen/miss_analysis.v1.json).
+[`eval/challenge2019/frozen/miss_analysis.v1.json`](../../eval/challenge2019/frozen/miss_analysis.v1.json).
 
 | Metric | Point | Notes |
 |---|---|---|
@@ -227,7 +227,7 @@ Reproduce: `JOBS=5 LIMIT=0 make challenge-2019-robustness`
 - [ ] Compare Challenge-tuned governance on MIMIC labels (external-style check)  
 - [ ] See [clinical-validation.md](./clinical-validation.md) Stages B–E
 - [ ] Data/tooling map: [mimic-data-sources.md](./mimic-data-sources.md)
-- [x] Deploy frozen page-gate governance into Flink rule bundle (`sepsis-sofa.v0.3.0`) — see [runtime-gov-parity.md](./runtime-gov-parity.md)
+- [x] Deploy frozen page-gate governance into Flink rule bundle (`sepsis-sofa.v0.3.0`) — see [runtime-gov-parity.md](../governance/runtime-gov-parity.md)
 - [x] Resolved Challenge study artifact (`sepsis-sofa.challenge2019-p1.v1`) with SHA-256 gate — **product v0.3.0 is not identical** (product `min_components_required=3`; study uses **2**)
 
 ---

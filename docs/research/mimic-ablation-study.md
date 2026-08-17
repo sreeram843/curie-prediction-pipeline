@@ -2,8 +2,8 @@
 
 **Status:** Demo-schema locked study — regenerable via one command  
 **Runner:** `make mimic-study` / `python -m eval.mimic_study.study run`  
-**Frozen:** [`eval/mimic_study/frozen/operating_point.v1.json`](../eval/mimic_study/frozen/operating_point.v1.json),
-[`eval/mimic_study/frozen/study_manifest.v1.json`](../eval/mimic_study/frozen/study_manifest.v1.json)  
+**Frozen:** [`eval/mimic_study/frozen/operating_point.v1.json`](../../eval/mimic_study/frozen/operating_point.v1.json),
+[`eval/mimic_study/frozen/study_manifest.v1.json`](../../eval/mimic_study/frozen/study_manifest.v1.json)
 **Protocol:** [`mimic-iv-study-protocol.md`](./mimic-iv-study-protocol.md)
 
 > Synthetic demo-schema only. Not Stage B clinical results. Do not retune on the test split.

@@ -1128,7 +1128,7 @@ async function loadClaims() {
     claimsEl.innerHTML = `
       <div class="section-title-row">
         <h2>Claims matrix</h2>
-        <p class="hint">Investor posture · not regulatory · see docs/claims-matrix.md</p>
+        <p class="hint">Investor posture · not regulatory · see docs/research/claims-matrix.md</p>
       </div>
       <div class="claims-grid">
         ${groups

@@ -7,7 +7,7 @@
 
 ## Envelope (v1)
 
-Minimum fields match [`llm-workflows.md`](./llm-workflows.md):
+Minimum fields match [`llm-workflows.md`](../llm-workflows.md):
 
 | Field | Role |
 |---|---|

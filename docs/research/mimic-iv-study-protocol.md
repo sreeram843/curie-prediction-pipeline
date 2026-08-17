@@ -1,7 +1,7 @@
 # MIMIC-IV governance study protocol v1 (CURIE-014)
 
 **Status:** Frozen 2026-08-12 — pre-registered before temporal holdout inspection  
-**Machine-readable:** [`eval/mimic_study/frozen/protocol.v1.json`](../eval/mimic_study/frozen/protocol.v1.json)  
+**Machine-readable:** [`eval/mimic_study/frozen/protocol.v1.json`](../../eval/mimic_study/frozen/protocol.v1.json)
 **Guards:** `python -m eval.mimic_study.sweep show`  
 **Related:** [clinical-validation.md](./clinical-validation.md), [mimic-data-sources.md](./mimic-data-sources.md), [challenge-2019-eval.md](./challenge-2019-eval.md)
 

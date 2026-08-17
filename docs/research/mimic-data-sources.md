@@ -2,7 +2,7 @@
 
 **Purpose:** Capture what each external MIMIC-related resource is for, so Stage B / later eval work does not re-derive this from chat history.  
 **Status:** Planning notes — none of these replace PhysioNet credentialed access + DUA.  
-**Related:** [clinical-validation.md](./clinical-validation.md), [challenge-2019-eval.md](./challenge-2019-eval.md), [physionet-project-form.md](./physionet-project-form.md) (paste-ready PhysioNet project fields)
+**Related:** [clinical-validation.md](./clinical-validation.md), [challenge-2019-eval.md](./challenge-2019-eval.md)
 
 ---
 

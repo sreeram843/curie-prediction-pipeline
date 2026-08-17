@@ -131,7 +131,7 @@ def _challenge_card() -> dict[str, Any]:
         primary_source = "eval/challenge2019/frozen/p1_setA_winner.json (setA)"
 
     legacy_holdout = {
-        "source": "docs/challenge-2019-eval.md · legacy grace≤6h holdout",
+        "source": "docs/research/challenge-2019-eval.md · legacy grace≤6h holdout",
         "window_note": (
             "Sensitivity analysis only. Primary detection is window_m12_p6 "
             "(CURIE-004)."
@@ -193,7 +193,7 @@ def _challenge_card() -> dict[str, Any]:
         "metrics_source": primary_source,
         "published_holdout": legacy_holdout,
         "holdout_label": "Legacy sensitivity (grace≤6h)",
-        "docs": "docs/challenge-2019-eval.md",
+        "docs": "docs/research/challenge-2019-eval.md",
         "artifacts": [
             "eval/challenge2019/frozen/p1_setA_winner.json",
             "eval/challenge2019/frozen/timing_primary.v1.json",
@@ -260,7 +260,7 @@ def _investor_card() -> dict[str, Any]:
                 ),
             ),
         ],
-        "docs": "docs/investor-demo.md",
+        "docs": "docs/research/claims-matrix.md",
         "artifacts": ["eval/investor_demo/frozen/demo_report.v1.json"],
         "reproduce": "make investor-demo",
     }
@@ -318,7 +318,7 @@ def _stewardship_card() -> dict[str, Any]:
                 ),
             ),
         ],
-        "docs": "docs/alert-stewardship.md",
+        "docs": "docs/governance/alert-stewardship.md",
         "artifacts": [
             "eval/stewardship/frozen/replay_manifest.v1.json",
             "eval/stewardship/fixtures/dual_reviewed.v1.json",
@@ -383,7 +383,7 @@ def _uncertainty_card() -> dict[str, Any]:
                 "How often the assistant refuses rather than inventing context.",
             ),
         ],
-        "docs": "docs/uncertainty-band.md",
+        "docs": "docs/governance/uncertainty-band.md",
         "artifacts": [
             "eval/uncertainty/frozen/study_report.v1.json",
             "eval/uncertainty/frozen/eligibility_policy.v1.json",
@@ -437,7 +437,7 @@ def _mimic_card() -> dict[str, Any]:
                 "Interruptive burden rule planned for Stage B.",
             ),
         ],
-        "docs": "docs/mimic-data-sources.md",
+        "docs": "docs/research/mimic-data-sources.md",
         "artifacts": [
             "eval/mimic_study/frozen/protocol.v1.json",
             "eval/mimic_study/frozen/operating_point.v1.json",
@@ -482,7 +482,7 @@ def _manuscript_card() -> dict[str, Any]:
                 "Count of hashed study artifacts listed in the manifest.",
             ),
         ],
-        "docs": "docs/manuscript-package.md",
+        "docs": "docs/research/manuscript-package.md",
         "artifacts": ["eval/manuscript/frozen/reproducibility_manifest.v1.json"],
         "reproduce": "make manuscript",
     }

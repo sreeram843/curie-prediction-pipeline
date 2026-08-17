@@ -1,7 +1,7 @@
 # Claims matrix (CURIE-021)
 
-**Machine-readable:** [`eval/investor_demo/frozen/claims_matrix.v1.json`](../eval/investor_demo/frozen/claims_matrix.v1.json)  
-**Related:** [`investor-demo.md`](./investor-demo.md), [`manuscript-package.md`](./manuscript-package.md)
+**Machine-readable:** [`eval/investor_demo/frozen/claims_matrix.v1.json`](../../eval/investor_demo/frozen/claims_matrix.v1.json)
+**Related:** [`manuscript-package.md`](./manuscript-package.md)
 
 This is an **investor/demo communication matrix**, not a regulatory claims matrix.
 

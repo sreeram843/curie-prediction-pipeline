@@ -167,7 +167,7 @@ def cohort_flow() -> dict[str, Any]:
             "setA_sepsis_stays": set_a.get("sepsis_stays"),
             "setA_non_sepsis_stays": set_a.get("non_sepsis_stays"),
             "holdout_stays_documented": 20000,
-            "note": "Holdout row-level outputs are not committed; cite docs/challenge-2019-eval.md",
+            "note": "Holdout outputs are not committed; cite docs/research/challenge-2019-eval.md",
         },
         "mimic_iv_protocol": {
             "protocol_id": protocol.get("protocol_id"),
@@ -388,10 +388,10 @@ def build_manifest() -> dict[str, Any]:
         "claim_tiers": claim_tiers(),
         "cohort_flow": cohort_flow(),
         "methods_pins": {
-            "protocol_doc": "docs/mimic-iv-study-protocol.md",
-            "challenge_eval_doc": "docs/challenge-2019-eval.md",
-            "clinical_validation_doc": "docs/clinical-validation.md",
-            "manuscript_doc": "docs/manuscript-package.md",
+            "protocol_doc": "docs/research/mimic-iv-study-protocol.md",
+            "challenge_eval_doc": "docs/research/challenge-2019-eval.md",
+            "clinical_validation_doc": "docs/research/clinical-validation.md",
+            "manuscript_doc": "docs/research/manuscript-package.md",
             "rule_selection": "Forbidden on temporal test / Challenge setB",
         },
     }

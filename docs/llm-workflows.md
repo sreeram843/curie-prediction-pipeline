@@ -280,14 +280,14 @@ ordering.
 1. **LLM-WF-02:** deterministic-first router in `curie-fhir`.
 2. **LLM-WF-03:** provenance-preserving candidate-fact schema.
 3. **Cross-project bridge:** trusted event envelope and contract tests — see
-   [`trusted-clinical-fact-bridge.md`](trusted-clinical-fact-bridge.md) (CURIE-022).
+   [`trusted-clinical-fact-bridge.md`](operations/trusted-clinical-fact-bridge.md) (CURIE-022).
 4. **LLM-WF-05:** human-review workbench and feedback capture.
 5. **LLM-WF-06:** grounded patient-episode narrative in the prediction pipeline.
 6. **LLM-WF-01:** mapping proposal and deterministic compiler workflow.
 7. **LLM-WF-09:** feedback analytics and offline rule experiments — see
-   [`alert-stewardship.md`](alert-stewardship.md) (CURIE-024).
+   [`alert-stewardship.md`](governance/alert-stewardship.md) (CURIE-024).
 8. **LLM-WF-04/07/08/10:** only after their validation datasets and governance are ready.
-   LLM-WF-07 uncertainty-band passive study: [`uncertainty-band.md`](uncertainty-band.md)
+   LLM-WF-07 uncertainty-band passive study: [`uncertainty-band.md`](governance/uncertainty-band.md)
    (CURIE-025).
 
 ## Release gates for an LLM workflow

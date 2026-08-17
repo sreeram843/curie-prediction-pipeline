@@ -2,8 +2,8 @@
 
 **Status:** Research writeup skeleton + regenerable artifacts (not a submitted paper)  
 **Builder:** `make manuscript` / `python -m eval.manuscript.package build`  
-**Frozen:** [`eval/manuscript/frozen/reproducibility_manifest.v1.json`](../eval/manuscript/frozen/reproducibility_manifest.v1.json)  
-**Generated tables:** [`eval/manuscript/generated/tables.md`](../eval/manuscript/generated/tables.md)
+**Frozen:** [`eval/manuscript/frozen/reproducibility_manifest.v1.json`](../../eval/manuscript/frozen/reproducibility_manifest.v1.json)
+**Generated tables:** [`eval/manuscript/generated/tables.md`](../../eval/manuscript/generated/tables.md)
 
 > Prototype evaluation package. Separates **retrospective detection**, **alert-policy utility**, and **unproven clinical outcome effects**. Does not claim diagnosis, outcome improvement, clinical validation, or regulatory clearance.
 
@@ -71,7 +71,7 @@ Render publication plots offline from `eval/manuscript/generated/figure_specs.v1
 
 ## 5. Tables
 
-See generated [`tables.md`](../eval/manuscript/generated/tables.md) for:
+See generated [`tables.md`](../../eval/manuscript/generated/tables.md) for:
 
 - Ablation table (demo-schema test)
 - Operating-point / Pareto candidates
@@ -116,5 +116,4 @@ make mimic-study         # regenerate demo study frozen artifacts
 ## 8. Related docs
 
 - [`clinical-validation.md`](./clinical-validation.md) — evidence stages A–F  
-- [`mimic-ablation-study.md`](./mimic-ablation-study.md) — CURIE-016  
-- [`physionet-project-form.md`](./physionet-project-form.md) — citation / DUA posture  
+- [`mimic-ablation-study.md`](./mimic-ablation-study.md) — CURIE-016

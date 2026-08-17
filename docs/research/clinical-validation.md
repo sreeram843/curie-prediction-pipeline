@@ -2,7 +2,7 @@
 
 **Status:** Planning (not started as a clinical study)  
 **Scope:** What evidence we need before any claim of clinical validity  
-**Related:** [prd.md](./prd.md), [phases.md](./phases.md), [sofa-contract.md](./sofa-contract.md), [aki-contract.md](./aki-contract.md)
+**Related:** [sofa-contract.md](../contracts/sofa-contract.md), [aki-contract.md](../contracts/aki-contract.md)
 
 > **Current posture:** This repository is a **prototype**. Engineering tests (golden fixtures, T2 replay, Flink unit tests) prove *deterministic correctness*, not clinical validity. Do not claim FDA clearance, clinical validation, or readiness for patient care until the stages below are completed under appropriate IRB / institutional oversight.
 
@@ -75,7 +75,7 @@ Implement reproducible label pipelines (cite methods papers; version the code):
 | Indicator | Candidate label | Notes |
 |---|---|---|
 | Sepsis | Sepsis-3 (infection suspicion + SOFA rise) | Need onset time, not just billing codes |
-| AKI | KDIGO creatinine and/or UO staging | Align windows with [aki-contract.md](./aki-contract.md) |
+| AKI | KDIGO creatinine and/or UO staging | Align windows with [aki-contract.md](../contracts/aki-contract.md) |
 | Optional severity | ICU mortality, vasopressor start, ventilation | Useful secondary endpoints |
 
 - [ ] Label code reviewed and frozen  
@@ -204,7 +204,7 @@ For each indicator (sepsis, AKI), on **holdout** stays:
 ## 9. Open decisions (resolved by CURIE-014)
 
 Frozen protocol: [`mimic-iv-study-protocol.md`](./mimic-iv-study-protocol.md) /
-[`eval/mimic_study/frozen/protocol.v1.json`](../eval/mimic_study/frozen/protocol.v1.json).
+[`eval/mimic_study/frozen/protocol.v1.json`](../../eval/mimic_study/frozen/protocol.v1.json).
 
 | Decision | Resolution |
 |---|---|

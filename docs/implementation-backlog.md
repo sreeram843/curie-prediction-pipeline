@@ -6,7 +6,7 @@ MIMIC-IV evaluation, and safe to operate as a commercial shadow-mode prototype b
 the product surface.
 
 This is the working engineering backlog. The clinical study design remains in
-`[clinical-validation.md](clinical-validation.md)`.
+`[research/clinical-validation.md](research/clinical-validation.md)`.
 
 ## How to use this backlog
 
@@ -62,7 +62,7 @@ configuration unless all fields match, including `min_components_required`.
 - `eval/challenge2019/runner.py`
 - `eval/replay_harness/gov_profiles.py`
 - `streaming/rule-registry/bundles/`
-- `docs/challenge-2019-eval.md`
+- `docs/research/challenge-2019-eval.md`
 
 **Acceptance criteria**
 
@@ -118,7 +118,7 @@ explicit rollback command is used.
 - `eval/challenge2019/bootstrap.py`
 - `eval/challenge2019/runner.py`
 - `eval/challenge2019/test_utility.py`
-- `docs/challenge-2019-eval.md`
+- `docs/research/challenge-2019-eval.md`
 
 **Acceptance criteria**
 
@@ -355,7 +355,7 @@ margin, ablations, subgroup analyses, bootstrap unit, and missing-data analyses.
 - [x] The test split cannot be used by sweep/tuning commands.
 - [x] Product claims are mapped to the evidence required to support them.
 
-**Artifacts:** `[docs/mimic-iv-study-protocol.md](./mimic-iv-study-protocol.md)`,
+**Artifacts:** `[docs/research/mimic-iv-study-protocol.md](./research/mimic-iv-study-protocol.md)`,
 `[eval/mimic_study/frozen/protocol.v1.json](../eval/mimic_study/frozen/protocol.v1.json)`,
 `python -m eval.mimic_study.sweep`.
 
@@ -375,7 +375,7 @@ margin, ablations, subgroup analyses, bootstrap unit, and missing-data analyses.
 - [x] Automated leakage tests fail when future information is introduced.
 - [x] Repeated runs produce identical output hashes.
 
-**Artifacts:** `[docs/mimic-timeline-harness.md](./mimic-timeline-harness.md)`,
+**Artifacts:** `[docs/research/mimic-timeline-harness.md](./research/mimic-timeline-harness.md)`,
 `python -m eval.mimic_harness.runner` / `make mimic-harness`.
 
 ### CURIE-016 — Run the locked MIMIC ablation and robustness study [P1]
@@ -394,7 +394,7 @@ performance, and patient-level confidence intervals.
 - [x] The locked temporal holdout is executed once for the primary result.
 - [x] All tables can be regenerated from one versioned command or manifest.
 
-**Artifacts:** `[docs/mimic-ablation-study.md](./mimic-ablation-study.md)`,
+**Artifacts:** `[docs/research/mimic-ablation-study.md](./research/mimic-ablation-study.md)`,
 `make mimic-study` / `python -m eval.mimic_study.study run`.
 
 ---
@@ -417,7 +417,7 @@ tests, retention rules, and bounded query pagination.
 - [x] Duplicate Kafka delivery cannot create a duplicate alert or episode transition.
 - [x] Metrics are not silently truncated at 10,000 records.
 
-**Artifacts:** `[docs/durable-alert-store.md](./durable-alert-store.md)`,
+**Artifacts:** `[docs/operations/durable-alert-store.md](./operations/durable-alert-store.md)`,
 `CURIE_ALERT_DB=… make api`.
 
 ### CURIE-018 — Add production security and observability boundaries [P1]
@@ -432,7 +432,7 @@ metrics, DLQ monitoring, rule-activation audit, alert-volume alarms, and kill sw
 - [x] Operators can identify the active bundle, processing lag, missing-data rate, and alert rate.
 - [x] A rule or alert lane can be disabled without redeploying code.
 
-**Artifacts:** `[docs/security-observability.md](./security-observability.md)`,
+**Artifacts:** `[docs/operations/security-observability.md](./operations/security-observability.md)`,
 `GET /ops/status`, `POST /ops/kill-switches`.
 
 ### CURIE-019 — Add standards-based integration boundary [P2]
@@ -446,7 +446,7 @@ boundary. Keep EHR-specific integration outside the scoring and governance core.
 - [x] CDS Hooks discovery + `patient-view` cards expose governed alerts without rescoring.
 - [x] CDS Hooks feedback maps to acknowledge and cannot change score/tier.
 
-**Artifacts:** `[docs/cds-hooks-integration.md](./cds-hooks-integration.md)`,
+**Artifacts:** `[docs/operations/cds-hooks-integration.md](./operations/cds-hooks-integration.md)`,
 `GET /cds-services`, `GET /alerts/{id}/fhir-evidence`.
 
 ---
@@ -473,7 +473,7 @@ effects.
 - [x] Claim tiers separate retrospective detection, alert-policy utility, and unproven outcomes.
 - [x] Reproducibility manifest regenerates without embedding protected MIMIC extracts (`make manuscript` / `phi-scan`).
 
-**Artifacts:** `[docs/manuscript-package.md](./manuscript-package.md)`,
+**Artifacts:** `[docs/research/manuscript-package.md](./research/manuscript-package.md)`,
 `make manuscript`, `eval/manuscript/frozen/reproducibility_manifest.v1.json`.
 
 ### CURIE-021 — Build the investor demonstration and claims matrix [P1]
@@ -494,8 +494,7 @@ the corresponding evidence.
 - [x] Claims matrix uses demonstrated / under_evaluation / not_claimed and forbids diagnosis,
   outcome, clinical-validation, and regulatory claims without evidence.
 
-**Artifacts:** `[docs/investor-demo.md](./investor-demo.md)`,
-`[docs/claims-matrix.md](./claims-matrix.md)`, `make investor-demo`.
+**Artifacts:** `[docs/research/claims-matrix.md](./research/claims-matrix.md)`, `make investor-demo`.
 
 ---
 
@@ -520,7 +519,7 @@ Reject or quarantine candidate facts, unknown schemas, failed validation, and mi
 - [x] LLM-derived and deterministic facts are distinguishable in audit output.
 - [x] Only trusted facts can mutate scoring state.
 
-**Artifacts:** `[docs/trusted-clinical-fact-bridge.md](./trusted-clinical-fact-bridge.md)`,
+**Artifacts:** `[docs/operations/trusted-clinical-fact-bridge.md](./operations/trusted-clinical-fact-bridge.md)`,
 `ingestion/bridge/`, `make trusted-fact-bridge`,
 `curie-fhir` `src/curie_fhir/contracts/trusted_clinical_fact/`.
 
@@ -536,7 +535,7 @@ and prompt versions, abstention, quarantine, timeout, and prompt-injection tests
 - [x] Every displayed clinical claim maps to allowed episode evidence.
 - [x] Unsupported or malformed output is quarantined and audited.
 
-**Artifacts:** [`docs/episode-narratives.md`](./episode-narratives.md),
+**Artifacts:** [`docs/governance/episode-narratives.md`](./governance/episode-narratives.md),
 `POST /episodes/{id}/explain`, `reasoning/episode_*.py`.
 
 
@@ -553,7 +552,7 @@ proposals only; never mutate active rules.
 - [x] Every suggested rule change is evaluated through a frozen replay manifest.
 - [x] Human approval is required before activation.
 
-**Artifacts:** [`docs/alert-stewardship.md`](./alert-stewardship.md),
+**Artifacts:** [`docs/governance/alert-stewardship.md`](./governance/alert-stewardship.md),
 `make stewardship`, `eval/stewardship/`.
 
 
@@ -570,7 +569,7 @@ LLM from suppressing or escalating deterministic alerts.
   subgroup performance.
 - [x] No interruptive routing depends on the LLM during retrospective or shadow evaluation.
 
-**Artifacts:** [`docs/uncertainty-band.md`](./uncertainty-band.md),
+**Artifacts:** [`docs/governance/uncertainty-band.md`](./governance/uncertainty-band.md),
 `make uncertainty-band`, `eval/uncertainty/`.
 
 ---
@@ -603,7 +602,7 @@ patient, encounter, partition, or replay.
 - [x] Restart before and after timer registration produces identical output and DLQ records.
 
 **Likely files:** `SofaAlertFunction.java`, `EventTimeBuffer.java`, Flink operator tests,
-`docs/event-time-policy.md`.
+`docs/governance/event-time-policy.md`.
 
 ### CURIE-027 — Apply the same deterministic ordering policy to AKI [P0 · READY]
 

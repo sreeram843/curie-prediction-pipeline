@@ -95,7 +95,7 @@ def test_protocol_summary_stable_keys() -> None:
 
 def test_docs_protocol_exists() -> None:
     root = Path(__file__).resolve().parents[2]
-    doc = root / "docs" / "mimic-iv-study-protocol.md"
+    doc = root / "docs" / "research" / "mimic-iv-study-protocol.md"
     assert doc.is_file()
     text = doc.read_text()
     assert "PE-1" in text

@@ -305,7 +305,7 @@ def _register_builtins() -> None:
             fixture_paths=("eval/fixtures/golden/hemo_cases.v0.1.json",),
             notes=(
                 "CURIE-036 surveillance phenotype — not a shock diagnosis. "
-                "See docs/indicator-four-selection.md."
+                "See docs/contracts/indicator-four-selection.md."
             ),
         )
     )

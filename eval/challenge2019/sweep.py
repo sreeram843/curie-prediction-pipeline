@@ -1,6 +1,6 @@
 """Task 5: tune governance on training_setA, freeze winner, score training_setB.
 
-Selection goals (from docs/challenge-2019-eval.md §4):
+Selection goals (from docs/research/challenge-2019-eval.md §4):
   Primary: governed_sensitivity ≥ naive_sensitivity − 0.10 (or ≥ 0.70 absolute)
   Co-primary burden: interruptive_reduction_ratio ≤ 0.25 (pages vs naive);
     falls back to alert_reduction_ratio when page gate is off
