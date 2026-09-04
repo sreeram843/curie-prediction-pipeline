@@ -56,7 +56,7 @@ flowchart LR
 
 | Component | Where | What it does |
 |---|---|---|
-| Ingestion adapters | `ingestion/adapters/` | Synthea, MIMIC demo, Challenge 2019 → canonical envelopes |
+| Ingestion adapters | `ingestion/adapters/` | Synthea, MIMIC demo, MIMIC FHIR demo, eICU demo, SYN-ICU, Challenge 2019 → canonical / demo-schema stays |
 | Canonical envelope | `ingestion/envelope/` | One validated schema every source projects onto |
 | Trusted-fact bridge | `ingestion/bridge/` | Admit/quarantine/reject clinical facts from `curie-fhir` |
 | Kafka | `infra/docker-compose.yml` | Event backbone; topics `observations|conditions|medications|alerts|rules|dlq` |
@@ -83,16 +83,16 @@ flowchart LR
 ## Structural invariants (why it's shaped this way)
 
 - **Governance is the product, not the score.** The publishable contribution is the shared layer that
-  decides *whether to interrupt*, reused by every indicator. See ADR-0004.
-- **LLM never on the alert path.** The deterministic alert ships with or without the model. See ADR-0001.
+  decides *whether to interrupt*, reused by every indicator. See ADR-0001.
+- **LLM never on the alert path.** The deterministic alert ships with or without the model. See ADR-0002.
 - **Two runtimes, one behavior.** Every scorer has a Python reference and a Java/Flink implementation that
-  must match byte-for-byte on fixtures (parity gate, CI). See ADR-0002.
+  must match byte-for-byte on fixtures (parity gate, CI). See ADR-0004.
 - **Deterministic over real-time.** Event-time ordering + allowed lateness, not arrival order, decide
-  scores and governance. See ADR-0003.
+  scores and governance. See ADR-0005.
 - **Versioned rules, semver, never "latest" in production.** Every alert carries its rule version + hash.
-  See ADR-0005.
+  See ADR-0003.
 - **Indicators are plugins, not new infrastructure.** A new condition is a rule bundle + plugin, not a new
-  job or dashboard branch. See ADR-0006.
+  job or dashboard branch. See ADR-0007.
 
 ## Kafka topics
 

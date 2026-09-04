@@ -26,6 +26,10 @@ make up / up-full / down          # Docker Compose (Kafka :9092, Flink UI :8081,
 make rules                        # publish active rule bundles to Kafka (runs parity gate first)
 make replay / replay-aki          # T2 replay harness → alert-reduction metric
 make api                          # uvicorn on :8000 (host dev; use up-full for container)
+make challenge-2019               # PhysioNet Challenge 2019 eval (data/archive)
+make mimic                        # credentialed MIMIC-IV 3.1 SOFA/AKI smoke (CURIE_MIMIC_DIR)
+make challenge-2019-paper-analyses # setB comparators/ablation/miss/CIs (never retune)
+make manuscript / paper-tables    # frozen reproducibility package + paper/tables from JSON
 ```
 
 - Single test: `pytest -q eval/sofa/test_scoring.py::TestX::test_y` (any pytest path/selector works).
@@ -43,6 +47,7 @@ make api                          # uvicorn on :8000 (host dev; use up-full for 
 **Frozen study artifacts — never edit in place.** Create a new version and keep its hash:
 `eval/challenge2019/frozen/`, `eval/mimic_study/frozen/`, `eval/investor_demo/frozen/`,
 `eval/manuscript/frozen/`, `eval/fixtures/golden/` (golden fixtures change only alongside a scorer change).
+Generated paper tables (`paper/tables/`) are rebuilt from those sidecars (`make paper-tables`); do not hand-edit them.
 
 **Rule registry:** `streaming/rule-registry/bundles/<id>.v<semver>.json` + `activation.json`.
 
@@ -108,5 +113,9 @@ add/update fixtures in `eval/fixtures/golden/` and the matching Java test.
 - Settings load via pydantic-settings with `env_prefix="CURIE_"` and `env_file=".env"`; `.env` is
   gitignored, copy from `.env.example`.
 - `data/` and `.tools/` are gitignored local artifacts. Optional evals need externally placed data:
-  MIMIC-IV demo at `data/mimic-iv-demo/` (`make mimic-demo`), Challenge 2019 at `data/archive/`
-  (`make challenge-2019`), overridable via `CURIE_MIMIC_DEMO_DIR` / `CURIE_CHALLENGE2019_DIR`.
+  MIMIC-IV demo at `data/mimic-iv-demo/` (`make mimic-demo`), credentialed MIMIC-IV 3.1 via
+  `CURIE_MIMIC_DIR` (`make mimic`), Challenge 2019 at `data/archive/`
+  (`make challenge-2019 / challenge-2019-sweep / challenge-2019-paper-analyses`), eICU demo at `data/eicu-crd-demo/`, MIMIC-IV FHIR demo at
+  `data/mimic-iv-fhir-demo/`, SYN-ICU at `data/syn-icu/` (`make syn-icu`). Suite:
+  `make open-eval`. Overridable via `CURIE_MIMIC_DIR` / `CURIE_MIMIC_DEMO_DIR` / `CURIE_CHALLENGE2019_DIR` /
+  `CURIE_EICU_DEMO_DIR` / `CURIE_MIMIC_FHIR_DEMO_DIR` / `CURIE_SYN_ICU_DIR`.

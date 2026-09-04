@@ -1,8 +1,8 @@
 # Challenge 2019 sepsis alert evaluation
 
 **Status:** Operating point locked on holdout setB (2026-08-11) — eval task track complete  
-**Harness:** `make challenge-2019` / `challenge-2019-sweep` / `challenge-2019-robustness`  
-**Data:** PhysioNet Challenge 2019 under `data/archive/` (ODbL; cite PhysioNet)  
+**Harness:** `make challenge-2019` / `challenge-2019-sweep` / `challenge-2019-robustness` / `challenge-2019-paper-analyses`  
+**Data:** PhysioNet Challenge 2019 under `data/archive/` (CC-BY 4.0; cite PhysioNet)  
 **Frozen config:** [`eval/challenge2019/frozen/p1_setA_winner.json`](../../eval/challenge2019/frozen/p1_setA_winner.json)
 **Related:** [clinical-validation.md](./clinical-validation.md), [sofa-contract.md](../contracts/sofa-contract.md)
 
@@ -24,10 +24,13 @@
 
 ### Holdout setB (n = 20,000) — primary `window_m12_p6`
 
-Pinned artifact:
-[`eval/challenge2019/frozen/holdout_primary_window_m12_p6.v1.json`](../../eval/challenge2019/frozen/holdout_primary_window_m12_p6.v1.json).
-Miss attribution stub:
-[`eval/challenge2019/frozen/miss_analysis.v1.json`](../../eval/challenge2019/frozen/miss_analysis.v1.json).
+Pinned artifacts:
+[`holdout_primary_window_m12_p6.v1.json`](../../eval/challenge2019/frozen/holdout_primary_window_m12_p6.v1.json)
+(point estimates) and
+[`holdout_primary_window_m12_p6.v2.json`](../../eval/challenge2019/frozen/holdout_primary_window_m12_p6.v2.json)
+(stay-level 95% CIs). Miss attribution:
+[`miss_analysis.v2.json`](../../eval/challenge2019/frozen/miss_analysis.v2.json)
+(setB FNs; do not quote synthetic `miss_analysis.v1.json`).
 
 | Metric | Point | Notes |
 |---|---|---|
@@ -219,7 +222,21 @@ Reproduce: `JOBS=5 LIMIT=0 make challenge-2019-robustness`
 
 - [ ] Better vent proxy from Challenge columns  
 - [ ] Miss analysis: sample FN stays (governed) — trajectory vs baseline vs refractory vs insufficient components  
-- [x] Dual-tier: count **watch** as detection for sensitivity, **urgent/critical** for interruptive NNA  (`alerts.watch_total` / `interruptive_*` in runner) 
+- [x] Dual-tier: count **watch** as detection for sensitivity, **urgent/critical** for interruptive NNA  (`alerts.watch_total` / `interruptive_*` in runner)
+- [x] SetB miss attribution from governed in-window FNs (`miss_analysis.v2.json`; no stay identifiers)
+
+### Phase P5 — Methods-paper analyses (Challenge 2019 only)
+
+- [x] Threshold-only **SIRS / NEWS2 / qSOFA** comparators on the same detection window
+- [x] Frozen-winner **ablation** on setB (no retune): persist / crossings / baseline / refractory / page gate
+- [x] Stay-level bootstrap CIs on `window_m12_p6` (`holdout_primary_window_m12_p6.v2.json`)
+- [x] Named-profile Pareto on setA plus frozen winner (`pareto_named_profiles.v1.json`)
+
+```bash
+make challenge-2019-paper-analyses   # LIMIT=0 default; writes frozen sidecars
+```
+
+Does **not** retune on setB. MIMIC-IV remains Stage B (P4). 
 
 ### Phase P4 — Path to stronger validity (later)
 

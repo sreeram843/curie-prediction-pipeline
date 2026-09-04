@@ -23,7 +23,7 @@ Nothing below **generates** MIMIC patients. They process or derive from data you
 | Dataset | Access | Curie use today | Later use |
 |---|---|---|---|
 | **MIMIC-IV Clinical Database Demo** | Open (no credential) | `data/mimic-iv-demo/` → `make mimic-demo` | Smoke / plumbing only |
-| **MIMIC-IV** (full hosp + icu) | Credentialed + DUA | Not yet | Stage B retrospective eval |
+| **MIMIC-IV** (full hosp + icu) | Credentialed + DUA | `CURIE_MIMIC_DIR` → `make mimic` (SOFA/AKI smoke; not Stage B labels) | Stage B retrospective eval |
 | **MIMIC-IV-Note**, **MIMIC-CXR**, ECG/echo/wave | Credentialed (per project) | Not used | Optional multimodal; out of core Curie path |
 | **PhysioNet Challenge 2019** | Local `data/archive/` | Primary sepsis alert eval | Keep as labeled hourly proxy |
 
@@ -34,7 +34,7 @@ PhysioNet home: https://mimic.mit.edu · Challenge / MIMIC project pages on http
 | Resource | What it is | Curie fit |
 |---|---|---|
 | **[KHDP](https://khdp.net)** (Korea Health Data Platform / SNUH) | Secure cloud platform for Korean healthcare research data; hosts / gates **K-MIMIC**-related ICU resources | Optional **external** eval later (different country, care patterns). Does **not** replace PhysioNet CITI for MIMIC-IV. |
-| **Synthetic K-MIMIC (SYN-ICU)** via KHDP | Downloadable synthetic Korean ICU tables (see KHDP data catalog / [SYN-ICU](https://khdp.net/database/data-search-detail/SYN-ICU)) | Easiest KHDP on-ramp for plumbing experiments; not US MIMIC labels; needs a new Curie adapter if used |
+| **Synthetic K-MIMIC (SYN-ICU)** via KHDP | Downloadable synthetic Korean ICU tables (see KHDP data catalog / [SYN-ICU](https://khdp.net/database/data-search-detail/SYN-ICU)) | Easiest KHDP on-ramp for plumbing experiments; not US MIMIC labels; Curie adapter: `make syn-icu` (`ingestion/adapters/syn_icu/`) |
 
 **SYN-ICU download (what to get):** From the KHDP SYN-ICU page, download **all 15** `.xlsx` tables (MIMIC-IV–like schema, synthetic). Community ETL expects them together ([K-MIMIC-MEDS](https://github.com/ji-ch01/K-MIMIC-MEDS)):
 
@@ -108,10 +108,15 @@ mimiciv/
 | Path / command | Role |
 |---|---|
 | `data/mimic-iv-demo/` (+ `CURIE_MIMIC_DEMO_DIR`) | Open demo CSVs |
+| `CURIE_MIMIC_DIR` + `make mimic` | Credentialed MIMIC-IV 3.1 (`hosp` + `icu`); plumbing / smoke only |
 | `make mimic-demo` | Score SOFA/AKI rules on demo stays — **not** clinical validity |
 | `data/archive/` + `make challenge-2019` | Labeled hourly sepsis eval (~40k stays) |
 | `ingestion/adapters/mimic/` | Demo extract → Curie inputs |
 | `ingestion/adapters/challenge2019/` | Challenge stays → Curie inputs |
+| `data/syn-icu/` + `make syn-icu` | SYN-ICU (synthetic K-MIMIC) → demo-schema harness (plumbing only) |
+| `data/eicu-crd-demo/` | Open eICU demo CSVs (PhysioNet) |
+| `data/mimic-iv-fhir-demo/` | Open MIMIC-IV demo on FHIR (NDJSON) |
+| `make open-eval` | Run every local open/synthetic set; Challenge 2019 is the only labeled detection card |
 
 Do **not** commit PhysioNet dumps or derived patient-level extracts to git (`data/` is gitignored).
 

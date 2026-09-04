@@ -11,6 +11,8 @@
    episode status, page counts, dominant signal, scores, or routing.
 3. Every claim must cite evidence IDs present on the frozen episode snapshot.
 4. Outputs record `prompt_version` (`episode-narrative.v1`) and `snapshot_hash`.
+5. `CURIE_GRP_BACKEND=openai_compat` uses the same OpenAI-compatible model as alert GRP.
+   The default backend remains the deterministic stub for CI / offline tests.
 
 ## What the narrative includes
 

@@ -38,6 +38,7 @@ Full commands (replay, parity, rules, Flink tests, optional MIMIC/Challenge eval
 | Governance, episodes, event-time policies | [`docs/governance/`](docs/governance/) |
 | Security, store, integrations, identity | [`docs/operations/`](docs/operations/) |
 | Clinical validation + study protocols | [`docs/research/`](docs/research/) |
+| Challenge 2019 methods paper | [`paper/`](paper/) |
 | The active engineering backlog | [`docs/implementation-backlog.md`](docs/implementation-backlog.md) |
 | Cross-project LLM workflow roadmap | [`docs/llm-workflows.md`](docs/llm-workflows.md) |
 | How to contribute | [`CONTRIBUTING.md`](CONTRIBUTING.md) |
