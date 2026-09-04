@@ -1,0 +1,6 @@
+mode_id,definition,naive_sensitivity,governed_sensitivity
+grace_0,first alert at or before label_start,0.563,0.563
+grace_6,first alert at or before label_start + 6 hours,0.811,0.811
+grace_12,first alert at or before label_start + 12 hours,0.846,0.846
+early_only,first alert before label_start,0.548,0.548
+window_pm12,"any alert in [label_start - 12 hours, label_start + 12 hours]",0.833,0.833

@@ -1,0 +1,117 @@
+{
+  "architecture_mermaid": "flowchart LR\n  A[Clinical events] --> B[Kafka]\n  B --> C[Flink deterministic partial SOFA]\n  R[Versioned rule bundle] --> C\n  C --> G[Shared governance]\n  G --> W[Passive watch emission]\n  G --> P[Interruptive emission]\n  P -. post-alert only .-> L[Optional LLM narrative]\n",
+  "cohort_flow_mermaid": "flowchart LR\n  A[Challenge setA: 20,336 stays] --> B[Tune governance]\n  B --> C[Freeze p1_setA_winner]\n  C --> D[Challenge setB: 20,000 stays]\n  D --> E[Primary window_m12_p6 results]\n",
+  "operating_point": {
+    "title": "Named profiles plus frozen winner (setA, window_m12_p6)",
+    "x": "interruptive_reduction_ratio",
+    "y": "governed_sensitivity",
+    "points": [
+      {
+        "candidate_id": "strict",
+        "governed_sensitivity": 0.06815642458100558,
+        "interruptive_reduction_ratio": 0.02364048072361293,
+        "interruptive_sensitivity": 0.06815642458100558,
+        "selected": false
+      },
+      {
+        "candidate_id": "balanced",
+        "governed_sensitivity": 0.12681564245810056,
+        "interruptive_reduction_ratio": 0.07526822880303723,
+        "interruptive_sensitivity": 0.12625698324022347,
+        "selected": false
+      },
+      {
+        "candidate_id": "sensitive",
+        "governed_sensitivity": 0.8759776536312849,
+        "interruptive_reduction_ratio": 0.1609146385185241,
+        "interruptive_sensitivity": 0.3888268156424581,
+        "selected": false
+      },
+      {
+        "candidate_id": "accuracy",
+        "governed_sensitivity": 0.8759776536312849,
+        "interruptive_reduction_ratio": 0.1609146385185241,
+        "interruptive_sensitivity": 0.3888268156424581,
+        "selected": false
+      },
+      {
+        "candidate_id": "dual",
+        "governed_sensitivity": 0.8759776536312849,
+        "interruptive_reduction_ratio": 0.12251536914246035,
+        "interruptive_sensitivity": 0.3245810055865922,
+        "selected": false
+      },
+      {
+        "candidate_id": "grid_p0_r90_b0",
+        "governed_sensitivity": 0.8759776536312849,
+        "interruptive_reduction_ratio": 0.12251536914246035,
+        "interruptive_sensitivity": 0.3245810055865922,
+        "selected": true
+      }
+    ],
+    "note": "Not the full 23-candidate setA grid. The selected point remains grid_p0_r90_b0 from the original sweep. This figure places that point among named profiles."
+  },
+  "timing": {
+    "title": "Primary setB timing window",
+    "label_start_semantics": "PhysioNet Challenge 2019 SepsisLabel begins approximately six hours before clinical sepsis onset. Treat onset_iculos as label_start, not bedside clinical onset.",
+    "primary_window": {
+      "mode": "window",
+      "before_hours": 12,
+      "after_hours": 6,
+      "rule": "any_alert_hour in [label_start - before_hours, label_start + after_hours]",
+      "detection_mode_id": "window_m12_p6"
+    },
+    "holdout": {
+      "n_stays": 20000,
+      "governed_sensitivity": 0.795,
+      "mean_lead_hours_in_window": 5.97
+    }
+  },
+  "robustness": {
+    "title": "SetB detection-definition robustness",
+    "rows": [
+      {
+        "detection_mode_id": "grace_0",
+        "definition": "first alert at or before label_start",
+        "naive_sensitivity": 0.563,
+        "governed_sensitivity": 0.563,
+        "role": "sensitivity_analysis",
+        "ranking_stable": true
+      },
+      {
+        "detection_mode_id": "grace_6",
+        "definition": "first alert at or before label_start + 6 hours",
+        "naive_sensitivity": 0.811,
+        "governed_sensitivity": 0.811,
+        "role": "sensitivity_analysis",
+        "ranking_stable": true
+      },
+      {
+        "detection_mode_id": "grace_12",
+        "definition": "first alert at or before label_start + 12 hours",
+        "naive_sensitivity": 0.846,
+        "governed_sensitivity": 0.846,
+        "role": "sensitivity_analysis",
+        "ranking_stable": true
+      },
+      {
+        "detection_mode_id": "early_only",
+        "definition": "first alert before label_start",
+        "naive_sensitivity": 0.548,
+        "governed_sensitivity": 0.548,
+        "role": "sensitivity_analysis",
+        "ranking_stable": true
+      },
+      {
+        "detection_mode_id": "window_pm12",
+        "definition": "any alert in [label_start - 12 hours, label_start + 12 hours]",
+        "naive_sensitivity": 0.833,
+        "governed_sensitivity": 0.833,
+        "role": "sensitivity_analysis",
+        "ranking_stable": true
+      }
+    ],
+    "primary_result_not_in_series": "window_m12_p6 governed sensitivity = 79.5%",
+    "note": "The 81.1% grace_6 result is secondary, not primary."
+  }
+}

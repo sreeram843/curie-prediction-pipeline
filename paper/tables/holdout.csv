@@ -1,0 +1,6 @@
+metric,point,ci95,note
+Governed sensitivity (%),79.5,77.0--81.8,Any governed emission in-window
+Interruptive sensitivity (%),34.0,31.3--36.8,Interruptive emission in-window
+Interruptive NNA,106.1,96.2--116.6,Interruptive emissions / interruptive TP stay
+Interruptive / naive emissions,0.132,0.127--0.137,Page-eligible vs threshold-only SOFA
+Mean in-window lead (h),5.97,5.54--6.39,First governed emission to \texttt{label\_start}

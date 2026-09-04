@@ -1,0 +1,84 @@
+\documentclass[10pt]{letter}
+\usepackage[margin=0.85in]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage{setspace}
+\usepackage{hyperref}
+
+\hypersetup{colorlinks=true,urlcolor=blue,linkcolor=black}
+\setlength{\parskip}{0.4em}
+\setlength{\parindent}{0pt}
+\setstretch{1.02}
+
+\makeatletter
+\renewcommand*{\opening}[1]{\vspace*{-1.2em}{\raggedright \toname \\ \toaddress
+  \vspace{1.2em}\par}%
+  \noindent #1\par\vspace{0.6em}}
+\makeatother
+
+\signature{Satya Venkata Ranga Janaki Sriram Mentey\\
+Corresponding Author\\
+8601 Anderson Mill Rd, Apt~722, Austin, TX~78729, USA\\
+E-mail: \href{mailto:srirammentey@ieee.org}{srirammentey@ieee.org}\\
+ORCID: 0009-0007-2681-006X}
+
+\address{Satya Venkata Ranga Janaki Sriram Mentey\\
+8601 Anderson Mill Rd, Apt~722\\
+Austin, TX~78729, USA\\
+\href{mailto:srirammentey@ieee.org}{srirammentey@ieee.org}}
+
+\date{\today}
+
+\begin{document}
+\begin{letter}{Editors\\
+\textit{JAMIA Open}\\
+Oxford University Press}
+
+\opening{Dear Editors,}
+
+Please consider the enclosed manuscript entitled
+
+\begin{center}\itshape
+Governing Interruptions After Deterministic Deterioration Scoring:\\
+A Retrospective Evaluation on PhysioNet Challenge 2019
+\end{center}
+
+for publication as a \textbf{Research and Applications} article in \textit{JAMIA Open}.
+
+\textbf{Significance.}
+Most retrospective deterioration studies treat a positive score as the alert.
+We instead evaluate the interruption decision as a separable, versioned policy
+that runs after a deterministic score and before a page is emitted. Using the
+public PhysioNet/Computing in Cardiology Challenge 2019 dataset, we tuned a
+dual-lane governance policy on setA, froze it with a content hash, and
+evaluated setB once. The governed path matched threshold-only partial-SOFA
+detection (79.5\%, 95\% CI 77.0--81.8) while the interruptive lane emitted
+13.2\% as many alerts. Against hourly SIRS, incomplete NEWS2, and partial
+qSOFA on the same window, and through drop-one mechanism ablations, we
+localize the burden reduction to a 90-minute refractory interval and a page
+gate. We believe this mechanism-level, fully reproducible treatment of alert
+governance fits \textit{JAMIA Open}'s readership in clinical decision support
+and alert fatigue.
+
+\textbf{Originality.}
+This manuscript is entirely original. It has not been copyrighted, published,
+submitted, or accepted for publication elsewhere. No preliminary conference
+version has been published.
+
+\textbf{Human subjects and data.}
+No new human-subjects data were collected. The evaluation uses the publicly
+available, de-identified PhysioNet Challenge 2019 v1.0.0 resource (CC-BY~4.0).
+This is a retrospective offline evaluation against a proxy label, not clinical
+validation. It makes no claim of diagnosis, outcome improvement, external
+validity, or regulatory readiness.
+
+\textbf{Conflicts of interest.}
+The author has no conflicts of interest to disclose.
+
+Thank you for your consideration.
+
+\closing{Sincerely,}
+
+\end{letter}
+\end{document}

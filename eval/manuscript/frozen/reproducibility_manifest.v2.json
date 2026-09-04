@@ -1,0 +1,309 @@
+{
+  "manifest_version": "2.0.0",
+  "package_version": "2.0.0",
+  "curie_ticket": "CURIE-020",
+  "generated_at": "2026-08-29T00:20:11.192670+00:00",
+  "git_sha": "1d8a1117151619e2d34822e365d17a00e30e5233",
+  "regenerate_command": "make manuscript",
+  "module": "python -m eval.manuscript.package build",
+  "supported_claim": "Shared governance reduces interruptive emissions versus threshold-only partial SOFA while preserving retrospective Challenge SepsisLabel detection under a frozen setA-to-setB evaluation.",
+  "result_scope": {
+    "dataset": "physionet-challenge-2019",
+    "version": "1.0.0",
+    "selection_split": "training_setA",
+    "holdout_split": "training_setB",
+    "other_datasets_are_results": false
+  },
+  "phi_policy": {
+    "commits_patient_level_data": false,
+    "allowed": [
+      "Aggregate Challenge metrics",
+      "Rule, timing, fixture, and reproducibility hashes",
+      "Public methods and synthetic implementation checks"
+    ],
+    "forbidden": [
+      "Patient-level extracts or identifiers",
+      "Local Challenge row files",
+      "MIMIC row extracts or note text"
+    ]
+  },
+  "artifact_pins": {
+    "challenge_operating_point": {
+      "path": "eval/challenge2019/frozen/p1_setA_winner.json",
+      "present": true,
+      "role": "result",
+      "sha256": "525e1817a034005fc243b22b6fd5059970610abbc790975fc1d6ecd43e035a5c",
+      "bytes": 2330,
+      "candidate_id": "grid_p0_r90_b0",
+      "name": "p1_setA_winner"
+    },
+    "challenge_holdout_primary": {
+      "path": "eval/challenge2019/frozen/holdout_primary_window_m12_p6.v1.json",
+      "present": true,
+      "role": "result",
+      "sha256": "f776e974e5e8aa08f4b8d0abde2c02944a5963c2a8b6fc8fdd6b3ab5907ebfe6",
+      "bytes": 780,
+      "schema_version": "1.0.0"
+    },
+    "challenge_holdout_primary_ci": {
+      "path": "eval/challenge2019/frozen/holdout_primary_window_m12_p6.v2.json",
+      "present": true,
+      "role": "result",
+      "sha256": "7363bf395df3ffd9de64578ac52c35eea57978d0b0edbbe72001693dda1a4d3a",
+      "bytes": 1448,
+      "schema_version": "2.0.0"
+    },
+    "challenge_timing": {
+      "path": "eval/challenge2019/frozen/timing_primary.v1.json",
+      "present": true,
+      "role": "result",
+      "sha256": "e3234f245cd694ca301d89384da76b1e0b342ac64e48cedca281a8a009088274",
+      "bytes": 1063,
+      "schema_version": "1.0.0",
+      "timing_id": "challenge2019-label-window-m12-p6.v1"
+    },
+    "challenge_robustness": {
+      "path": "eval/challenge2019/frozen/robustness_summary.v1.json",
+      "present": true,
+      "role": "result",
+      "sha256": "14fdfe1f607eb2bf69f353daa706d6befb948e65841aaedec95c0e76691f89eb",
+      "bytes": 1876,
+      "schema_version": "1.0.0",
+      "id": "challenge2019-setB-detection-window-robustness.v1"
+    },
+    "challenge_comparators": {
+      "path": "eval/challenge2019/frozen/comparators_setB_window_m12_p6.v1.json",
+      "present": true,
+      "role": "result",
+      "sha256": "bfb21d66967ff6d5d95e8b2c17f37b102f54e9ff972bbca15a11046bd7a59c83",
+      "bytes": 2067,
+      "schema_version": "1.0.0"
+    },
+    "challenge_ablation": {
+      "path": "eval/challenge2019/frozen/ablation_setB_window_m12_p6.v1.json",
+      "present": true,
+      "role": "result",
+      "sha256": "078cbca1cf8bb75d73496bd90eba5965ae24749e3975f1dc54f819ccedb65b24",
+      "bytes": 5345,
+      "schema_version": "1.0.0"
+    },
+    "challenge_miss_v2": {
+      "path": "eval/challenge2019/frozen/miss_analysis.v2.json",
+      "present": true,
+      "role": "result",
+      "sha256": "2cb2c90fa9ac450cc203b52a16768b3cc3ef32f6d3c3eea413fea23e395d7b7a",
+      "bytes": 1054,
+      "schema_version": "2.0.0",
+      "id": "miss-analysis-v2-setB-replay"
+    },
+    "challenge_pareto": {
+      "path": "eval/challenge2019/frozen/pareto_named_profiles.v1.json",
+      "present": true,
+      "role": "result",
+      "sha256": "49769f9c62298d67dd702311640e1d7a98d4b7def8fb4f096ec943b207d4acfa",
+      "bytes": 1738,
+      "schema_version": "1.0.0"
+    },
+    "challenge_bundle_sha": {
+      "path": "eval/challenge2019/frozen/sepsis-sofa.challenge2019-p1.v1.sha256",
+      "present": true,
+      "role": "result",
+      "sha256": "08ff5a3455c4958ca61346662b6c14b0db379563adb97e268bc4672d4e5e6ac1",
+      "bytes": 65,
+      "digest_file_contents": "a3b8273a84752a6263e30da9762f3a5783b9a5af6c3d8234baabbb1dbdc3655b"
+    },
+    "challenge_bundle": {
+      "path": "eval/challenge2019/frozen/sepsis-sofa.challenge2019-p1.v1.json",
+      "present": true,
+      "role": "result",
+      "sha256": "0cacb4dcc56f62dadcc5d25fa83409e3add069898001c20633e5646c18a85b1d",
+      "bytes": 5760
+    },
+    "sofa_golden_fixtures": {
+      "path": "eval/fixtures/golden/sofa_cases.v0.2.json",
+      "present": true,
+      "role": "methods_appendix",
+      "sha256": "fb922b47271670a695f1029fb7f84e30ac49c975f364abd3e4fe96fc2b5eb364",
+      "bytes": 4116,
+      "schema_version": "1.0.0"
+    },
+    "cross_runtime_parity": {
+      "path": "eval/fixtures/golden/cross_runtime_parity.v1.json",
+      "present": true,
+      "role": "methods_appendix",
+      "sha256": "084020f6de8e05e681554f77bc0111cb4364256a584ffe897cfa7e8fda38131c",
+      "bytes": 5316,
+      "schema_version": "1.0.0",
+      "id": "cross-runtime-parity-v1"
+    },
+    "governance_parity": {
+      "path": "eval/fixtures/golden/governance_parity.v1.json",
+      "present": true,
+      "role": "methods_appendix",
+      "sha256": "d87e11ef1356c5985621d059c9782156d8c6fad89ce4fb7d8e64e24b0c430397",
+      "bytes": 2276,
+      "schema_version": "1.0.0",
+      "id": "governance-parity-v1"
+    },
+    "leakage_harness_fixture": {
+      "path": "eval/fixtures/mimic_harness/demo_schema_stays.v1.json",
+      "present": true,
+      "role": "methods_appendix",
+      "sha256": "1bebfd2ac6a29e96c9aec63e1083242e41ebd08b3687cd89e52cbb893fbb6655",
+      "bytes": 6410,
+      "schema_version": "1.0.0"
+    }
+  },
+  "claim_tiers": {
+    "retrospective_detection": {
+      "status": "demonstrated_on_frozen_public_challenge_holdout",
+      "dataset": "physionet-challenge-2019",
+      "includes": [
+        "Governed sensitivity against Challenge SepsisLabel on setB",
+        "Interruptive-emission sensitivity and NNA on setB",
+        "In-window lead time under frozen window_m12_p6"
+      ],
+      "does_not_include": [
+        "Sepsis diagnosis",
+        "MIMIC-IV or external-site validation",
+        "Prospective clinical performance"
+      ]
+    },
+    "alert_policy_utility": {
+      "status": "demonstrated_retrospectively",
+      "dataset": "physionet-challenge-2019",
+      "includes": [
+        "SetA interruptive-emission reduction versus threshold-only SOFA",
+        "Frozen setA-to-setB operating-point evaluation",
+        "Secondary timing-definition robustness on setB",
+        "SetB ablation of frozen governance knobs (no reselection)",
+        "Hourly SIRS / NEWS2 / qSOFA comparators on the Challenge window"
+      ],
+      "does_not_include": [
+        "Delivered clinician pages",
+        "Workflow adoption or alert acceptance",
+        "Improved patient outcomes"
+      ]
+    },
+    "clinical_outcome_effects": {
+      "status": "not_claimed",
+      "dataset": null,
+      "includes": [],
+      "does_not_include": [
+        "Reduced mortality, organ failure, or treatment delay",
+        "Clinical validation",
+        "FDA clearance or SaMD authorization",
+        "Superiority to NEWS, qSOFA, or commercial CDS"
+      ]
+    }
+  },
+  "cohort_flow": {
+    "dataset": "PhysioNet Challenge 2019 v1.0.0",
+    "selection": {
+      "split": "training_setA",
+      "n_stays": 20336,
+      "sepsis_label_positive_stays": 1790,
+      "sepsis_label_negative_stays": 18546,
+      "role": "tune_and_freeze"
+    },
+    "holdout": {
+      "split": "training_setB",
+      "n_stays": 20000,
+      "role": "primary_holdout_quote_once"
+    },
+    "other_datasets": {
+      "role": "methods_and_adapter_coverage_only",
+      "names": [
+        "MIMIC-IV demo",
+        "eICU demo",
+        "MIMIC-IV FHIR demo",
+        "SYN-ICU",
+        "Synthea"
+      ],
+      "results_metrics_allowed": false
+    }
+  },
+  "results": {
+    "setA": {
+      "role": "selection",
+      "n_stays": 20336,
+      "sepsis_label_positive_stays": 1790,
+      "naive_emissions": 529958,
+      "governed_emissions": 270281,
+      "interruptive_emissions": 64928,
+      "governed_sensitivity": 0.8843575418994414,
+      "interruptive_sensitivity": 0.376536312849162,
+      "interruptive_reduction_ratio": 0.12251536914246035,
+      "candidate_id": "grid_p0_r90_b0",
+      "knobs": {
+        "description": "balanced-grid persist=0 refractory=90 baseline=False",
+        "trajectory_persistence_minutes": 0,
+        "min_crossings": 1,
+        "baseline_enabled": false,
+        "baseline_delta_threshold": 2,
+        "baseline_lookback_hours": 24,
+        "refractory_minutes": 90,
+        "min_components_required": 2,
+        "naive_threshold": null,
+        "page_gate_enabled": true,
+        "page_min_crossings": 2,
+        "page_trajectory_persistence_minutes": 30,
+        "page_min_score_delta": 1,
+        "page_min_positive_components": 2
+      }
+    },
+    "setB": {
+      "role": "primary_holdout",
+      "n_stays": 20000,
+      "detection_mode_id": "window_m12_p6",
+      "governed_sensitivity": 0.795,
+      "interruptive_sensitivity": 0.34,
+      "interruptive_nna": 106.1,
+      "mean_lead_hours_in_window": 5.97,
+      "bootstrap": {
+        "n_boot": 1000,
+        "seed": 42,
+        "governed_sensitivity": {
+          "low": 0.769992973708069,
+          "high": 0.8183503213377757,
+          "mean": 0.795443973063421,
+          "n": 1000
+        },
+        "interruptive_sensitivity": {
+          "low": 0.3130650634428453,
+          "high": 0.3678844519966015,
+          "mean": 0.3399932480324284,
+          "n": 1000
+        },
+        "interruptive_nna": {
+          "low": 96.18248245955687,
+          "high": 116.60393966069141,
+          "mean": 106.20796131781319,
+          "n": 1000
+        },
+        "interruptive_reduction_ratio": {
+          "low": 0.1268437502420125,
+          "high": 0.136826884559816,
+          "mean": 0.13198370525162326,
+          "n": 1000
+        },
+        "mean_lead_hours_governed_in_window": {
+          "low": 5.535567370499772,
+          "high": 6.392730635284218,
+          "mean": 5.963246053373288,
+          "n": 1000
+        }
+      },
+      "unit_note": "Interruptive metrics are emissions, not episode-arbitrated or clinician-delivered pages."
+    }
+  },
+  "methods_pins": {
+    "paper_doc": "paper/DRAFT.md",
+    "package_doc": "paper/REPRODUCIBILITY.md",
+    "challenge_eval_doc": "docs/research/challenge-2019-eval.md",
+    "architecture_doc": "docs/architecture.md",
+    "rule_selection": "Tune on setA; never tune or reselect on setB",
+    "primary_timing": "window_m12_p6"
+  },
+  "content_hash": "203ca3bb0e0ac535089d36ab2f14f9000a5a25197b50f9d296ccd5a56c878d98"
+}

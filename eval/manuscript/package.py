@@ -1,7 +1,8 @@
-"""Research manuscript package builder (CURIE-020).
+"""Challenge 2019 retrospective alert-governance manuscript package.
 
-Assembles methods pins, claim tiers, tables, and figure specs from frozen
-evaluation artifacts. Never reads or embeds PhysioNet MIMIC patient extracts.
+The package has one results dataset: PhysioNet Challenge 2019. Other adapters,
+demo-schema studies, golden fixtures, and parity checks are methods or appendix
+evidence only and never contribute sensitivity or clinical-effect estimates.
 """
 
 from __future__ import annotations
@@ -15,24 +16,54 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-PACKAGE_VERSION = "1.0.0"
+PACKAGE_VERSION = "2.0.0"
+MANIFEST_FILENAME = "reproducibility_manifest.v2.json"
+FIGURE_SPECS_FILENAME = "figure_specs.v2.json"
 ROOT = Path(__file__).resolve().parents[2]
 FROZEN_OUT = Path(__file__).resolve().parent / "frozen"
 GENERATED_OUT = Path(__file__).resolve().parent / "generated"
 
-# Paths relative to repo root — public, non-PHI artifacts only.
-ARTIFACT_PATHS = {
-    "mimic_protocol": "eval/mimic_study/frozen/protocol.v1.json",
-    "mimic_operating_point": "eval/mimic_study/frozen/operating_point.v1.json",
-    "mimic_study_manifest": "eval/mimic_study/frozen/study_manifest.v1.json",
-    "mimic_harness_fixture": "eval/fixtures/mimic_harness/demo_schema_stays.v1.json",
+RESULT_ARTIFACT_PATHS = {
     "challenge_operating_point": "eval/challenge2019/frozen/p1_setA_winner.json",
+    "challenge_holdout_primary": (
+        "eval/challenge2019/frozen/holdout_primary_window_m12_p6.v1.json"
+    ),
+    "challenge_holdout_primary_ci": (
+        "eval/challenge2019/frozen/holdout_primary_window_m12_p6.v2.json"
+    ),
     "challenge_timing": "eval/challenge2019/frozen/timing_primary.v1.json",
-    "challenge_bundle_sha": "eval/challenge2019/frozen/sepsis-sofa.challenge2019-p1.v1.sha256",
-    "challenge_bundle": "eval/challenge2019/frozen/sepsis-sofa.challenge2019-p1.v1.json",
+    "challenge_robustness": "eval/challenge2019/frozen/robustness_summary.v1.json",
+    "challenge_comparators": (
+        "eval/challenge2019/frozen/comparators_setB_window_m12_p6.v1.json"
+    ),
+    "challenge_ablation": (
+        "eval/challenge2019/frozen/ablation_setB_window_m12_p6.v1.json"
+    ),
+    "challenge_miss_v2": "eval/challenge2019/frozen/miss_analysis.v2.json",
+    "challenge_pareto": "eval/challenge2019/frozen/pareto_named_profiles.v1.json",
+    "challenge_bundle_sha": (
+        "eval/challenge2019/frozen/sepsis-sofa.challenge2019-p1.v1.sha256"
+    ),
+    "challenge_bundle": (
+        "eval/challenge2019/frozen/sepsis-sofa.challenge2019-p1.v1.json"
+    ),
 }
 
-# Forbidden in committed manuscript artifacts (PHI / extract leakage).
+APPENDIX_ARTIFACT_PATHS = {
+    "sofa_golden_fixtures": "eval/fixtures/golden/sofa_cases.v0.2.json",
+    "cross_runtime_parity": "eval/fixtures/golden/cross_runtime_parity.v1.json",
+    "governance_parity": "eval/fixtures/golden/governance_parity.v1.json",
+    "leakage_harness_fixture": (
+        "eval/fixtures/mimic_harness/demo_schema_stays.v1.json"
+    ),
+}
+
+ARTIFACT_PATHS = {**RESULT_ARTIFACT_PATHS, **APPENDIX_ARTIFACT_PATHS}
+
+PAPER_PATH = "paper/DRAFT.md"
+PACKAGE_DOC_PATH = "paper/REPRODUCIBILITY.md"
+
+# Forbidden in committed manuscript artifacts (PHI / local extract leakage).
 _PHI_PATTERNS = [
     re.compile(r"\bhadm_id\s*[:=]\s*\d+", re.I),
     re.compile(r"\bsubject_id\s*[:=]\s*\d+", re.I),
@@ -64,41 +95,38 @@ def git_sha() -> str:
 
 
 def load_json(rel: str) -> dict[str, Any]:
-    return json.loads((ROOT / rel).read_text())
+    return json.loads((ROOT / rel).read_text(encoding="utf-8"))
 
 
 def artifact_pins() -> dict[str, Any]:
     pins: dict[str, Any] = {}
     for key, rel in ARTIFACT_PATHS.items():
         path = ROOT / rel
+        tier = "result" if key in RESULT_ARTIFACT_PATHS else "methods_appendix"
         if not path.is_file():
-            pins[key] = {"path": rel, "present": False}
+            pins[key] = {"path": rel, "present": False, "role": tier}
             continue
         entry: dict[str, Any] = {
             "path": rel,
             "present": True,
+            "role": tier,
             "sha256": sha256_file(path),
             "bytes": path.stat().st_size,
         }
         if path.suffix == ".json":
-            try:
-                data = json.loads(path.read_text())
-                if isinstance(data, dict):
-                    for k in (
-                        "protocol_id",
-                        "schema_version",
-                        "study_version",
-                        "manifest_version",
-                        "timing_id",
-                        "candidate_id",
-                        "name",
-                    ):
-                        if k in data:
-                            entry[k] = data[k]
-            except json.JSONDecodeError:
-                entry["json_ok"] = False
+            data = json.loads(path.read_text(encoding="utf-8"))
+            if isinstance(data, dict):
+                for field in (
+                    "schema_version",
+                    "timing_id",
+                    "candidate_id",
+                    "name",
+                    "id",
+                ):
+                    if field in data:
+                        entry[field] = data[field]
         elif path.suffix == ".sha256":
-            entry["digest_file_contents"] = path.read_text().strip()[:80]
+            entry["digest_file_contents"] = path.read_text(encoding="utf-8").strip()
         pins[key] = entry
     return pins
 
@@ -106,388 +134,453 @@ def artifact_pins() -> dict[str, Any]:
 def claim_tiers() -> dict[str, Any]:
     return {
         "retrospective_detection": {
-            "status": "demonstrated_on_public_or_demo_artifacts",
+            "status": "demonstrated_on_frozen_public_challenge_holdout",
+            "dataset": "physionet-challenge-2019",
             "includes": [
-                "Challenge 2019 offline detection sensitivity vs SepsisLabel (setA tune / setB holdout)",  # noqa: E501
-                "Demo-schema MIMIC harness PE-1 plumbing (not Stage B clinical results)",
-                "Deterministic SOFA / governance / episode contracts via golden fixtures",
+                "Governed sensitivity against Challenge SepsisLabel on setB",
+                "Interruptive-emission sensitivity and NNA on setB",
+                "In-window lead time under frozen window_m12_p6",
             ],
             "does_not_include": [
-                "Prospective clinical outcomes",
-                "Mortality or length-of-stay improvement",
+                "Sepsis diagnosis",
+                "MIMIC-IV or external-site validation",
+                "Prospective clinical performance",
             ],
         },
         "alert_policy_utility": {
-            "status": "demonstrated_as_burden_metrics",
+            "status": "demonstrated_retrospectively",
+            "dataset": "physionet-challenge-2019",
             "includes": [
-                "Interruptive reduction ratio vs naive thresholding (Challenge holdout + demo study)",  # noqa: E501
-                "Ablation of governance knobs on demo-schema fixtures",
-                "Passive vs interruptive lane separation (page gate)",
+                "SetA interruptive-emission reduction versus threshold-only SOFA",
+                "Frozen setA-to-setB operating-point evaluation",
+                "Secondary timing-definition robustness on setB",
+                "SetB ablation of frozen governance knobs (no reselection)",
+                "Hourly SIRS / NEWS2 / qSOFA comparators on the Challenge window",
             ],
             "does_not_include": [
-                "Clinician workflow acceptance",
-                "Dismiss-rate improvement in live EHR",
+                "Delivered clinician pages",
+                "Workflow adoption or alert acceptance",
+                "Improved patient outcomes",
             ],
         },
         "clinical_outcome_effects": {
             "status": "not_claimed",
+            "dataset": None,
             "includes": [],
             "does_not_include": [
-                "Reduced mortality, organ failure, or time-to-antibiotics",
-                "Diagnosis of sepsis/AKI",
-                "FDA clearance / SaMD validation",
-                "Superiority to NEWS/qSOFA/vendor CDS",
+                "Reduced mortality, organ failure, or treatment delay",
+                "Clinical validation",
+                "FDA clearance or SaMD authorization",
+                "Superiority to NEWS, qSOFA, or commercial CDS",
             ],
         },
     }
 
 
 def cohort_flow() -> dict[str, Any]:
-    """Logical cohort flow from protocol — aggregate counts only where frozen."""
-    protocol = load_json(ARTIFACT_PATHS["mimic_protocol"])
-    challenge = load_json(ARTIFACT_PATHS["challenge_operating_point"])
-    mimic_manifest = load_json(ARTIFACT_PATHS["mimic_study_manifest"])
-    set_a = (challenge.get("setA") or {}).get("metrics", {}).get("cohort", {})
-    temporal = protocol.get("splits") or {}
-    split_roles = {}
-    for key in ("development", "calibration", "test"):
-        v = temporal.get(key)
-        if isinstance(v, dict):
-            split_roles[key] = {
-                "role": v.get("role"),
-                "intime_range": v.get("intime_range"),
-            }
+    selected = load_json(RESULT_ARTIFACT_PATHS["challenge_operating_point"])
+    set_a = selected.get("setA") or {}
+    metrics = set_a.get("metrics") or {}
+    cohort = metrics.get("cohort") or {}
+    holdout = load_json(RESULT_ARTIFACT_PATHS["challenge_holdout_primary"])
     return {
-        "challenge2019": {
-            "source": "PhysioNet Challenge 2019 training archives (ODbL; local data/ gitignored)",
-            "tune_split": "training_setA",
-            "holdout_split": "training_setB",
-            "setA_stays_scored": set_a.get("stays_scored")
-            or challenge.get("setA", {}).get("stays_scored"),
-            "setA_sepsis_stays": set_a.get("sepsis_stays"),
-            "setA_non_sepsis_stays": set_a.get("non_sepsis_stays"),
-            "holdout_stays_documented": 20000,
-            "note": "Holdout outputs are not committed; cite docs/research/challenge-2019-eval.md",
+        "dataset": "PhysioNet Challenge 2019 v1.0.0",
+        "selection": {
+            "split": "training_setA",
+            "n_stays": cohort.get("stays_scored") or set_a.get("stays_scored"),
+            "sepsis_label_positive_stays": cohort.get("sepsis_stays"),
+            "sepsis_label_negative_stays": cohort.get("non_sepsis_stays"),
+            "role": "tune_and_freeze",
         },
-        "mimic_iv_protocol": {
-            "protocol_id": protocol.get("protocol_id"),
-            "planned_unit": "ICU stay",
-            "splits": split_roles
-            or {
-                "development": "2008–2016",
-                "calibration": "2017–2018",
-                "test": "2019 (evaluate once)",
-            },
-            "stage_b_status": "protocol frozen; full extract not committed",
+        "holdout": {
+            "split": "training_setB",
+            "n_stays": holdout.get("n_stays"),
+            "role": "primary_holdout_quote_once",
         },
-        "mimic_demo_schema_study": {
-            "fixture": ARTIFACT_PATHS["mimic_harness_fixture"],
-            "test_stays": (mimic_manifest.get("test_primary") or {}).get("stays"),
-            "dataset_pin": mimic_manifest.get("dataset_pin"),
-            "note": "Plumbing / leakage-safe harness only — not clinical Stage B",
+        "other_datasets": {
+            "role": "methods_and_adapter_coverage_only",
+            "names": [
+                "MIMIC-IV demo",
+                "eICU demo",
+                "MIMIC-IV FHIR demo",
+                "SYN-ICU",
+                "Synthea",
+            ],
+            "results_metrics_allowed": False,
         },
     }
 
 
-def ablation_table() -> list[dict[str, Any]]:
-    manifest = load_json(ARTIFACT_PATHS["mimic_study_manifest"])
-    rows: list[dict[str, Any]] = []
-    primary = manifest.get("test_primary") or {}
-    rows.append(
-        {
-            "ablation_id": "primary_operating_point",
-            "governed_sensitivity": primary.get("governed_sensitivity"),
-            "interruptive_sensitivity": primary.get("interruptive_sensitivity"),
-            "interruptive_reduction_ratio": primary.get("interruptive_reduction_ratio"),
-            "interruptive_nna": primary.get("interruptive_nna"),
-            "mean_in_window_lead_hours": primary.get("mean_in_window_lead_hours"),
-            "meets_pe1": primary.get("meets_pe1"),
-            "meets_pe2": primary.get("meets_pe2"),
-        }
-    )
-    for aid, summary in sorted((manifest.get("test_ablations") or {}).items()):
-        rows.append(
-            {
-                "ablation_id": aid,
-                "governed_sensitivity": summary.get("governed_sensitivity"),
-                "interruptive_sensitivity": summary.get("interruptive_sensitivity"),
-                "interruptive_reduction_ratio": summary.get("interruptive_reduction_ratio"),
-                "interruptive_nna": summary.get("interruptive_nna"),
-                "mean_in_window_lead_hours": summary.get("mean_in_window_lead_hours"),
-                "meets_pe1": summary.get("meets_pe1"),
-                "meets_pe2": summary.get("meets_pe2"),
-            }
-        )
-    return rows
-
-
-def operating_point_pareto() -> list[dict[str, Any]]:
-    """Sensitivity vs interruptive burden candidates (selection, not test peek)."""
-    op = load_json(ARTIFACT_PATHS["mimic_operating_point"])
-    points = []
-    for c in op.get("candidates_scored") or []:
-        points.append(
-            {
-                "candidate_id": c.get("candidate_id"),
-                "governed_sensitivity": c.get("governed_sensitivity"),
-                "interruptive_reduction_ratio": c.get("interruptive_reduction_ratio"),
-                "meets_pe1": c.get("meets_pe1"),
-                "selected": c.get("candidate_id") == op.get("candidate_id"),
-                "split": "calibration",
-            }
-        )
-    challenge = load_json(ARTIFACT_PATHS["challenge_operating_point"])
-    set_a = challenge.get("setA") or {}
+def challenge_results() -> dict[str, Any]:
+    selected = load_json(RESULT_ARTIFACT_PATHS["challenge_operating_point"])
+    set_a = selected.get("setA") or {}
     metrics = set_a.get("metrics") or {}
-    det = metrics.get("detection") or {}
+    cohort = metrics.get("cohort") or {}
     alerts = metrics.get("alerts") or {}
-    points.append(
+    detection = metrics.get("detection") or {}
+
+    holdout = load_json(RESULT_ARTIFACT_PATHS["challenge_holdout_primary"])
+    holdout_detection = holdout.get("detection") or {}
+    holdout_ci = load_json(RESULT_ARTIFACT_PATHS["challenge_holdout_primary_ci"])
+    return {
+        "setA": {
+            "role": "selection",
+            "n_stays": cohort.get("stays_scored") or set_a.get("stays_scored"),
+            "sepsis_label_positive_stays": cohort.get("sepsis_stays"),
+            "naive_emissions": alerts.get("naive_total"),
+            "governed_emissions": alerts.get("governed_total"),
+            "interruptive_emissions": alerts.get("interruptive_total"),
+            "governed_sensitivity": detection.get("governed_sensitivity"),
+            "interruptive_sensitivity": detection.get("interruptive_sensitivity"),
+            "interruptive_reduction_ratio": alerts.get(
+                "interruptive_reduction_ratio"
+            ),
+            "candidate_id": selected.get("candidate_id"),
+            "knobs": selected.get("knobs") or {},
+        },
+        "setB": {
+            "role": "primary_holdout",
+            "n_stays": holdout.get("n_stays"),
+            "detection_mode_id": holdout.get("detection_mode_id"),
+            "governed_sensitivity": holdout_detection.get("governed_sensitivity"),
+            "interruptive_sensitivity": holdout_detection.get(
+                "interruptive_sensitivity"
+            ),
+            "interruptive_nna": holdout_detection.get("interruptive_nna"),
+            "mean_lead_hours_in_window": holdout_detection.get(
+                "mean_lead_hours_in_window"
+            ),
+            "bootstrap": (holdout_ci.get("bootstrap") or {}),
+            "unit_note": (
+                "Interruptive metrics are emissions, not episode-arbitrated or "
+                "clinician-delivered pages."
+            ),
+        },
+    }
+
+
+def robustness_table() -> list[dict[str, Any]]:
+    artifact = load_json(RESULT_ARTIFACT_PATHS["challenge_robustness"])
+    return [
         {
-            "candidate_id": challenge.get("candidate_id") or challenge.get("name"),
-            "governed_sensitivity": det.get("governed_sensitivity"),
-            "interruptive_reduction_ratio": alerts.get("interruptive_reduction_ratio"),
-            "meets_pe1": set_a.get("meets_primary"),
-            "selected": True,
-            "split": "challenge_setA",
+            **row,
+            "role": artifact.get("role", "sensitivity_analysis"),
+            "ranking_stable": artifact.get("ranking_stable"),
         }
-    )
-    return points
+        for row in artifact.get("modes") or []
+    ]
+
+
+def operating_point_figure_spec() -> dict[str, Any]:
+    pareto = load_json(RESULT_ARTIFACT_PATHS["challenge_pareto"])
+    return {
+        "title": "Named profiles plus frozen winner (setA, window_m12_p6)",
+        "x": "interruptive_reduction_ratio",
+        "y": "governed_sensitivity",
+        "points": pareto.get("points") or [],
+        "note": (
+            pareto.get("notes") or [""]
+        )[0],
+    }
 
 
 def timing_figure_spec() -> dict[str, Any]:
-    timing = load_json(ARTIFACT_PATHS["challenge_timing"])
-    challenge = load_json(ARTIFACT_PATHS["challenge_operating_point"])
-    det = ((challenge.get("setA") or {}).get("metrics") or {}).get("detection") or {}
-    mimic = load_json(ARTIFACT_PATHS["mimic_study_manifest"]).get("test_primary") or {}
+    timing = load_json(RESULT_ARTIFACT_PATHS["challenge_timing"])
+    set_b = challenge_results()["setB"]
     return {
+        "title": "Primary setB timing window",
+        "label_start_semantics": (timing.get("label_semantics") or {}).get("note"),
         "primary_window": timing.get("primary_detection"),
-        "timing_classes": timing.get("timing_classes"),
-        "challenge_setA_mean_lead_hours": {
-            "naive": det.get("mean_lead_hours_naive"),
-            "governed": det.get("mean_lead_hours_governed"),
-            "interruptive": det.get("mean_lead_hours_interruptive"),
-            "note": "Unbounded first-alert lead on setA; primary paper window is window_m12_p6",
+        "holdout": {
+            "n_stays": set_b["n_stays"],
+            "governed_sensitivity": set_b["governed_sensitivity"],
+            "mean_lead_hours_in_window": set_b["mean_lead_hours_in_window"],
         },
-        "mimic_demo_mean_in_window_lead_hours": mimic.get("mean_in_window_lead_hours"),
     }
 
 
-def calibration_figure_spec() -> dict[str, Any]:
-    op = load_json(ARTIFACT_PATHS["mimic_operating_point"])
-    return {
-        "source": "mimic demo-schema operating-point selection",
-        "selected_candidate": op.get("candidate_id"),
-        "calibration_summary": op.get("calibration"),
-        "goals": op.get("goals"),
-        "note": (
-            "Not probability calibration (Brier/reliability). "
-            "Shows operating-point selection metrics on the calibration split only."
-        ),
-    }
-
-
-def subgroup_table() -> list[dict[str, Any]]:
-    """Planned subgroups from protocol — counts filled only when frozen aggregates exist."""
+def appendix_evidence() -> list[dict[str, str]]:
     return [
         {
-            "subgroup": "Challenge sepsis-labeled stays (setA)",
-            "status": "aggregate_only",
-            "n": ((load_json(ARTIFACT_PATHS["challenge_operating_point"]).get("setA") or {})
-                  .get("metrics") or {})
-            .get("cohort", {})
-            .get("sepsis_stays"),
-            "claim_tier": "retrospective_detection",
+            "artifact": "Golden SOFA fixtures",
+            "path": APPENDIX_ARTIFACT_PATHS["sofa_golden_fixtures"],
+            "role": "Deterministic scorer boundary checks; not a results cohort",
         },
         {
-            "subgroup": "Challenge non-sepsis stays (setA)",
-            "status": "aggregate_only",
-            "n": ((load_json(ARTIFACT_PATHS["challenge_operating_point"]).get("setA") or {})
-                  .get("metrics") or {})
-            .get("cohort", {})
-            .get("non_sepsis_stays"),
-            "claim_tier": "alert_policy_utility",
+            "artifact": "Python/Java parity fixtures",
+            "path": APPENDIX_ARTIFACT_PATHS["cross_runtime_parity"],
+            "role": "Cross-runtime implementation check; not clinical validation",
         },
         {
-            "subgroup": "MIMIC-IV comfort care / ESRD / OR transfer",
-            "status": "protocol_planned_stage_b",
-            "n": None,
-            "claim_tier": "not_yet_evaluated",
+            "artifact": "Governance parity fixtures",
+            "path": APPENDIX_ARTIFACT_PATHS["governance_parity"],
+            "role": "Policy-decision parity check; not a results cohort",
         },
         {
-            "subgroup": "Partial completeness stays (demo study test)",
-            "status": "demo_schema",
-            "n": (load_json(ARTIFACT_PATHS["mimic_study_manifest"]).get("test_primary") or {}).get(
-                "partial_completeness_stays"
-            ),
-            "claim_tier": "retrospective_detection",
+            "artifact": "Demo-schema leakage harness",
+            "path": APPENDIX_ARTIFACT_PATHS["leakage_harness_fixture"],
+            "role": "Availability-time and ablation plumbing only; no sensitivity estimate",
         },
     ]
 
 
-def failure_analysis() -> dict[str, Any]:
-    return {
-        "known_failure_modes": [
-            {
-                "id": "FN-partial-sofa",
-                "description": "Challenge hourly fields lack full SOFA components; scores are partial.",  # noqa: E501
-                "mitigation": "Report completeness; fail closed on missing critical inputs in streaming path.",  # noqa: E501
-            },
-            {
-                "id": "FN-label-semantics",
-                "description": "Challenge SepsisLabel starts ~6h before clinical onset; lead time can look optimistic.",  # noqa: E501
-                "mitigation": "Frozen timing_primary.v1 treats onset as label_start; window_m12_p6 primary.",  # noqa: E501
-            },
-            {
-                "id": "FN-page-gate",
-                "description": "Interruptive sensitivity < governed sensitivity when page gate is strict.",  # noqa: E501
-                "mitigation": "Separate detection (any emit) from burden (interruptive); dual-lane reporting.",  # noqa: E501
-            },
-            {
-                "id": "FN-demo-schema-n",
-                "description": "Demo MIMIC fixtures are tiny; PE-2 may fail; not Stage B evidence.",
-                "mitigation": "Label demo results as plumbing; Stage B requires PhysioNet extract under DUA.",  # noqa: E501
-            },
-            {
-                "id": "FP-watch-volume",
-                "description": "Governed watch lane preserves sensitivity but can keep high all-alert NNA.",  # noqa: E501
-                "mitigation": "Primary burden metric is interruptive reduction, not all-alert volume.",  # noqa: E501
-            },
-        ],
-        "claim_boundary": (
-            "Failures above affect retrospective detection and alert-policy metrics only. "
-            "They do not license clinical-outcome claims."
-        ),
-    }
+def failure_analysis() -> list[dict[str, str]]:
+    return [
+        {
+            "id": "partial-sofa",
+            "limitation": (
+                "Challenge data lack GCS, urine output, vasopressor-dose ladders, "
+                "and a reliable mechanical-ventilation flag."
+            ),
+            "paper_handling": "Call the computed score partial SOFA throughout.",
+        },
+        {
+            "id": "proxy-label",
+            "limitation": (
+                "SepsisLabel is shifted approximately six hours before the "
+                "Challenge clinical-onset definition."
+            ),
+            "paper_handling": (
+                "Use label_start, freeze window_m12_p6, and report 5.97 h as "
+                "label-relative lead time."
+            ),
+        },
+        {
+            "id": "emissions-not-pages",
+            "limitation": (
+                "Interruptive counts are emission-level page candidates, not "
+                "episode-arbitrated or delivered clinician pages."
+            ),
+            "paper_handling": "Use 'interruptive emissions' in methods and results.",
+        },
+        {
+            "id": "single-public-challenge",
+            "limitation": "setB is a holdout within Challenge 2019, not an external site.",
+            "paper_handling": (
+                "Do not claim MIMIC-IV, prospective, multisite, or clinical validation."
+            ),
+        },
+    ]
 
 
 def build_manifest() -> dict[str, Any]:
-    pins = artifact_pins()
     body = {
-        "manifest_version": "1.0.0",
+        "manifest_version": "2.0.0",
         "package_version": PACKAGE_VERSION,
         "curie_ticket": "CURIE-020",
         "generated_at": datetime.now(UTC).isoformat(),
         "git_sha": git_sha(),
         "regenerate_command": "make manuscript",
         "module": "python -m eval.manuscript.package build",
+        "supported_claim": (
+            "Shared governance reduces interruptive emissions versus threshold-only "
+            "partial SOFA while preserving retrospective Challenge SepsisLabel "
+            "detection under a frozen setA-to-setB evaluation."
+        ),
+        "result_scope": {
+            "dataset": "physionet-challenge-2019",
+            "version": "1.0.0",
+            "selection_split": "training_setA",
+            "holdout_split": "training_setB",
+            "other_datasets_are_results": False,
+        },
         "phi_policy": {
-            "commits_patient_level_mimic": False,
+            "commits_patient_level_data": False,
             "allowed": [
-                "Aggregate metrics",
-                "Protocol / operating-point / fixture hashes",
-                "Public Challenge aggregate stats already in frozen JSON",
+                "Aggregate Challenge metrics",
+                "Rule, timing, fixture, and reproducibility hashes",
+                "Public methods and synthetic implementation checks",
             ],
             "forbidden": [
-                "MIMIC row extracts",
-                "hadm_id / subject_id lists",
-                "Note text / PHI",
-                "Local data/archive stay files",
+                "Patient-level extracts or identifiers",
+                "Local Challenge row files",
+                "MIMIC row extracts or note text",
             ],
         },
-        "artifact_pins": pins,
+        "artifact_pins": artifact_pins(),
         "claim_tiers": claim_tiers(),
         "cohort_flow": cohort_flow(),
+        "results": challenge_results(),
         "methods_pins": {
-            "protocol_doc": "docs/research/mimic-iv-study-protocol.md",
+            "paper_doc": PAPER_PATH,
+            "package_doc": PACKAGE_DOC_PATH,
             "challenge_eval_doc": "docs/research/challenge-2019-eval.md",
-            "clinical_validation_doc": "docs/research/clinical-validation.md",
-            "manuscript_doc": "docs/research/manuscript-package.md",
-            "rule_selection": "Forbidden on temporal test / Challenge setB",
+            "architecture_doc": "docs/architecture.md",
+            "rule_selection": "Tune on setA; never tune or reselect on setB",
+            "primary_timing": "window_m12_p6",
         },
     }
-    # Stable hash excludes generated_at / git_sha volatility for content checks
-    stable = {k: v for k, v in body.items() if k not in {"generated_at", "git_sha"}}
+    stable = {
+        key: value
+        for key, value in body.items()
+        if key not in {"generated_at", "git_sha"}
+    }
     body["content_hash"] = hashlib.sha256(
         json.dumps(stable, sort_keys=True, default=str).encode()
     ).hexdigest()
     return body
 
 
+def _pct(value: float | None) -> str:
+    return "—" if value is None else f"{100 * value:.1f}%"
+
+
 def render_markdown_tables(manifest: dict[str, Any]) -> str:
+    results = manifest["results"]
+    set_a = results["setA"]
+    set_b = results["setB"]
     lines = [
-        "# Generated manuscript tables (CURIE-020)",
+        "# Generated Challenge 2019 manuscript tables",
         "",
         f"_Regenerated by `make manuscript`. Package {manifest['package_version']}._",
         "",
-        "## Claim tiers",
+        "> One results dataset: PhysioNet Challenge 2019. All fixtures and demo adapters are",
+        "> methods or appendix evidence only.",
         "",
+        "## Table 1. Study splits",
+        "",
+        "| Split | Stays | Role |",
+        "|---|---:|---|",
+        f"| training_setA | {set_a['n_stays']} | Tune and freeze operating point |",
+        f"| training_setB | {set_b['n_stays']} | Primary holdout; quote once |",
+        "",
+        "## Table 2. Frozen setA operating point",
+        "",
+        "| Metric | Value |",
+        "|---|---:|",
+        f"| Governed sensitivity | {_pct(set_a['governed_sensitivity'])} |",
+        f"| Interruptive sensitivity | {_pct(set_a['interruptive_sensitivity'])} |",
+        (
+            "| Interruptive reduction ratio vs threshold-only | "
+            f"{set_a['interruptive_reduction_ratio']:.3f} |"
+        ),
+        f"| Threshold-only emissions | {set_a['naive_emissions']} |",
+        f"| Interruptive emissions | {set_a['interruptive_emissions']} |",
+        "",
+        "## Table 3. Primary setB holdout (`window_m12_p6`)",
+        "",
+        "| Metric | Value | Unit / denominator |",
+        "|---|---:|---|",
+        (
+            f"| Governed sensitivity | {_pct(set_b['governed_sensitivity'])} | "
+            "Labeled-positive stays with any governed emission in-window |"
+        ),
+        (
+            f"| Interruptive sensitivity | {_pct(set_b['interruptive_sensitivity'])} | "
+            "Labeled-positive stays with an interruptive emission in-window |"
+        ),
+        (
+            f"| Interruptive NNA | {set_b['interruptive_nna']:.1f} | "
+            "Interruptive emissions per interruptive true-positive stay |"
+        ),
+        (
+            f"| In-window mean lead | {set_b['mean_lead_hours_in_window']:.2f} h | "
+            "First governed emission to label_start |"
+        ),
+        "",
+        "## Table 4. Secondary timing robustness on setB",
+        "",
+        "| Detection definition | Naive sensitivity | Governed sensitivity | Role |",
+        "|---|---:|---:|---|",
     ]
-    for tier, data in (manifest.get("claim_tiers") or {}).items():
-        lines.append(f"### `{tier}` — **{data.get('status')}**")
-        lines.append("")
-        for item in data.get("includes") or []:
-            lines.append(f"- Includes: {item}")
-        for item in data.get("does_not_include") or []:
-            lines.append(f"- Excludes: {item}")
-        lines.append("")
-
-    lines.extend(["## Ablation table (demo-schema test)", ""])
-    lines.append(
-        "| Ablation | Gov sens | Int sens | Int reduction | Int NNA | Lead (h) | PE-1 | PE-2 |"
+    for row in robustness_table():
+        lines.append(
+            f"| {row['detection_mode_id']} | {_pct(row['naive_sensitivity'])} | "
+            f"{_pct(row['governed_sensitivity'])} | sensitivity analysis |"
+        )
+    lines.extend(
+        [
+            "",
+            "> The legacy `grace_6` value of 81.1% is not the primary result.",
+            "",
+            "## Table 5. SetB bedside comparators (`window_m12_p6`)",
+            "",
+            "| Policy | Sensitivity | Emissions | NNA |",
+            "|---|---:|---:|---:|",
+        ]
     )
-    lines.append("|---|---:|---:|---:|---:|---:|---|---|")
-    for row in ablation_table():
+    comparators = load_json(RESULT_ARTIFACT_PATHS["challenge_comparators"])
+    for card in comparators.get("comparators") or []:
+        m = card.get("metrics") or {}
+        nna = m.get("nna")
+        nna_s = "—" if nna is None else f"{nna:.1f}"
         lines.append(
-            "| {ablation_id} | {governed_sensitivity} | {interruptive_sensitivity} | "
-            "{interruptive_reduction_ratio} | {interruptive_nna} | {mean_in_window_lead_hours} | "
-            "{meets_pe1} | {meets_pe2} |".format(**{k: row.get(k) for k in row})
+            f"| {card.get('title')} | {_pct(m.get('sensitivity'))} | "
+            f"{m.get('emissions')} | {nna_s} |"
         )
-    lines.append("")
-
-    lines.extend(["## Operating-point / Pareto candidates", ""])
-    lines.append("| Candidate | Split | Gov sens | Int reduction | Selected |")
-    lines.append("|---|---|---:|---:|---|")
-    for p in operating_point_pareto():
+    lines.extend(
+        [
+            "",
+            "> Incomplete NEWS2 (no AVPU) and partial qSOFA (no GCS). Not a superiority claim.",
+            "",
+            "## Table 6. SetB ablation of the frozen winner",
+            "",
+            "| Variant | Gov sens | Int sens | Int reduction | Int NNA |",
+            "|---|---:|---:|---:|---:|",
+        ]
+    )
+    ablation = load_json(RESULT_ARTIFACT_PATHS["challenge_ablation"])
+    for row in ablation.get("variants") or []:
+        nna = row.get("interruptive_nna")
+        nna_s = "—" if nna is None else f"{nna:.1f}"
+        red = row.get("interruptive_reduction_ratio")
+        red_s = "—" if red is None else f"{red:.3f}"
         lines.append(
-            f"| {p.get('candidate_id')} | {p.get('split')} | {p.get('governed_sensitivity')} | "
-            f"{p.get('interruptive_reduction_ratio')} | {p.get('selected')} |"
+            f"| {row.get('id')} | {_pct(row.get('governed_sensitivity'))} | "
+            f"{_pct(row.get('interruptive_sensitivity'))} | {red_s} | {nna_s} |"
         )
-    lines.append("")
-
-    lines.extend(["## Subgroups", ""])
-    lines.append("| Subgroup | Status | n | Claim tier |")
-    lines.append("|---|---|---:|---|")
-    for s in subgroup_table():
+    lines.extend(
+        [
+            "",
+            "## Appendix A. Methods and implementation evidence",
+            "",
+            "| Artifact | Role in paper |",
+            "|---|---|",
+        ]
+    )
+    for row in appendix_evidence():
+        lines.append(f"| {row['artifact']} | {row['role']} |")
+    lines.extend(["", "## Limitations required in every submission", ""])
+    for item in failure_analysis():
         lines.append(
-            f"| {s['subgroup']} | {s['status']} | {s['n']} | {s['claim_tier']} |"
+            f"- **{item['id']}:** {item['limitation']} {item['paper_handling']}"
         )
-    lines.append("")
-
-    lines.extend(["## Failure analysis", ""])
-    for fm in failure_analysis()["known_failure_modes"]:
-        lines.append(f"- **{fm['id']}:** {fm['description']} → _{fm['mitigation']}_")
-    lines.append("")
-    lines.append(failure_analysis()["claim_boundary"])
     lines.append("")
     return "\n".join(lines)
 
 
 def render_figure_specs() -> dict[str, Any]:
     return {
-        "cohort_flow_mermaid": """flowchart TD
-  A[PhysioNet Challenge 2019 archives] --> B[setA tune]
-  B --> C[Freeze operating point]
-  C --> D[setB holdout once]
-  E[MIMIC-IV protocol v1] --> F[development sweep]
-  F --> G[calibration select]
-  G --> H[test evaluate once]
-  I[Demo-schema fixtures] --> J[Harness + ablation plumbing]
-  J -.->|not Stage B| H
-  style I fill:#eee
-  style J fill:#eee
+        "architecture_mermaid": """flowchart LR
+  A[Clinical events] --> B[Kafka]
+  B --> C[Flink deterministic partial SOFA]
+  R[Versioned rule bundle] --> C
+  C --> G[Shared governance]
+  G --> W[Passive watch emission]
+  G --> P[Interruptive emission]
+  P -. post-alert only .-> L[Optional LLM narrative]
 """,
-        "pareto": operating_point_pareto(),
+        "cohort_flow_mermaid": """flowchart LR
+  A[Challenge setA: 20,336 stays] --> B[Tune governance]
+  B --> C[Freeze p1_setA_winner]
+  C --> D[Challenge setB: 20,000 stays]
+  D --> E[Primary window_m12_p6 results]
+""",
+        "operating_point": operating_point_figure_spec(),
         "timing": timing_figure_spec(),
-        "calibration": calibration_figure_spec(),
+        "robustness": {
+            "title": "SetB detection-definition robustness",
+            "rows": robustness_table(),
+            "primary_result_not_in_series": (
+                "window_m12_p6 governed sensitivity = 79.5%"
+            ),
+            "note": "The 81.1% grace_6 result is secondary, not primary.",
+        },
     }
 
 
 def scan_for_phi(text: str) -> list[str]:
-    hits: list[str] = []
-    for pat in _PHI_PATTERNS:
-        if pat.search(text):
-            hits.append(pat.pattern)
-    return hits
+    return [pattern.pattern for pattern in _PHI_PATTERNS if pattern.search(text)]
 
 
 def build(
@@ -516,45 +609,54 @@ def build(
         generated_dir = generated_out or GENERATED_OUT
         frozen_dir.mkdir(parents=True, exist_ok=True)
         generated_dir.mkdir(parents=True, exist_ok=True)
-        (frozen_dir / "reproducibility_manifest.v1.json").write_text(manifest_text)
-        (generated_dir / "tables.md").write_text(tables_md)
-        (generated_dir / "figure_specs.v1.json").write_text(figures_json)
+        (frozen_dir / MANIFEST_FILENAME).write_text(manifest_text, encoding="utf-8")
+        (generated_dir / "tables.md").write_text(tables_md, encoding="utf-8")
+        (generated_dir / FIGURE_SPECS_FILENAME).write_text(
+            figures_json,
+            encoding="utf-8",
+        )
+        if frozen_out is None and generated_out is None:
+            from eval.manuscript.generate_paper_tables import write_all
 
-    return {
-        "manifest": manifest,
-        "tables_md": tables_md,
-        "figures": figures,
-    }
+            write_all()
+
+    return {"manifest": manifest, "tables_md": tables_md, "figures": figures}
+
+
+def _scan_paths() -> list[Path]:
+    return [
+        FROZEN_OUT / MANIFEST_FILENAME,
+        GENERATED_OUT / "tables.md",
+        GENERATED_OUT / FIGURE_SPECS_FILENAME,
+        ROOT / PACKAGE_DOC_PATH,
+        ROOT / PAPER_PATH,
+        ROOT / "paper" / "main.tex",
+    ]
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="CURIE-020 manuscript package")
+    parser = argparse.ArgumentParser(description="Challenge 2019 manuscript package")
     sub = parser.add_subparsers(dest="cmd", required=True)
-    p_build = sub.add_parser("build", help="Write manifest + generated tables/figures")
+    p_build = sub.add_parser("build", help="Write manifest and generated tables/figures")
     p_build.add_argument("--no-write", action="store_true")
-    sub.add_parser("show-manifest", help="Print frozen reproducibility manifest")
-    sub.add_parser("phi-scan", help="Scan frozen/generated outputs for PHI-like patterns")
-
+    sub.add_parser("show-manifest", help="Print the frozen reproducibility manifest")
+    sub.add_parser("phi-scan", help="Scan manuscript outputs for PHI-like patterns")
     args = parser.parse_args(argv)
+
     if args.cmd == "show-manifest":
-        path = FROZEN_OUT / "reproducibility_manifest.v1.json"
+        path = FROZEN_OUT / MANIFEST_FILENAME
         if not path.is_file():
-            print("No manifest; run: python -m eval.manuscript.package build")
+            print("No v2 manifest; run: python -m eval.manuscript.package build")
             return 1
-        print(path.read_text())
+        print(path.read_text(encoding="utf-8"))
         return 0
 
     if args.cmd == "phi-scan":
         ok = True
-        for path in [
-            FROZEN_OUT / "reproducibility_manifest.v1.json",
-            GENERATED_OUT / "tables.md",
-            GENERATED_OUT / "figure_specs.v1.json",
-            ROOT / "docs" / "manuscript-package.md",
-        ]:
+        for path in _scan_paths():
             if not path.is_file():
                 continue
-            hits = scan_for_phi(path.read_text())
+            hits = scan_for_phi(path.read_text(encoding="utf-8"))
             if hits:
                 ok = False
                 print(f"FAIL {path}: {hits}")
@@ -569,10 +671,10 @@ def main(argv: list[str] | None = None) -> int:
                 "package_version": PACKAGE_VERSION,
                 "git_sha": result["manifest"]["git_sha"],
                 "content_hash": result["manifest"]["content_hash"],
-                "artifacts_pinned": sum(
+                "result_artifacts_pinned": sum(
                     1
-                    for v in result["manifest"]["artifact_pins"].values()
-                    if v.get("present")
+                    for value in result["manifest"]["artifact_pins"].values()
+                    if value.get("present") and value.get("role") == "result"
                 ),
                 "wrote": not args.no_write,
             },

@@ -1,0 +1,4 @@
+reason,count,rate
+scorer_threshold,141,0.6026
+timing_window,58,0.2479
+missing_input,35,0.1496
