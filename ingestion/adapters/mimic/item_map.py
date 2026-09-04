@@ -8,7 +8,7 @@ LAB_PLATELETS = {51265, 51704}
 LAB_BILIRUBIN_TOTAL = {50885, 53089}
 
 # icu/chartevents.csv.gz
-CHART_MAP = {220052}  # Arterial Blood Pressure mean
+CHART_MAP = {220052, 220181}  # Arterial / Non-Invasive Blood Pressure mean
 CHART_SPO2 = {220277}  # O2 saturation pulseoxymetry
 CHART_FIO2 = {223835}  # Inspired O2 Fraction (percent)
 CHART_GCS_EYE = {220739}
