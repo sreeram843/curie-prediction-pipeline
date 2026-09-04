@@ -1,0 +1,52 @@
+{
+  "schema_version": "2.0.0",
+  "detection_mode_id": "window_m12_p6",
+  "cohort": "training_setB",
+  "n_stays": 20000,
+  "operating_point": "eval/challenge2019/frozen/p1_setA_winner.json",
+  "detection": {
+    "governed_sensitivity": 0.7950963222416813,
+    "interruptive_sensitivity": 0.3397548161120841,
+    "interruptive_nna": 106.07731958762886,
+    "mean_lead_hours_in_window": 5.97136563876652
+  },
+  "bootstrap": {
+    "n_boot": 1000,
+    "seed": 42,
+    "governed_sensitivity": {
+      "low": 0.769992973708069,
+      "high": 0.8183503213377757,
+      "mean": 0.795443973063421,
+      "n": 1000
+    },
+    "interruptive_sensitivity": {
+      "low": 0.3130650634428453,
+      "high": 0.3678844519966015,
+      "mean": 0.3399932480324284,
+      "n": 1000
+    },
+    "interruptive_nna": {
+      "low": 96.18248245955687,
+      "high": 116.60393966069141,
+      "mean": 106.20796131781319,
+      "n": 1000
+    },
+    "interruptive_reduction_ratio": {
+      "low": 0.1268437502420125,
+      "high": 0.136826884559816,
+      "mean": 0.13198370525162326,
+      "n": 1000
+    },
+    "mean_lead_hours_governed_in_window": {
+      "low": 5.535567370499772,
+      "high": 6.392730635284218,
+      "mean": 5.963246053373288,
+      "n": 1000
+    }
+  },
+  "notes": [
+    "Primary detection window: any alert in [onset-12h, onset+6h].",
+    "Stay-level percentile bootstrap, seed 42.",
+    "Does not replace v1 point estimates; v2 adds intervals."
+  ]
+}

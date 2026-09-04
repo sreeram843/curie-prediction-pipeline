@@ -482,7 +482,7 @@ def _manuscript_card() -> dict[str, Any]:
                 "Count of hashed study artifacts listed in the manifest.",
             ),
         ],
-        "docs": "docs/research/manuscript-package.md",
+        "docs": "paper/REPRODUCIBILITY.md",
         "artifacts": ["eval/manuscript/frozen/reproducibility_manifest.v1.json"],
         "reproduce": "make manuscript",
     }

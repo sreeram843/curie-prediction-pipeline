@@ -1,0 +1,48 @@
+{
+  "schema_version": "1.0.0",
+  "id": "challenge2019-setB-detection-window-robustness.v1",
+  "cohort": "training_setB",
+  "n_stays": 20000,
+  "operating_point": "eval/challenge2019/frozen/p1_setA_winner.json",
+  "role": "sensitivity_analysis",
+  "source": "Curated aggregate from the completed setB robustness run documented in docs/research/challenge-2019-eval.md; row-level reports remain gitignored.",
+  "modes": [
+    {
+      "detection_mode_id": "grace_0",
+      "definition": "first alert at or before label_start",
+      "naive_sensitivity": 0.563,
+      "governed_sensitivity": 0.563
+    },
+    {
+      "detection_mode_id": "grace_6",
+      "definition": "first alert at or before label_start + 6 hours",
+      "naive_sensitivity": 0.811,
+      "governed_sensitivity": 0.811
+    },
+    {
+      "detection_mode_id": "grace_12",
+      "definition": "first alert at or before label_start + 12 hours",
+      "naive_sensitivity": 0.846,
+      "governed_sensitivity": 0.846
+    },
+    {
+      "detection_mode_id": "early_only",
+      "definition": "first alert before label_start",
+      "naive_sensitivity": 0.548,
+      "governed_sensitivity": 0.548
+    },
+    {
+      "detection_mode_id": "window_pm12",
+      "definition": "any alert in [label_start - 12 hours, label_start + 12 hours]",
+      "naive_sensitivity": 0.833,
+      "governed_sensitivity": 0.833
+    }
+  ],
+  "ranking_stable": true,
+  "ranking_statement": "frozen approximately equals dual approximately equals accuracy, followed by balanced, then strict, for every reported sensitivity-analysis definition",
+  "notes": [
+    "These modes are secondary sensitivity analyses, not the primary window_m12_p6 result.",
+    "The legacy 81.1% grace_6 value must not be presented as the primary result.",
+    "Alert counts do not change across timing definitions; only true-positive classification changes."
+  ]
+}

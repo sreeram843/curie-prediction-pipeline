@@ -1,0 +1,31 @@
+{
+  "schema_version": "2.0.0",
+  "n_false_negatives": 234,
+  "by_primary_reason": [
+    {
+      "reason": "missing_input",
+      "count": 35,
+      "rate": 0.1496
+    },
+    {
+      "reason": "scorer_threshold",
+      "count": 141,
+      "rate": 0.6026
+    },
+    {
+      "reason": "timing_window",
+      "count": 58,
+      "rate": 0.2479
+    }
+  ],
+  "examples": [],
+  "rule_config_hash": "a3b8273a84752a6263e30da9762f3a5783b9a5af6c3d8234baabbb1dbdc3655b",
+  "notes": [
+    "Regenerated from holdout replay rows; examples omitted to keep aggregates only.",
+    "On the frozen winner, watch persist=0 and baseline=off, so in-window naive with no governed emit is attributed to refractory (hourly dedup).",
+    "missing_input = never scoreable; scorer_threshold = never crossed naive threshold in-window; timing_window = governed emit existed but outside window."
+  ],
+  "id": "miss-analysis-v2-setB-replay",
+  "source": "Governed false negatives on Challenge 2019 setB under window_m12_p6. No stay identifiers.",
+  "primary_detection": "window_m12_p6"
+}

@@ -1,0 +1,69 @@
+{
+  "schema_version": "1.0.0",
+  "detection_mode_id": "window_m12_p6",
+  "notes": [
+    "Comparators are hourly threshold-only emissions, not governed Curie output.",
+    "NEWS2 consciousness/AVPU is scored 0 (Challenge has no GCS).",
+    "qSOFA is partial: mentation limb omitted, so \u22652 requires both RR and SBP.",
+    "Not a claim of superiority to NEWS/qSOFA in clinical practice."
+  ],
+  "comparators": [
+    {
+      "id": "sirs",
+      "title": "SIRS \u2265 2 (Temp, HR, RR, WBC)",
+      "lane": "threshold_only",
+      "metrics": {
+        "sensitivity": 0.7854640980735552,
+        "emissions": 191294,
+        "nna": 213.2597547380156,
+        "mean_lead_hours_in_window": 5.808249721293199,
+        "fp_non_sepsis_stays": 12540
+      },
+      "cohort": {
+        "sepsis_stays": 1142,
+        "non_sepsis_stays": 18858,
+        "stays_scored": 20000,
+        "patient_hours": 761995,
+        "patient_days": 31749.791666666668
+      }
+    },
+    {
+      "id": "news2",
+      "title": "NEWS2 \u2265 5 (consciousness omitted)",
+      "lane": "threshold_only",
+      "metrics": {
+        "sensitivity": 0.7600700525394045,
+        "emissions": 141629,
+        "nna": 163.16705069124424,
+        "mean_lead_hours_in_window": 5.735023041474655,
+        "fp_non_sepsis_stays": 11254
+      },
+      "cohort": {
+        "sepsis_stays": 1142,
+        "non_sepsis_stays": 18858,
+        "stays_scored": 20000,
+        "patient_hours": 761995,
+        "patient_days": 31749.791666666668
+      }
+    },
+    {
+      "id": "qsofa",
+      "title": "Partial qSOFA \u2265 2 (RR and SBP; GCS omitted)",
+      "lane": "threshold_only",
+      "metrics": {
+        "sensitivity": 0.2486865148861646,
+        "emissions": 22068,
+        "nna": 77.70422535211267,
+        "mean_lead_hours_in_window": 3.2992957746478875,
+        "fp_non_sepsis_stays": 4536
+      },
+      "cohort": {
+        "sepsis_stays": 1142,
+        "non_sepsis_stays": 18858,
+        "stays_scored": 20000,
+        "patient_hours": 761995,
+        "patient_days": 31749.791666666668
+      }
+    }
+  ]
+}

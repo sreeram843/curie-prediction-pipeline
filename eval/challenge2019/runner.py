@@ -68,6 +68,8 @@ def _replay_stay(
     governed_hours: list[int] = []
     watch_hours: list[int] = []
     interruptive_hours: list[int] = []
+    max_score: float | None = None
+    hours_scoreable = 0
     t0 = datetime(2020, 1, 1, tzinfo=UTC)
 
     for h in hours:
@@ -88,6 +90,13 @@ def _replay_stay(
         tier = tier_for_score(
             result.total_score, naive_threshold=threshold, severity_bands=bands
         )
+        if result.total_score is not None:
+            hours_scoreable += 1
+            max_score = (
+                float(result.total_score)
+                if max_score is None
+                else max(max_score, float(result.total_score))
+            )
         positive_components = sum(
             1 for c in result.components if not c.missing and (c.points or 0) > 0
         )
@@ -150,6 +159,8 @@ def _replay_stay(
         "first_interruptive_iculos": (
             interruptive_hours[0] if interruptive_hours else None
         ),
+        "max_score": max_score,
+        "hours_scoreable": hours_scoreable,
     }
 
 
@@ -166,6 +177,7 @@ def run_challenge2019_eval(
     bootstrap_seed: int = 42,
     bootstrap_alpha: float = 0.05,
     cached_stays: list[list] | None = None,
+    include_stay_rows: bool = False,
 ) -> dict:
     base = require_challenge2019_dir(root)
     bundle_in = load_rule_bundle("sepsis-sofa")
@@ -207,6 +219,13 @@ def run_challenge2019_eval(
                 frozen_meta.get("name") or frozen_meta.get("candidate_id") or "frozen"
             )
     elif gov_knobs is not None:
+        resolved = gov_knobs.get("resolved_bundle")
+        if resolved:
+            study_path = Path(str(resolved))
+            if not study_path.is_absolute():
+                study_path = Path(__file__).resolve().parent / "frozen" / study_path.name
+            if study_path.exists():
+                bundle_in = load_resolved_study_bundle(study_path)
         bundle, gov_config, profile_meta = apply_gov_knobs(bundle_in, gov_knobs)
         profile_label = str(
             gov_knobs.get("candidate_id") or gov_knobs.get("description") or "custom"
@@ -308,7 +327,7 @@ def run_challenge2019_eval(
             f"seed={bootstrap_seed}, alpha={bootstrap_alpha}."
         )
 
-    return {
+    out: dict = {
         "dataset": "physionet-challenge-2019",
         "source": str(base),
         "stays_scored": len(rows),
@@ -354,6 +373,9 @@ def run_challenge2019_eval(
         "bootstrap": bootstrap,
         "notes": notes,
     }
+    if include_stay_rows:
+        out["stay_rows"] = rows
+    return out
 
 
 def main(argv: list[str] | None = None) -> int:

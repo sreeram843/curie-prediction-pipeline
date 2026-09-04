@@ -1,0 +1,53 @@
+{
+  "schema_version": "1.0.0",
+  "source": "named_profiles_plus_frozen_winner",
+  "notes": [
+    "Not the full 23-candidate setA grid. The selected point remains grid_p0_r90_b0 from the original sweep. This figure places that point among named profiles."
+  ],
+  "points": [
+    {
+      "candidate_id": "strict",
+      "governed_sensitivity": 0.06815642458100558,
+      "interruptive_reduction_ratio": 0.02364048072361293,
+      "interruptive_sensitivity": 0.06815642458100558,
+      "selected": false
+    },
+    {
+      "candidate_id": "balanced",
+      "governed_sensitivity": 0.12681564245810056,
+      "interruptive_reduction_ratio": 0.07526822880303723,
+      "interruptive_sensitivity": 0.12625698324022347,
+      "selected": false
+    },
+    {
+      "candidate_id": "sensitive",
+      "governed_sensitivity": 0.8759776536312849,
+      "interruptive_reduction_ratio": 0.1609146385185241,
+      "interruptive_sensitivity": 0.3888268156424581,
+      "selected": false
+    },
+    {
+      "candidate_id": "accuracy",
+      "governed_sensitivity": 0.8759776536312849,
+      "interruptive_reduction_ratio": 0.1609146385185241,
+      "interruptive_sensitivity": 0.3888268156424581,
+      "selected": false
+    },
+    {
+      "candidate_id": "dual",
+      "governed_sensitivity": 0.8759776536312849,
+      "interruptive_reduction_ratio": 0.12251536914246035,
+      "interruptive_sensitivity": 0.3245810055865922,
+      "selected": false
+    },
+    {
+      "candidate_id": "grid_p0_r90_b0",
+      "governed_sensitivity": 0.8759776536312849,
+      "interruptive_reduction_ratio": 0.12251536914246035,
+      "interruptive_sensitivity": 0.3245810055865922,
+      "selected": true
+    }
+  ],
+  "split": "training_setA",
+  "stays_scored": 20336
+}

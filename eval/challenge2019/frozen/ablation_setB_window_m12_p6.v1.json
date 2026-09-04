@@ -1,0 +1,156 @@
+{
+  "schema_version": "1.0.0",
+  "cohort": "training_setB",
+  "operating_point": "eval/challenge2019/frozen/p1_setA_winner.json",
+  "notes": [
+    "Ablation evaluates the frozen setA winner on setB; knobs are not reselected.",
+    "drop_baseline is a null ablation: the winner already has baseline_enabled=false.",
+    "drop_persistence zeros watch persist (already 0) and page persist (30 \u2192 0)."
+  ],
+  "variants": [
+    {
+      "stays_scored": 20000,
+      "governed_sensitivity": 0.7950963222416813,
+      "interruptive_sensitivity": 0.3397548161120841,
+      "naive_sensitivity": 0.7950963222416813,
+      "interruptive_reduction_ratio": 0.1320025529431008,
+      "interruptive_nna": 106.07731958762886,
+      "naive_total": 311797,
+      "governed_total": 159933,
+      "interruptive_total": 41158,
+      "mean_lead_hours_in_window": 5.97136563876652,
+      "bootstrap": null,
+      "id": "primary_operating_point",
+      "null_vs_primary": false,
+      "knobs": {
+        "trajectory_persistence_minutes": 0,
+        "min_crossings": 1,
+        "baseline_enabled": false,
+        "refractory_minutes": 90,
+        "page_gate_enabled": true,
+        "page_min_crossings": 2,
+        "page_trajectory_persistence_minutes": 30
+      }
+    },
+    {
+      "stays_scored": 20000,
+      "governed_sensitivity": 0.7950963222416813,
+      "interruptive_sensitivity": 0.3397548161120841,
+      "naive_sensitivity": 0.7950963222416813,
+      "interruptive_reduction_ratio": 0.1320025529431008,
+      "interruptive_nna": 106.07731958762886,
+      "naive_total": 311797,
+      "governed_total": 159933,
+      "interruptive_total": 41158,
+      "mean_lead_hours_in_window": 5.97136563876652,
+      "bootstrap": null,
+      "id": "drop_baseline",
+      "null_vs_primary": true,
+      "knobs": {
+        "trajectory_persistence_minutes": 0,
+        "min_crossings": 1,
+        "baseline_enabled": false,
+        "refractory_minutes": 90,
+        "page_gate_enabled": true,
+        "page_min_crossings": 2,
+        "page_trajectory_persistence_minutes": 30
+      }
+    },
+    {
+      "stays_scored": 20000,
+      "governed_sensitivity": 0.7950963222416813,
+      "interruptive_sensitivity": 0.3397548161120841,
+      "naive_sensitivity": 0.7950963222416813,
+      "interruptive_reduction_ratio": 0.1320025529431008,
+      "interruptive_nna": 106.07731958762886,
+      "naive_total": 311797,
+      "governed_total": 159933,
+      "interruptive_total": 41158,
+      "mean_lead_hours_in_window": 5.97136563876652,
+      "bootstrap": null,
+      "id": "drop_persistence",
+      "null_vs_primary": false,
+      "knobs": {
+        "trajectory_persistence_minutes": 0,
+        "min_crossings": 1,
+        "baseline_enabled": false,
+        "refractory_minutes": 90,
+        "page_gate_enabled": true,
+        "page_min_crossings": 2,
+        "page_trajectory_persistence_minutes": 0
+      }
+    },
+    {
+      "stays_scored": 20000,
+      "governed_sensitivity": 0.7950963222416813,
+      "interruptive_sensitivity": 0.3397548161120841,
+      "naive_sensitivity": 0.7950963222416813,
+      "interruptive_reduction_ratio": 0.1320025529431008,
+      "interruptive_nna": 106.07731958762886,
+      "naive_total": 311797,
+      "governed_total": 159933,
+      "interruptive_total": 41158,
+      "mean_lead_hours_in_window": 5.97136563876652,
+      "bootstrap": null,
+      "id": "drop_crossings",
+      "null_vs_primary": false,
+      "knobs": {
+        "trajectory_persistence_minutes": 0,
+        "min_crossings": 1,
+        "baseline_enabled": false,
+        "refractory_minutes": 90,
+        "page_gate_enabled": true,
+        "page_min_crossings": 1,
+        "page_trajectory_persistence_minutes": 30
+      }
+    },
+    {
+      "stays_scored": 20000,
+      "governed_sensitivity": 0.7950963222416813,
+      "interruptive_sensitivity": 0.361646234676007,
+      "naive_sensitivity": 0.7950963222416813,
+      "interruptive_reduction_ratio": 0.2644188366148488,
+      "interruptive_nna": 199.62469733656175,
+      "naive_total": 311797,
+      "governed_total": 311797,
+      "interruptive_total": 82445,
+      "mean_lead_hours_in_window": 6.253303964757709,
+      "bootstrap": null,
+      "id": "drop_refractory",
+      "null_vs_primary": false,
+      "knobs": {
+        "trajectory_persistence_minutes": 0,
+        "min_crossings": 1,
+        "baseline_enabled": false,
+        "refractory_minutes": 0,
+        "page_gate_enabled": true,
+        "page_min_crossings": 2,
+        "page_trajectory_persistence_minutes": 30
+      }
+    },
+    {
+      "stays_scored": 20000,
+      "governed_sensitivity": 0.7950963222416813,
+      "interruptive_sensitivity": 0.4457092819614711,
+      "naive_sensitivity": 0.7950963222416813,
+      "interruptive_reduction_ratio": 0.2080744843600163,
+      "interruptive_nna": 127.45972495088408,
+      "naive_total": 311797,
+      "governed_total": 159933,
+      "interruptive_total": 64877,
+      "mean_lead_hours_in_window": 5.97136563876652,
+      "bootstrap": null,
+      "id": "drop_page_gate",
+      "null_vs_primary": false,
+      "knobs": {
+        "trajectory_persistence_minutes": 0,
+        "min_crossings": 1,
+        "baseline_enabled": false,
+        "refractory_minutes": 90,
+        "page_gate_enabled": false,
+        "page_min_crossings": 2,
+        "page_trajectory_persistence_minutes": 30
+      }
+    }
+  ]
+}

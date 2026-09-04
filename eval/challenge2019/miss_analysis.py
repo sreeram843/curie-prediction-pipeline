@@ -5,6 +5,8 @@ from __future__ import annotations
 from collections import Counter
 from typing import Any
 
+from eval.challenge2019.bootstrap import PRIMARY_DETECTION_MODE, is_detected
+
 # First decisive cause wins when multiple flags are present (order matters).
 MISS_REASONS: tuple[str, ...] = (
     "missing_input",
@@ -114,10 +116,78 @@ def build_miss_table(
         "examples": examples,
         "rule_config_hash": rule_config_hash,
         "notes": [
-            "Synthetic / aggregate miss attribution — no PHI.",
+            "Aggregate miss attribution — no PHI.",
             "primary_reason is the first decisive cause in policy order.",
         ],
     }
+
+
+def attribute_replay_false_negative(row: dict[str, Any]) -> dict[str, Any] | None:
+    """Attribute a governed in-window miss from a Challenge replay row.
+
+    Returns None if the stay is not a primary-window governed false negative.
+    Stay identifiers are not copied into the return value.
+    """
+    if not row.get("sepsis"):
+        return None
+    if is_detected(row, path="governed", mode=PRIMARY_DETECTION_MODE):
+        return None
+
+    naive_in = is_detected(row, path="naive", mode=PRIMARY_DETECTION_MODE)
+    gov_hours = list(row.get("governed_alert_hours") or [])
+    hours_scoreable = int(row.get("hours_scoreable") or 0)
+    max_score = row.get("max_score")
+
+    if hours_scoreable == 0 or max_score is None:
+        primary = "missing_input"
+    elif not naive_in and not gov_hours:
+        primary = "scorer_threshold"
+    elif naive_in and not gov_hours:
+        primary = "refractory"
+    elif gov_hours:
+        primary = "timing_window"
+    else:
+        primary = "scorer_threshold"
+
+    contributing: list[str] = []
+    if naive_in and primary != "scorer_threshold":
+        contributing.append("naive_in_window")
+    return {"primary_reason": primary, "contributing": contributing}
+
+
+def build_replay_miss_table(
+    rows: list[dict[str, Any]],
+    *,
+    rule_config_hash: str | None = None,
+) -> dict[str, Any]:
+    fns = [attribute_replay_false_negative(r) for r in rows]
+    attributions = [a for a in fns if a is not None]
+    table = build_miss_table(
+        [
+            {
+                "stay_id": None,
+                "miss_flags": [a["primary_reason"]],
+            }
+            for a in attributions
+        ],
+        rule_config_hash=rule_config_hash,
+    )
+    table["schema_version"] = "2.0.0"
+    table["id"] = "miss-analysis-v2-setB-replay"
+    table["source"] = (
+        "Governed false negatives on Challenge 2019 setB under window_m12_p6. "
+        "No stay identifiers."
+    )
+    table["primary_detection"] = PRIMARY_DETECTION_MODE
+    table["notes"] = [
+        "Regenerated from holdout replay rows; examples omitted to keep aggregates only.",
+        "On the frozen winner, watch persist=0 and baseline=off, so in-window naive "
+        "with no governed emit is attributed to refractory (hourly dedup).",
+        "missing_input = never scoreable; scorer_threshold = never crossed naive "
+        "threshold in-window; timing_window = governed emit existed but outside window.",
+    ]
+    table["examples"] = []
+    return table
 
 
 def miss_table_markdown(table: dict[str, Any]) -> str:
