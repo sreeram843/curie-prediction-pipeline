@@ -32,3 +32,27 @@ physionet.org/
 .DS_Store
 .vscode/
 *.swp
+
+# LaTeX build crumbs (keep paper/tables and paper/figures)
+paper/*.aux
+paper/*.out
+paper/*.bbl
+paper/*.blg
+paper/*.fdb_latexmk
+paper/*.fls
+paper/*.synctex.gz
+paper/*.pdf
+paper/jamiaopen/*.aux
+paper/jamiaopen/*.out
+paper/jamiaopen/*.bbl
+paper/jamiaopen/*.blg
+paper/jamiaopen/*.fdb_latexmk
+paper/jamiaopen/*.fls
+paper/jamiaopen/*.synctex.gz
+paper/jamiaopen/*.pdf
+
+# Local dataset archive / agent-tooling state (not project code)
+/data.zip
+.serena/
+skill-observations/
+cross-cutting-principles.md
