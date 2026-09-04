@@ -2,23 +2,32 @@ const state = {
   alerts: [],
   episodes: [],
   selectedId: null,
-  hideAck: false,
+  selectedEpisodeId: null,
+  hideAck: true,
+  filterToPatient: false,
+  searchQuery: "",
+  pendingAction: null,
+  explainingId: null,
+  sessionLog: [],
   metrics: null,
-  view: "alerts",
+  view: "workbench",
 };
 
 const listEl = document.getElementById("alertList");
 const detailEl = document.getElementById("detail");
 const detailEmpty = document.getElementById("detailEmpty");
 const metricsEl = document.getElementById("metrics");
-const episodesEl = document.getElementById("episodes");
+const episodeListEl = document.getElementById("episodeList");
+const episodeSearchEl = document.getElementById("episodeSearch");
+const filterToPatientEl = document.getElementById("filterToPatient");
 const claimsEl = document.getElementById("claims");
 const investorEl = document.getElementById("investor");
 const hideAckEl = document.getElementById("hideAck");
 const hideAckChip = document.getElementById("hideAckChip");
-const pageTitle = document.getElementById("pageTitle");
-const viewAlerts = document.getElementById("view-alerts");
+const viewWorkbench = document.getElementById("view-workbench");
 const viewExplain = document.getElementById("view-explain");
+const viewTimeline = document.getElementById("view-timeline");
+const viewGovernance = document.getElementById("view-governance");
 const workflowListEl = document.getElementById("workflowList");
 const episodePick = document.getElementById("episodePick");
 const episodeExplainBtn = document.getElementById("episodeExplainBtn");
@@ -30,6 +39,11 @@ const viewBenchmarks = document.getElementById("view-benchmarks");
 const benchmarkListEl = document.getElementById("benchmarkList");
 const benchDisclaimer = document.getElementById("benchDisclaimer");
 const benchHowto = document.getElementById("benchHowto");
+const governanceLogEl = document.getElementById("governanceLog");
+const timelineTitleEl = document.getElementById("timelineTitle");
+const timelinePillsEl = document.getElementById("timelinePills");
+const timelineListEl = document.getElementById("timelineList");
+const backToWorkbenchBtn = document.getElementById("backToWorkbench");
 const c4DiagramEl = document.getElementById("c4Diagram");
 const c4CaptionEl = document.getElementById("c4Caption");
 const c4LegendEl = document.getElementById("c4Legend");
@@ -775,9 +789,11 @@ function initC4Tabs() {
 function setView(view) {
   state.view = view;
   const panes = {
-    alerts: viewAlerts,
+    workbench: viewWorkbench,
     explain: viewExplain,
     benchmarks: viewBenchmarks,
+    governance: viewGovernance,
+    timeline: viewTimeline,
   };
   Object.entries(panes).forEach(([key, el]) => {
     if (!el) return;
@@ -785,11 +801,6 @@ function setView(view) {
     el.classList.toggle("hidden", !on);
     el.hidden = !on;
   });
-  if (hideAckChip) hideAckChip.classList.toggle("hidden", view !== "alerts");
-  if (pageTitle) {
-    pageTitle.textContent =
-      view === "alerts" ? "Curie" : view === "benchmarks" ? "Benchmarks" : "How Curie works";
-  }
   if (view === "explain") {
     renderC4(c4Active || "context");
     const steps = FLOW_SCENARIOS[flowState.scenario]?.steps || [];
@@ -797,8 +808,10 @@ function setView(view) {
   } else {
     stopFlowPlay();
   }
+  if (view === "governance") loadGovernance();
   document.querySelectorAll(".rail-btn[data-view]").forEach((btn) => {
-    const on = btn.dataset.view === view;
+    const navView = view === "timeline" ? "workbench" : view;
+    const on = btn.dataset.view === navView;
     btn.classList.toggle("active", on);
     if (on) btn.setAttribute("aria-current", "page");
     else btn.removeAttribute("aria-current");
@@ -1054,66 +1067,107 @@ async function loadMetrics() {
   state.metrics = m;
   metricsEl.innerHTML = `
     <article class="stat-card">
-      <span class="stat-label">Open</span>
       <strong class="stat-value">${esc(m.open_alerts)}</strong>
       <span class="stat-sub">Needs review</span>
     </article>
     <article class="stat-card critical">
-      <span class="stat-label">Critical</span>
       <strong class="stat-value">${esc(m.by_tier.critical || 0)}</strong>
       <span class="stat-sub">Highest acuity</span>
     </article>
     <article class="stat-card urgent">
-      <span class="stat-label">Urgent</span>
       <strong class="stat-value">${esc(m.by_tier.urgent || 0)}</strong>
       <span class="stat-sub">Interruptive</span>
     </article>
     <article class="stat-card watch">
-      <span class="stat-label">Watch</span>
       <strong class="stat-value">${esc(m.by_tier.watch || 0)}</strong>
       <span class="stat-sub">Passive flag</span>
     </article>
     <article class="stat-card ok">
-      <span class="stat-label">Acknowledged</span>
       <strong class="stat-value">${esc(m.acknowledged_alerts)}</strong>
       <span class="stat-sub">of ${esc(m.total_alerts)} total</span>
     </article>
   `;
 }
 
+function episodeDisplayName(ep) {
+  const match = state.alerts.find((a) => a.patient_id === ep.patient_id);
+  if (match) return displayName(match);
+  if (ep.patient_name && String(ep.patient_name).trim()) return String(ep.patient_name).trim();
+  const h = hashString(ep.patient_id);
+  const first = FIRST_NAMES[h % FIRST_NAMES.length];
+  const last = LAST_NAMES[Math.floor(h / FIRST_NAMES.length) % LAST_NAMES.length];
+  return `${first} ${last}`;
+}
+
+function visibleEpisodes() {
+  const q = state.searchQuery.trim().toLowerCase();
+  return (state.episodes || []).filter((ep) => {
+    if (state.hideAck && String(ep.status || "").toLowerCase() === "acknowledged") return false;
+    if (!q) return true;
+    const name = episodeDisplayName(ep).toLowerCase();
+    const condition = String(ep.dominant_signal_type || "").toLowerCase();
+    const pid = String(ep.patient_id || "").toLowerCase();
+    return name.includes(q) || condition.includes(q) || pid.includes(q);
+  });
+}
+
+function visibleTrackers() {
+  const ep = (state.episodes || []).find((e) => e.episode_id === state.selectedEpisodeId);
+  if (state.filterToPatient && ep) {
+    return state.alerts.filter((a) => a.patient_id === ep.patient_id);
+  }
+  return state.alerts;
+}
+
+function episodeForAlert(alert) {
+  return (state.episodes || []).find((e) => e.patient_id === alert.patient_id) || null;
+}
+
 async function loadEpisodes() {
-  if (!episodesEl) return;
   state.episodes = await fetchJson("/episodes?limit=50");
-  if (!state.episodes.length) {
-    episodesEl.innerHTML = "";
+  renderEpisodes();
+  fillEpisodePicker();
+}
+
+function renderEpisodes() {
+  if (!episodeListEl) return;
+  const rows = visibleEpisodes();
+  if (!rows.length) {
+    episodeListEl.innerHTML = `<p class="row-empty">No episodes match this filter.</p>`;
     return;
   }
-  episodesEl.innerHTML = `
-    <div class="section-title-row">
-      <h2>Episodes</h2>
-      <p class="hint">One interruptive page per patient episode · supporting signals retained</p>
-    </div>
-    <div class="episode-row">
-      ${state.episodes
-        .map((ep) => {
-          const support = (ep.supporting_signal_types || []).join(", ") || "—";
-          const name =
-            state.alerts.find((a) => a.patient_id === ep.patient_id)?.patient_name ||
-            ep.patient_id.replace(/^Patient\//, "");
-          return `<article class="episode-card">
-            <div class="episode-top">
-              <strong>${esc(name)}</strong>
-              <span class="tier-chip ${esc(ep.dominant_severity)}">${esc(ep.status)}</span>
-            </div>
-            <div class="episode-dom">${esc(ep.dominant_signal_type || "—")} · ${esc(ep.dominant_severity)}</div>
-            <div class="meta">support: ${esc(support)}</div>
-            <div class="meta">pages ${esc(ep.page_count)} · passive ${esc(ep.passive_update_count)}</div>
-          </article>`;
-        })
-        .join("")}
-    </div>
-  `;
-  fillEpisodePicker();
+  episodeListEl.innerHTML = "";
+  for (const ep of rows) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = `episode-row${ep.episode_id === state.selectedEpisodeId ? " active" : ""}`;
+    const support = (ep.supporting_signal_types || []).join(", ") || "—";
+    const status = String(ep.status || "open");
+    const acuity = String(ep.dominant_severity || "none");
+    btn.innerHTML = `
+      <div class="episode-row-top">
+        <div class="episode-name">${esc(episodeDisplayName(ep))}</div>
+        <div class="status-pill ${esc(status)}">${esc(status)}</div>
+      </div>
+      <div class="episode-mid">
+        <span class="acuity-pill ${esc(acuity)}">${esc(acuity)}</span>
+        <span class="mono">${esc(ep.dominant_signal_type || "—")}</span>
+      </div>
+      <div class="episode-support">support: ${esc(support)} · pages ${esc(ep.page_count ?? 0)} · passive ${esc(
+        ep.passive_update_count ?? 0
+      )}</div>
+    `;
+    btn.addEventListener("click", () => {
+      state.selectedEpisodeId = ep.episode_id;
+      state.selectedId = null;
+      state.pendingAction = null;
+      if (filterToPatientEl) filterToPatientEl.disabled = false;
+      renderEpisodes();
+      renderList();
+      clearEvidence();
+    });
+    episodeListEl.appendChild(btn);
+  }
 }
 
 async function loadClaims() {
@@ -1196,60 +1250,64 @@ async function loadAlerts() {
     limit: "100",
   });
   state.alerts = await fetchJson(`/alerts?${params}`);
+  renderEpisodes();
   renderList();
   if (state.selectedId) {
     const still = state.alerts.find((a) => a.alert_id === state.selectedId);
     if (still) renderDetail(still);
-    else if (state.alerts[0]) {
-      state.selectedId = state.alerts[0].alert_id;
-      renderDetail(state.alerts[0]);
-    } else {
+    else {
       state.selectedId = null;
-      detailEl.classList.add("hidden");
-      detailEmpty.classList.remove("hidden");
+      clearEvidence();
     }
   }
 }
 
+function clearEvidence() {
+  if (detailEl) {
+    detailEl.classList.add("hidden");
+    detailEl.innerHTML = "";
+  }
+  detailEmpty?.classList.remove("hidden");
+}
+
 function renderList() {
+  if (!listEl) return;
+  const trackers = visibleTrackers();
   listEl.innerHTML = "";
-  if (!state.alerts.length) {
-    listEl.innerHTML = `<p class="empty">No alerts match this filter.</p>`;
+  if (!trackers.length) {
+    listEl.innerHTML = `<p class="row-empty">No alerts match this filter.</p>`;
     return;
   }
 
-  for (const alert of state.alerts) {
+  for (const alert of trackers) {
     const btn = document.createElement("button");
     btn.type = "button";
-    btn.className = `alert-card${alert.acknowledged ? " acked" : ""}${
+    btn.className = `tracker-row${alert.acknowledged ? " acked" : ""}${
       alert.alert_id === state.selectedId ? " active" : ""
     }`;
-    const tier = alert.tier || "none";
     const view = signalView(alert);
-    const indicator = view.type;
+    const tier = alert.tier || "none";
     btn.innerHTML = `
-      <div class="card-top">
-        <div class="icon-pill ${esc(tier)}" aria-hidden="true">${indicatorGlyph(indicator)}</div>
-        <span class="tier-chip ${esc(tier)}">${esc(tier)}</span>
+      <div class="tracker-row-top">
+        <span class="acuity-pill ${esc(tier)}">${esc(tier)}</span>
+        <span class="mono-soft">${esc(fmtTime(alert.event_time))}</span>
       </div>
-      <div class="card-patient">${esc(displayName(alert))}</div>
-      <div class="card-score-row">
-        <div class="card-score">
-          <span>${view.kind === "phenotype" ? "Met" : "Score"}</span>
-          ${esc(view.score ?? "—")}
-        </div>
-        <div class="card-meta">${esc(fmtTime(alert.event_time))}</div>
+      <div class="tracker-patient">${esc(displayName(alert))}</div>
+      <div class="tracker-mid">
+        <span class="mono-soft">SCORE ${esc(view.score ?? "—")}</span>
+        <span class="mono">${esc(view.type)}</span>
       </div>
-      <div class="meter ${esc(tier)}" aria-hidden="true"><i style="width:${esc(scoreWidth(alert.score))}"></i></div>
-      <div class="card-footer">
-        <span class="indicator-tag">${esc(indicator)}</span>
-        <span>${esc(view.kind)} · ${alert.routing ? `${esc(alert.routing)} · ` : ""}${esc(view.completeness)}${
-          alert.acknowledged ? " · acked" : ""
-        }</span>
-      </div>
+      <div class="tracker-meta">${esc(view.kind)} · ${esc(alert.routing || "none")} · ${esc(
+        view.completeness
+      )}</div>
     `;
     btn.addEventListener("click", () => {
       state.selectedId = alert.alert_id;
+      state.pendingAction = null;
+      const ep = episodeForAlert(alert);
+      if (ep) state.selectedEpisodeId = ep.episode_id;
+      if (filterToPatientEl) filterToPatientEl.disabled = !state.selectedEpisodeId;
+      renderEpisodes();
       renderList();
       renderDetail(alert);
     });
@@ -1257,19 +1315,65 @@ function renderList() {
   }
 }
 
+function renderDeterministicExplanation(alert) {
+  const view = signalView(alert);
+  const present = (view.components || []).filter(
+    (c) => !c.missing && c.points != null && Number(c.points) > 0 && (c.evidence_ids || []).length
+  );
+  const claims = present
+    .map(
+      (c) =>
+        `<li>${esc(c.name)} contributed ${esc(c.points)} point(s) <span class="meta">[${esc(
+          (c.evidence_ids || []).join(", ")
+        )}]</span></li>`
+    )
+    .join("");
+  const missing = (view.missing || []).length
+    ? ` Missing inputs (not imputed): ${esc((view.missing || []).join(", "))}.`
+    : "";
+  if (!present.length && !(view.evidence || []).length) {
+    return `
+      <div class="rule-box">
+        <div class="rule-label">Deterministic explanation · from scored evidence</div>
+        <p>Insufficient grounded evidence for a deterministic explanation.</p>
+        <div class="meta">no model · score unchanged</div>
+      </div>`;
+  }
+  const summary = `Deterministic ${esc(view.type)} alert: score ${esc(view.score ?? "—")} (${esc(
+    view.completeness
+  )}), tier ${esc(view.severity)}, rule ${esc(view.ruleId)}@${esc(view.ruleVersion)}.${missing}`;
+  return `
+    <div class="rule-box">
+      <div class="rule-label">Deterministic explanation · from scored evidence</div>
+      <p>${summary}</p>
+      <ul class="evidence">${claims}</ul>
+      <div class="meta">no model · score unchanged</div>
+    </div>`;
+}
+
 function renderNarrative(alert) {
   const status = alert.narrative_status || "none";
-  const copilot = `<div class="copilot-label">Copilot <span>additive · WF-06</span></div>`;
+  const kicker = `<div class="copilot-label">Copilot explanation · grounded in criteria below</div>`;
+  if (state.explainingId && state.explainingId === alert.alert_id) {
+    return `
+      <div class="copilot-box is-generating" aria-busy="true">
+        ${kicker}
+        <p>Generating grounded explanation…</p>
+        <div class="meta">Waiting on the GRP model · score and routing stay unchanged</div>
+        <button type="button" class="ghost-btn" disabled>Generating…</button>
+      </div>`;
+  }
   if (status === "pass" && alert.narrative) {
     const claims = (alert.narrative_claims || [])
+      .filter((c) => c && typeof c === "object")
       .map(
         (c) =>
           `<li>${esc(c.text)} <span class="meta">[${esc((c.evidence_ids || []).join(", "))}]</span></li>`
       )
       .join("");
     return `
-      <div class="narrative pass">
-        ${copilot}
+      <div class="copilot-box">
+        ${kicker}
         <p>${esc(alert.narrative)}</p>
         <ul class="evidence">${claims}</ul>
         <div class="meta">model ${esc(alert.grp_model_name || "—")} · prompt ${esc(
@@ -1277,25 +1381,26 @@ function renderNarrative(alert) {
         )} · score unchanged</div>
       </div>`;
   }
-  if (status === "quarantine" || status === "abstain" || status === "error") {
+  if (status === "quarantine" || status === "abstain" || status === "error" || status === "disabled") {
     return `
-      <div class="narrative ${status}">
-        ${copilot}
+      <div class="narrative ${esc(status)}">
+        ${kicker}
         <strong>${esc(status)}</strong>
         <p>${esc(alert.quarantine_reason || "No narrative attached.")}</p>
         <div class="meta">Deterministic alert still valid · score unchanged</div>
-        <button type="button" id="explainBtn" class="secondary">Retry explanation</button>
+        <button type="button" id="explainBtn" class="ghost-btn">Retry explanation</button>
       </div>`;
   }
   return `
-    <div class="narrative none">
-      ${copilot}
-      <p class="meta">No narrative yet. Copilot cannot change the score or routing.</p>
-      <button type="button" id="explainBtn">Generate explanation</button>
+    <div class="copilot-box">
+      ${kicker}
+      <p>No narrative yet. Copilot cannot change the score or routing.</p>
+      <button type="button" id="explainBtn" class="ghost-btn">Generate explanation</button>
     </div>`;
 }
 
 function renderDetail(alert) {
+  if (!detailEl || !detailEmpty) return;
   detailEmpty.classList.add("hidden");
   detailEl.classList.remove("hidden");
 
@@ -1303,94 +1408,96 @@ function renderDetail(alert) {
   const components = (view.components || [])
     .map((c) => {
       if (c.missing) {
-        return `<li class="comp-item missing"><div class="comp-head"><strong>${esc(c.name)}</strong><span>missing</span></div></li>`;
+        return `<li class="comp-item missing"><div class="comp-head"><strong>${esc(c.name)}</strong><span class="comp-src">missing</span></div></li>`;
       }
+      const src = (c.evidence_ids || []).join(", ") || "no evidence ids";
       return `
         <li class="comp-item">
           <div class="comp-head">
             <strong>${esc(c.name)}</strong>
-            <span>${esc(c.points ?? 0)} pts</span>
+            <span class="comp-src">${esc(src)}</span>
           </div>
-          <div class="comp-bar" aria-hidden="true"><i style="width:${esc(componentWidth(c.points))}"></i></div>
-          <div class="meta">${esc((c.evidence_ids || []).join(", ") || "no evidence ids")}</div>
+          <span class="comp-pts">${esc(c.points ?? 0)} pts</span>
         </li>`;
     })
     .join("");
 
-  const evidence = (view.evidence || [])
-    .map((e) => `<li><code>${esc(e)}</code></li>`)
-    .join("");
-  const missing = (view.missing || [])
-    .map((m) => `<li><code>${esc(m)}</code></li>`)
-    .join("");
+  const missingText = (view.missing || []).length ? (view.missing || []).join(", ") : "None";
   const criteria = (view.criteria || [])
-    .map((c) => `<li><code>${esc(c)}</code></li>`)
+    .map((c) => `<div class="criteria-chip">${esc(c)}</div>`)
     .join("");
-  const exclusions = (view.exclusions || [])
-    .map((e) => `<li><code>${esc(e)}</code></li>`)
-    .join("");
+  const tags = [
+    view.kind,
+    view.completeness,
+    view.resolution,
+    alert.governance_path,
+    alert.routing,
+    view.stage != null ? `stage ${view.stage}` : null,
+    `${view.ruleId}@${view.ruleVersion}`,
+  ].filter(Boolean);
+
+  const reasonChips = state.pendingAction
+    ? `<div class="detail-actions">
+        ${["True positive", "False positive", "Monitoring"]
+          .map((label) => `<button type="button" class="reason-chip" data-reason="${esc(label)}">${esc(label)}</button>`)
+          .join("")}
+      </div>`
+    : "";
+
+  const actions = alert.acknowledged
+    ? `<div class="ack-note">Acknowledged ${esc(fmtTime(alert.acknowledged_at))}${
+        alert.acknowledge_note ? ` — ${esc(alert.acknowledge_note)}` : ""
+      }</div>
+       <div class="detail-actions">
+         <button type="button" id="timelineBtn" class="ghost-btn">View episode timeline</button>
+       </div>`
+    : state.pendingAction
+      ? reasonChips
+      : `<div class="detail-actions">
+           <button type="button" id="timelineBtn" class="ghost-btn">View episode timeline</button>
+           <div style="flex:1"></div>
+           <button type="button" id="escalateBtn" class="danger-btn">Escalate</button>
+           <button type="button" id="ackBtn" class="primary-btn">Acknowledge</button>
+         </div>`;
 
   detailEl.innerHTML = `
-    <div class="detail-hero">
-      <div class="detail-score"><small>${view.kind === "phenotype" ? "Met" : "Score"}</small>${esc(view.score ?? "—")}</div>
-      <div>
-        <h3>${esc(displayName(alert))}</h3>
-        <p class="meta">${esc(alert.alert_id)} · ${esc(patientIdLabel(alert.patient_id))}</p>
-        <div class="badges">
-          <span class="badge tier-chip ${esc(view.severity)}">${esc(view.severity)}</span>
-          <span class="badge">${esc(view.type)}</span>
-          <span class="badge">${esc(view.kind)}</span>
-          <span class="badge">${esc(view.completeness)}</span>
-          <span class="badge">${esc(view.resolution)}</span>
-          <span class="badge">${esc(alert.governance_path)}</span>
-          ${
-            alert.routing
-              ? `<span class="badge routing-chip ${esc(alert.routing)}">${esc(alert.routing)}</span>`
-              : ""
-          }
-          ${
-            alert.page_deferred_reason
-              ? `<span class="badge">deferred: ${esc(alert.page_deferred_reason)}</span>`
-              : ""
-          }
-          ${view.stage != null ? `<span class="badge">stage ${esc(view.stage)}</span>` : ""}
-          <span class="badge">${esc(view.ruleId)}@${esc(view.ruleVersion)}</span>
-        </div>
-      </div>
+    <div class="detail-top">
+      <span class="acuity-pill ${esc(view.severity)}">${esc(view.severity)}</span>
+      <span class="mono-soft">${esc(alert.alert_id)}</span>
     </div>
-    <p class="meta">Event ${esc(fmtTime(alert.event_time))} · Encounter ${esc(alert.encounter_id || "—")}
-      ${view.onset ? ` · Onset ${esc(fmtTime(view.onset))}` : ""}</p>
+    <h3>${esc(displayName(alert))} · SCORE ${esc(view.score ?? "—")}</h3>
+    <div class="detail-condition">${esc(view.type)}</div>
+    <div class="badges">${tags.map((t) => `<span class="badge">${esc(t)}</span>`).join("")}</div>
+    ${renderDeterministicExplanation(alert)}
+    ${renderNarrative(alert)}
+    <div class="detail-when">Event ${esc(fmtTime(alert.event_time))} · Encounter ${esc(
+      alert.encounter_id || "—"
+    )}${view.onset ? ` · Onset ${esc(fmtTime(view.onset))}` : ""} · model ${esc(view.ruleId)}@${esc(
+      view.ruleVersion
+    )}</div>
     <div class="section-label">Components</div>
     <ul class="comp-list">${components || '<li class="comp-item missing">No components</li>'}</ul>
-    <div class="section-label">Missing inputs</div>
-    <ul class="evidence">${missing || '<li class="missing">None</li>'}</ul>
-    <div class="section-label">Criteria met</div>
-    <ul class="evidence">${criteria || '<li class="missing">None</li>'}</ul>
-    <div class="section-label">Exclusions</div>
-    <ul class="evidence">${exclusions || '<li class="missing">None</li>'}</ul>
-    <div class="section-label">Evidence IDs</div>
-    <ul class="evidence">${evidence || '<li class="missing">None</li>'}</ul>
-    <div class="section-label">Guarded explanation</div>
-    ${renderNarrative(alert)}
-    ${
-      alert.acknowledged
-        ? `<div class="ack-note">Acknowledged ${esc(fmtTime(alert.acknowledged_at))}${
-            alert.acknowledge_note ? ` — ${esc(alert.acknowledge_note)}` : ""
-          }</div>`
-        : `<div class="actions">
-            <label class="section-label" for="ackNote">Acknowledge note</label>
-            <textarea id="ackNote" placeholder="Optional note (dismiss / accept signal)"></textarea>
-            <button type="button" id="ackBtn">Acknowledge</button>
-          </div>`
-    }
+    <div class="evidence-grid">
+      <div>
+        <div class="section-label">Criteria met</div>
+        ${criteria || `<div class="missing-copy">None</div>`}
+      </div>
+      <div>
+        <div class="section-label">Missing inputs</div>
+        <div class="missing-copy">${esc(missingText)}</div>
+      </div>
+    </div>
+    ${actions}
   `;
 
   const explainBtn = document.getElementById("explainBtn");
   if (explainBtn) {
     explainBtn.addEventListener("click", async () => {
-      explainBtn.disabled = true;
+      const alertId = alert.alert_id;
+      state.explainingId = alertId;
+      renderDetail(alert);
       try {
-        const updated = await fetchJson(`/alerts/${alert.alert_id}/explain`, {
+        const updated = await fetchJson(`/alerts/${encodeURIComponent(alertId)}/explain`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ force: true }),
@@ -1398,11 +1505,13 @@ function renderDetail(alert) {
         state.alerts = state.alerts.map((a) =>
           a.alert_id === updated.alert_id ? updated : a
         );
+        state.explainingId = null;
         renderList();
         renderDetail(updated);
       } catch (err) {
-        explainBtn.disabled = false;
         console.error(err);
+        state.explainingId = null;
+        renderDetail(alert);
         window.alert(`Explain failed: ${err.message}`);
       }
     });
@@ -1410,29 +1519,187 @@ function renderDetail(alert) {
 
   const ackBtn = document.getElementById("ackBtn");
   if (ackBtn) {
-    ackBtn.addEventListener("click", async () => {
-      const note = document.getElementById("ackNote")?.value || null;
-      ackBtn.disabled = true;
+    ackBtn.addEventListener("click", () => {
+      state.pendingAction = "acknowledge";
+      renderDetail(alert);
+    });
+  }
+  const escalateBtn = document.getElementById("escalateBtn");
+  if (escalateBtn) {
+    escalateBtn.addEventListener("click", () => {
+      state.pendingAction = "escalate";
+      renderDetail(alert);
+    });
+  }
+  detailEl.querySelectorAll(".reason-chip").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const reason = btn.dataset.reason || "True positive";
+      const action = state.pendingAction === "escalate" ? "Escalated" : "Acknowledged";
+      const note = state.pendingAction === "escalate" ? `Escalated — ${reason}` : reason;
+      btn.disabled = true;
       try {
         await fetchJson(`/alerts/${alert.alert_id}/acknowledge`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ note }),
         });
-        await Promise.all([loadMetrics(), loadAlerts()]);
+        state.sessionLog.unshift({
+          time: fmtTime(new Date().toISOString()),
+          patient: displayName(alert),
+          action,
+          reason,
+          user: "You",
+        });
+        state.pendingAction = null;
+        await Promise.all([loadMetrics(), loadAlerts(), loadEpisodes()]);
       } catch (err) {
-        ackBtn.disabled = false;
+        btn.disabled = false;
         console.error(err);
-        window.alert(`Acknowledge failed: ${err.message}`);
+        window.alert(`${action} failed: ${err.message}`);
       }
+    });
+  });
+
+  const timelineBtn = document.getElementById("timelineBtn");
+  if (timelineBtn) {
+    timelineBtn.addEventListener("click", () => {
+      const ep = episodeForAlert(alert);
+      renderTimeline(ep, alert);
+      setView("timeline");
     });
   }
 }
 
+function renderTimeline(episode, alert) {
+  const name = episode ? episodeDisplayName(episode) : displayName(alert);
+  if (timelineTitleEl) timelineTitleEl.textContent = `${name} · episode timeline`;
+  const acuity = episode?.dominant_severity || alert?.tier || "none";
+  const status = episode?.status || "open";
+  if (timelinePillsEl) {
+    timelinePillsEl.innerHTML = `
+      <span class="acuity-pill ${esc(acuity)}">${esc(acuity)}</span>
+      <span class="status-pill ${esc(status)}" style="background:#f5f5f4;color:#57534e;padding:3px 8px;border-radius:5px">${esc(status)}</span>
+    `;
+  }
+  const patientId = episode?.patient_id || alert?.patient_id;
+  const fromSignals = (episode?.signals || []).slice().sort((a, b) => {
+    return new Date(a.event_time) - new Date(b.event_time);
+  });
+  const fromAlerts = state.alerts
+    .filter((a) => a.patient_id === patientId)
+    .slice()
+    .sort((a, b) => new Date(a.event_time) - new Date(b.event_time));
+  const items = fromSignals.length
+    ? fromSignals.map((s) => ({
+        time: s.event_time,
+        condition: s.signal_type,
+        score: s.score,
+        mode: s.routing || "none",
+        completeness: "",
+      }))
+    : fromAlerts.map((a) => {
+        const v = signalView(a);
+        return {
+          time: a.event_time,
+          condition: v.type,
+          score: v.score,
+          mode: a.routing || "none",
+          completeness: v.completeness,
+        };
+      });
+  if (!timelineListEl) return;
+  if (!items.length) {
+    timelineListEl.innerHTML = `<p class="row-empty">No tracker events for this episode.</p>`;
+    return;
+  }
+  timelineListEl.innerHTML = items
+    .map((t, i) => {
+      const last = i === items.length - 1;
+      const extra = [t.mode, t.completeness].filter(Boolean).join(" · ");
+      return `<div class="tl-item">
+        <div class="tl-rail">
+          <div class="tl-dot"></div>
+          ${last ? "" : `<div class="tl-line"></div>`}
+        </div>
+        <div class="tl-card">
+          <div class="tl-time">${esc(fmtTime(t.time))}</div>
+          <div class="tl-body">
+            <div class="tl-body-top">
+              <div style="font-weight:600;font-size:13.5px">${esc(t.condition)}</div>
+              <div class="mono" style="color:#3730a3;font-weight:600">SCORE ${esc(t.score ?? "—")}</div>
+            </div>
+            <div class="tracker-meta">${esc(extra)}</div>
+          </div>
+        </div>
+      </div>`;
+    })
+    .join("");
+}
+
+function actionClass(action) {
+  const key = String(action || "").toLowerCase();
+  if (key.includes("escalat")) return "escalated";
+  if (key.includes("dismiss") || key.includes("suppress")) return "dismissed";
+  if (key.includes("noted")) return "noted";
+  return "acknowledged";
+}
+
+async function loadGovernance() {
+  if (!governanceLogEl) return;
+  const rows = [...state.sessionLog];
+  try {
+    const params = new URLSearchParams({ include_acknowledged: "true", limit: "100" });
+    const alerts = await fetchJson(`/alerts?${params}`);
+    for (const alert of alerts) {
+      if (!alert.acknowledged) continue;
+      const note = String(alert.acknowledge_note || "");
+      const action = note.toLowerCase().startsWith("escalated") ? "Escalated" : "Acknowledged";
+      rows.push({
+        time: fmtTime(alert.acknowledged_at || alert.event_time),
+        patient: displayName(alert),
+        action,
+        reason: note || "Acknowledged in workbench",
+        user: "Workbench",
+      });
+    }
+  } catch (err) {
+    console.warn("governance alerts unavailable", err);
+  }
+  if (!rows.length) {
+    governanceLogEl.innerHTML = `<p class="row-empty">No acknowledgement or escalate actions recorded yet.</p>`;
+    return;
+  }
+  governanceLogEl.innerHTML = rows
+    .map(
+      (g) => `<div class="gov-row">
+        <div class="gov-time">${esc(g.time)}</div>
+        <div class="gov-action ${actionClass(g.action)}">${esc(g.action)}</div>
+        <div class="gov-body">
+          <strong>${esc(g.patient)}</strong>
+          <span>${esc(g.reason)}</span>
+        </div>
+        <div class="gov-user">${esc(g.user)}</div>
+      </div>`
+    )
+    .join("");
+}
+
 hideAckEl?.addEventListener("change", async () => {
   state.hideAck = hideAckEl.checked;
-  await loadAlerts();
+  await Promise.all([loadAlerts(), loadEpisodes()]);
 });
+
+episodeSearchEl?.addEventListener("input", () => {
+  state.searchQuery = episodeSearchEl.value || "";
+  renderEpisodes();
+});
+
+filterToPatientEl?.addEventListener("change", () => {
+  state.filterToPatient = filterToPatientEl.checked;
+  renderList();
+});
+
+backToWorkbenchBtn?.addEventListener("click", () => setView("workbench"));
 
 document.querySelectorAll(".rail-btn[data-view]").forEach((btn) => {
   btn.addEventListener("click", () => setView(btn.dataset.view));
@@ -1498,16 +1765,11 @@ if (stewardClassifyBtn) {
   renderWorkflows();
   initC4Tabs();
   initFlowAnim();
-  setView("alerts");
+  setView("workbench");
   await loadMetrics();
   await loadClaims();
   await loadInvestorDemo();
   await loadBenchmarks();
   await loadAlerts();
   await loadEpisodes();
-  if (state.alerts[0]) {
-    state.selectedId = state.alerts[0].alert_id;
-    renderList();
-    renderDetail(state.alerts[0]);
-  }
 })();

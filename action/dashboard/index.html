@@ -7,246 +7,289 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,560;9..144,700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="/static/styles.css?v=sec-2" />
+    <link rel="stylesheet" href="/static/styles.css?v=wb-4" />
   </head>
   <body>
     <div class="shell">
       <aside class="rail" aria-label="Primary">
-        <div class="rail-mark" title="Curie">C</div>
+        <div class="rail-brand">
+          <div class="rail-mark" aria-hidden="true">C</div>
+          <div class="rail-wordmark">Curie</div>
+        </div>
+        <p class="rail-proto">Prototype · synthetic data only</p>
+        <div class="rail-rule"></div>
         <nav class="rail-nav">
-          <button
-            type="button"
-            class="rail-btn active"
-            data-view="alerts"
-            aria-current="page"
-            title="Alerts"
-          >
-            <span aria-hidden="true">◈</span>
-            <span class="sr-only">Alerts</span>
+          <button type="button" class="rail-btn active" data-view="workbench" aria-current="page">
+            Workbench
           </button>
-          <button type="button" class="rail-btn" data-view="explain" title="How Curie works">
-            <span aria-hidden="true">☰</span>
-            <span class="sr-only">How Curie works</span>
-          </button>
-          <button type="button" class="rail-btn" data-view="benchmarks" title="Benchmarks">
-            <span aria-hidden="true">▦</span>
-            <span class="sr-only">Benchmarks</span>
-          </button>
+          <button type="button" class="rail-btn" data-view="explain">How Curie works</button>
+          <button type="button" class="rail-btn" data-view="benchmarks">Benchmarks</button>
+          <button type="button" class="rail-btn" data-view="governance">Governance log</button>
         </nav>
-        <p class="rail-proto">Demo</p>
+        <p class="rail-foot">
+          Not clinically validated · Not for patient care · Scores are deterministic prototypes.
+        </p>
       </aside>
 
       <div class="workspace">
-        <header class="topbar">
-          <div>
-            <p class="eyebrow">Prototype · synthetic data only</p>
-            <h1 id="pageTitle">Curie</h1>
-          </div>
-          <label class="filter-chip" id="hideAckChip">
-            <input type="checkbox" id="hideAck" />
-            Hide acknowledged
-          </label>
-        </header>
+        <div id="view-workbench" class="view-pane workbench-pane">
+          <header class="wb-header">
+            <div class="wb-header-top">
+              <h1>Episodes</h1>
+              <p class="hint">One interruptive page per patient episode · supporting signals retained</p>
+            </div>
+            <div class="wb-header-row">
+              <section class="summary" id="metrics" aria-live="polite" aria-label="Alert summary"></section>
+              <label class="filter-chip" id="hideAckChip">
+                <input type="checkbox" id="hideAck" checked />
+                Hide acknowledged
+              </label>
+            </div>
+          </header>
 
-        <div id="view-alerts" class="view-pane">
-          <section class="summary" id="metrics" aria-live="polite" aria-label="Alert summary"></section>
-          <section class="episodes" id="episodes" aria-label="Patient episodes"></section>
-
-          <div class="workspace-grid">
-            <section class="board" aria-labelledby="alerts-heading">
-              <div class="section-title-row">
-                <h2 id="alerts-heading">Active trackers</h2>
-                <p class="hint">Select a card to inspect score evidence</p>
+          <div class="wb-grid">
+            <section class="wb-col wb-episodes" aria-labelledby="episodes-heading">
+              <h2 id="episodes-heading" class="sr-only">Episodes</h2>
+              <div class="wb-search">
+                <label class="sr-only" for="episodeSearch">Search patient or condition</label>
+                <input
+                  id="episodeSearch"
+                  type="search"
+                  placeholder="Search patient or condition"
+                  autocomplete="off"
+                />
               </div>
-              <div id="alertList" class="card-grid"></div>
+              <div id="episodeList" class="row-list"></div>
             </section>
 
-            <section class="inspector" aria-labelledby="detail-heading">
-              <h2 id="detail-heading">Evidence</h2>
+            <section class="wb-col wb-trackers" aria-labelledby="alerts-heading">
+              <div class="wb-col-sticky">
+                <h2 id="alerts-heading">Active trackers</h2>
+                <label class="filter-inline">
+                  <input type="checkbox" id="filterToPatient" disabled />
+                  Filter to selected patient
+                </label>
+              </div>
+              <div id="alertList" class="row-list"></div>
+            </section>
+
+            <section class="wb-col wb-evidence" aria-labelledby="detail-heading">
+              <h2 id="detail-heading" class="sr-only">Evidence</h2>
               <div id="detailEmpty" class="empty-state">
-                <p>Pick an alert card to see component scores, evidence IDs, and actions.</p>
+                Select a tracker card to inspect score evidence
               </div>
               <article id="detail" class="detail hidden"></article>
             </section>
           </div>
         </div>
 
+        <div id="view-timeline" class="view-pane hidden" hidden>
+          <div class="timeline-bar">
+            <button type="button" class="ghost-btn" id="backToWorkbench">← Workbench</button>
+            <h1 id="timelineTitle">Episode timeline</h1>
+          </div>
+          <div class="doc-page timeline-body">
+            <div id="timelinePills" class="timeline-pills"></div>
+            <div id="timelineList"></div>
+          </div>
+        </div>
+
         <div id="view-explain" class="view-pane hidden" hidden>
-          <section class="explain-hero" aria-labelledby="explain-heading">
-            <p class="eyebrow">Product thesis</p>
-            <h2 id="explain-heading">LLMs at the edges. Determinism at the core.</h2>
-            <p class="explain-lead">
-              Use models for ambiguous semantic and human-workflow boundaries. Keep scoring, temporal
-              criteria, episode transitions, and interruptive routing versioned and deterministic.
-            </p>
-          </section>
-
-          <section class="layer-strip" aria-label="Product layers">
-            <article class="layer">
-              <span class="layer-kicker">01</span>
-              <h3>Connect</h3>
-              <p>Adaptive onboarding, validation, and exception handling for hospital interfaces.</p>
-            </article>
-            <article class="layer">
-              <span class="layer-kicker">02</span>
-              <h3>Signal</h3>
-              <p>Deterministic multi-condition surveillance, episode arbitration, and alert governance.</p>
-            </article>
-            <article class="layer layer-copilot">
-              <span class="layer-kicker">03</span>
-              <h3>Copilot</h3>
-              <p>Grounded explanations, review assistance, protocol retrieval, and feedback analytics.</p>
-            </article>
-          </section>
-
-          <section class="c4-section" aria-labelledby="c4-heading">
-            <div class="section-title-row">
-              <h2 id="c4-heading">C4 architecture — LLM workflows</h2>
-              <p class="hint">Context → containers → components · LLM stays outside the scoring spine</p>
-            </div>
-            <div class="c4-tabs" role="tablist" aria-label="C4 diagram level">
-              <button type="button" class="c4-tab active" role="tab" aria-selected="true" data-c4="context">
-                1 · Context
-              </button>
-              <button type="button" class="c4-tab" role="tab" aria-selected="false" data-c4="container">
-                2 · Containers
-              </button>
-              <button type="button" class="c4-tab" role="tab" aria-selected="false" data-c4="component">
-                3 · Components
-              </button>
-              <button type="button" class="c4-tab" role="tab" aria-selected="false" data-c4="boundary">
-                LLM boundary
-              </button>
-            </div>
-            <article class="c4-panel" id="c4Panel">
-              <p class="c4-caption" id="c4Caption"></p>
-              <div class="c4-diagram" id="c4Diagram" aria-live="polite"></div>
-              <ul class="c4-legend" id="c4Legend"></ul>
-            </article>
-          </section>
-
-          <section class="flow-anim" aria-labelledby="flow-anim-heading">
-            <div class="section-title-row">
-              <h2 id="flow-anim-heading">Animated LLM workflow portfolio</h2>
-              <p class="hint">WF-01 → WF-10 · Play or step each path</p>
-            </div>
-            <div class="flow-scenario-tabs" id="flowScenarioTabs" role="tablist" aria-label="Workflow animation scenario"></div>
-            <article class="flow-stage" id="flowStage">
-              <p class="flow-narration" id="flowNarration" aria-live="polite"></p>
-              <div class="flow-canvas" id="flowCanvas" aria-hidden="true">
-                <svg class="flow-edges" id="flowEdgesSvg" viewBox="0 0 920 240" preserveAspectRatio="xMidYMid meet">
-                  <defs>
-                    <marker
-                      id="flowArrow"
-                      markerWidth="8"
-                      markerHeight="8"
-                      refX="6"
-                      refY="3"
-                      orient="auto"
-                    >
-                      <path d="M0,0 L6,3 L0,6 Z" fill="#8a9aa3"></path>
-                    </marker>
-                    <marker
-                      id="flowArrowActive"
-                      markerWidth="8"
-                      markerHeight="8"
-                      refX="6"
-                      refY="3"
-                      orient="auto"
-                    >
-                      <path d="M0,0 L6,3 L0,6 Z" fill="#1b7f72"></path>
-                    </marker>
-                  </defs>
-                  <g id="flowEdgeGroup"></g>
-                  <circle class="flow-token" id="flowToken" cx="60" cy="150" r="7"></circle>
-                </svg>
-                <div class="flow-nodes" id="flowNodes"></div>
-              </div>
-              <div class="flow-controls">
-                <button type="button" id="flowPlay" class="flow-ctrl primary">Play</button>
-                <button type="button" id="flowStep" class="flow-ctrl">Step</button>
-                <button type="button" id="flowReset" class="flow-ctrl">Reset</button>
-                <span class="flow-step-meta" id="flowStepMeta"></span>
-              </div>
-            </article>
-          </section>
-
-          <section class="safety-banner" aria-label="Hard safety boundary">
-            <h3>Hard safety boundary</h3>
-            <p>
-              An LLM must not calculate scores, open or route episodes, choose thresholds, invent
-              uncited facts, or promote candidates to trusted state. Model failure never blocks
-              deterministic delivery.
-            </p>
-            <ul class="safety-list">
-              <li>No SOFA / KDIGO / phenotype mutation</li>
-              <li>No episode open / suppress / escalate</li>
-              <li>No live threshold or rule activation</li>
-              <li>Every claim cites allowed evidence IDs</li>
-            </ul>
-          </section>
-
-          <section class="workflows" aria-labelledby="wf-heading">
-            <div class="section-title-row">
-              <h2 id="wf-heading">LLM workflow portfolio</h2>
-              <p class="hint">What runs where · try live demos below</p>
-            </div>
-            <div id="workflowList" class="wf-list"></div>
-          </section>
-
-          <section class="try-panels" aria-label="Live workflow demos">
-            <article class="try-panel">
-              <h3>WF-06 · Episode narrative</h3>
-              <p class="meta">
-                Additive copilot on immutable episode context. Score and routing stay unchanged.
+          <div class="doc-page">
+            <section class="explain-hero" aria-labelledby="explain-heading">
+              <p class="eyebrow">Product thesis</p>
+              <h2 id="explain-heading">LLMs at the edges. Determinism at the core.</h2>
+              <p class="explain-lead">
+                Use models for ambiguous semantic and human-workflow boundaries. Keep scoring, temporal
+                criteria, episode transitions, and interruptive routing versioned and deterministic.
               </p>
-              <label class="section-label" for="episodePick">Episode</label>
-              <select id="episodePick"></select>
-              <button type="button" id="episodeExplainBtn">Generate episode explanation</button>
-              <div id="episodeExplainOut" class="try-out" aria-live="polite"></div>
-            </article>
-            <article class="try-panel">
-              <h3>WF-09 · Stewardship classify</h3>
-              <p class="meta">
-                Classify acknowledgement text into a governance taxonomy. Never mutates live rules.
-              </p>
-              <label class="section-label" for="stewardText">Feedback text</label>
-              <textarea id="stewardText" rows="3">Already on fluids and antibiotics; page was appropriate but not actionable right now.</textarea>
-              <button type="button" id="stewardClassifyBtn">Classify feedback</button>
-              <div id="stewardOut" class="try-out" aria-live="polite"></div>
-            </article>
-          </section>
+            </section>
 
-          <section class="claims" id="claims" aria-label="Claims matrix"></section>
-          <section class="investor" id="investor" aria-label="Investor demo snapshot"></section>
+            <section class="layer-strip" aria-label="Product layers">
+              <article class="layer">
+                <span class="layer-kicker">01 · Connect</span>
+                <p>Adaptive onboarding, validation, and exception handling for hospital interfaces.</p>
+              </article>
+              <article class="layer">
+                <span class="layer-kicker">02 · Signal</span>
+                <p>Deterministic multi-condition surveillance, episode arbitration, and alert governance.</p>
+              </article>
+              <article class="layer">
+                <span class="layer-kicker">03 · Copilot</span>
+                <p>Grounded explanations, review assistance, protocol retrieval, and feedback analytics.</p>
+              </article>
+            </section>
+
+            <section class="c4-section" aria-labelledby="c4-heading">
+              <div class="section-title-row">
+                <h2 id="c4-heading">C4 architecture — LLM workflows</h2>
+                <p class="hint">Context → containers → components · LLM stays outside the scoring spine</p>
+              </div>
+              <div class="c4-tabs" role="tablist" aria-label="C4 diagram level">
+                <button type="button" class="c4-tab active" role="tab" aria-selected="true" data-c4="context">
+                  1 · Context
+                </button>
+                <button type="button" class="c4-tab" role="tab" aria-selected="false" data-c4="container">
+                  2 · Containers
+                </button>
+                <button type="button" class="c4-tab" role="tab" aria-selected="false" data-c4="component">
+                  3 · Components
+                </button>
+                <button type="button" class="c4-tab" role="tab" aria-selected="false" data-c4="boundary">
+                  LLM boundary
+                </button>
+              </div>
+              <article class="c4-panel" id="c4Panel">
+                <p class="c4-caption" id="c4Caption"></p>
+                <div class="c4-diagram" id="c4Diagram" aria-live="polite"></div>
+                <ul class="c4-legend" id="c4Legend"></ul>
+              </article>
+            </section>
+
+            <section class="flow-anim" aria-labelledby="flow-anim-heading">
+              <div class="section-title-row">
+                <h2 id="flow-anim-heading">Animated LLM workflow portfolio</h2>
+                <p class="hint">WF-01 → WF-10 · Play or step each path</p>
+              </div>
+              <div
+                class="flow-scenario-tabs"
+                id="flowScenarioTabs"
+                role="tablist"
+                aria-label="Workflow animation scenario"
+              ></div>
+              <article class="flow-stage" id="flowStage">
+                <p class="flow-narration" id="flowNarration" aria-live="polite"></p>
+                <div class="flow-canvas" id="flowCanvas" aria-hidden="true">
+                  <svg
+                    class="flow-edges"
+                    id="flowEdgesSvg"
+                    viewBox="0 0 920 240"
+                    preserveAspectRatio="xMidYMid meet"
+                  >
+                    <defs>
+                      <marker
+                        id="flowArrow"
+                        markerWidth="8"
+                        markerHeight="8"
+                        refX="6"
+                        refY="3"
+                        orient="auto"
+                      >
+                        <path d="M0,0 L6,3 L0,6 Z" fill="#a8a29e"></path>
+                      </marker>
+                      <marker
+                        id="flowArrowActive"
+                        markerWidth="8"
+                        markerHeight="8"
+                        refX="6"
+                        refY="3"
+                        orient="auto"
+                      >
+                        <path d="M0,0 L6,3 L0,6 Z" fill="#3730a3"></path>
+                      </marker>
+                    </defs>
+                    <g id="flowEdgeGroup"></g>
+                    <circle class="flow-token" id="flowToken" cx="60" cy="150" r="7"></circle>
+                  </svg>
+                  <div class="flow-nodes" id="flowNodes"></div>
+                </div>
+                <div class="flow-controls">
+                  <button type="button" id="flowPlay" class="flow-ctrl primary">Play</button>
+                  <button type="button" id="flowStep" class="flow-ctrl">Step</button>
+                  <button type="button" id="flowReset" class="flow-ctrl">Reset</button>
+                  <span class="flow-step-meta" id="flowStepMeta"></span>
+                </div>
+              </article>
+            </section>
+
+            <section class="safety-banner" aria-label="Hard safety boundary">
+              <h3>Hard safety boundary</h3>
+              <p>
+                An LLM must not calculate scores, open or route episodes, choose thresholds, invent
+                uncited facts, or promote candidates to trusted state. Model failure never blocks
+                deterministic delivery.
+              </p>
+              <ul class="safety-list">
+                <li>No SOFA / KDIGO / phenotype mutation</li>
+                <li>No episode open / suppress / escalate</li>
+                <li>No live threshold or rule activation</li>
+                <li>Every claim cites allowed evidence IDs</li>
+              </ul>
+            </section>
+
+            <section class="workflows" aria-labelledby="wf-heading">
+              <div class="section-title-row">
+                <h2 id="wf-heading">LLM workflow portfolio · what runs where</h2>
+                <p class="hint">Try live demos below</p>
+              </div>
+              <div id="workflowList" class="wf-list"></div>
+            </section>
+
+            <section class="try-panels" aria-label="Live workflow demos">
+              <article class="try-panel">
+                <h3>WF-06 · Episode narrative</h3>
+                <p class="meta">
+                  Additive copilot on immutable episode context. Score and routing stay unchanged.
+                </p>
+                <label class="section-label" for="episodePick">Episode</label>
+                <select id="episodePick"></select>
+                <button type="button" id="episodeExplainBtn">Generate episode explanation</button>
+                <div id="episodeExplainOut" class="try-out" aria-live="polite"></div>
+              </article>
+              <article class="try-panel">
+                <h3>WF-09 · Stewardship classify</h3>
+                <p class="meta">
+                  Classify acknowledgement text into a governance taxonomy. Never mutates live rules.
+                </p>
+                <label class="section-label" for="stewardText">Feedback text</label>
+                <textarea id="stewardText" rows="3">Already on fluids and antibiotics; page was appropriate but not actionable right now.</textarea>
+                <button type="button" id="stewardClassifyBtn">Classify feedback</button>
+                <div id="stewardOut" class="try-out" aria-live="polite"></div>
+              </article>
+            </section>
+
+            <section class="claims" id="claims" aria-label="Claims matrix"></section>
+            <section class="investor" id="investor" aria-label="Investor demo snapshot"></section>
+          </div>
         </div>
 
         <div id="view-benchmarks" class="view-pane hidden" hidden>
-          <section class="explain-hero" aria-labelledby="bench-heading">
-            <p class="eyebrow">Evidence · frozen aggregates only</p>
-            <h2 id="bench-heading">Benchmarks, explained</h2>
-            <p class="explain-lead" id="benchDisclaimer">
-              Loading benchmark cards…
+          <div class="doc-page">
+            <section class="explain-hero" aria-labelledby="bench-heading">
+              <p class="eyebrow">Evidence · frozen aggregates only</p>
+              <h2 id="bench-heading">Benchmarks</h2>
+              <p class="explain-lead" id="benchDisclaimer">Loading benchmark cards…</p>
+            </section>
+            <section class="bench-howto" id="benchHowto" aria-label="How to use this page"></section>
+            <section class="benchmarks" aria-labelledby="bench-list-heading">
+              <h2 id="bench-list-heading" class="sr-only">Benchmark cards</h2>
+              <div id="benchmarkList" class="bench-list"></div>
+            </section>
+            <p class="foot">
+              Not clinically validated · Not for patient care · Scores are deterministic prototypes
             </p>
-          </section>
-          <section class="bench-howto" id="benchHowto" aria-label="How to use this page"></section>
-          <section class="benchmarks" aria-labelledby="bench-list-heading">
-            <div class="section-title-row">
-              <h2 id="bench-list-heading">Benchmark cards</h2>
-              <p class="hint">Expand a card for metrics, caveats, and how to read them</p>
-            </div>
-            <div id="benchmarkList" class="bench-list"></div>
-          </section>
+          </div>
         </div>
 
-        <footer class="foot">
-          Not clinically validated · Not for patient care · Scores are deterministic prototypes
-        </footer>
+        <div id="view-governance" class="view-pane hidden" hidden>
+          <div class="doc-page">
+            <section class="explain-hero" aria-labelledby="gov-heading">
+              <p class="eyebrow">Alert stewardship · CURIE-024</p>
+              <h2 id="gov-heading">Governance log</h2>
+              <p class="explain-lead">
+                Every acknowledge, escalate, and dismiss is recorded with a reason category. This
+                classifies feedback text into a taxonomy and proposes offline experiments — it never
+                mutates live rules or thresholds.
+              </p>
+            </section>
+            <div id="governanceLog" class="gov-list"></div>
+          </div>
+        </div>
       </div>
     </div>
-    <script src="/static/app.js?v=sec-2"></script>
+    <script src="/static/app.js?v=wb-4"></script>
   </body>
 </html>
