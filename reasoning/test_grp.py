@@ -135,3 +135,13 @@ def test_openai_compat_parses_fenced_json(monkeypatch) -> None:
     assert decision.narrative is not None
     assert "Partial SOFA alert" in decision.narrative
     assert decision.model_name == "medgemma-4b-it-mlx"
+
+
+def test_rewrite_grp_base_url_loopback_only_in_docker() -> None:
+    from ingestion.extraction.settings import rewrite_grp_base_url
+
+    loop = "http://127.0.0.1:1234/v1"
+    assert rewrite_grp_base_url(loop, in_docker=False) == loop
+    assert rewrite_grp_base_url(loop, in_docker=True) == "http://host.docker.internal:1234/v1"
+    cloud = "https://api.openai.com/v1"
+    assert rewrite_grp_base_url(cloud, in_docker=True) == cloud

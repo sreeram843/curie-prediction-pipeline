@@ -124,3 +124,50 @@ def test_api_episode_explain_additive() -> None:
         assert body["narrative"]
         assert body["prompt_version"]
         assert body["narrative_snapshot_hash"]
+
+
+def test_episode_openai_compat_uses_model_not_stub(monkeypatch: pytest.MonkeyPatch) -> None:
+    from reasoning import openai_compat as oc
+
+    class _Resp:
+        def raise_for_status(self) -> None:
+            return None
+
+        def json(self) -> dict:
+            return {
+                "choices": [
+                    {
+                        "message": {
+                            "content": (
+                                '{"summary":"Episode worsened on SOFA then AKI.",'
+                                '"claims":[{"text":"SOFA dominant signal.",'
+                                '"evidence_ids":["Observation/map-1"]}],'
+                                '"abstain":false,"abstain_reason":null}'
+                            )
+                        }
+                    }
+                ]
+            }
+
+    class _Client:
+        def __init__(self, *args, **kwargs) -> None:
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args) -> None:
+            return None
+
+        def post(self, *args, **kwargs):
+            return _Resp()
+
+    monkeypatch.setattr(settings_mod.settings, "grp_backend", "openai_compat")
+    monkeypatch.setattr(settings_mod.settings, "grp_model_name", "medgemma-4b-it-mlx")
+    monkeypatch.setattr(oc.httpx, "Client", _Client)
+
+    decision = explain_episode(_sample_episode(), force=True)
+    assert decision.status == "pass"
+    assert decision.narrative is not None
+    assert "Episode worsened on SOFA then AKI" in decision.narrative
+    assert decision.model_name == "medgemma-4b-it-mlx"

@@ -103,6 +103,7 @@ def generate_openai_compat(
     timeout_s: float = 120.0,
     max_tokens: int = 512,
     temperature: float = 0.0,
+    context_text: str | None = None,
 ) -> NarrativeDraft:
     """Call an OpenAI-compatible /chat/completions endpoint."""
     if not ctx.evidence_ids:
@@ -114,9 +115,10 @@ def generate_openai_compat(
             model_name=model_name,
         )
 
+    serialized = context_text if context_text is not None else serialize_context_for_model(ctx)
     user_prompt = (
         f"Allowed evidence_ids: {', '.join(ctx.evidence_ids)}\n\n"
-        f"Alert context:\n{serialize_context_for_model(ctx)}\n\n"
+        f"Alert context:\n{serialized}\n\n"
         "Return JSON only."
     )
 

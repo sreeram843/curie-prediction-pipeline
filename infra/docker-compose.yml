@@ -105,12 +105,18 @@ services:
     container_name: curie-api
     ports:
       - "8000:8000"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    env_file:
+      - path: ../.env
+        required: false
     environment:
       KAFKA_BOOTSTRAP: kafka:29092
       KAFKA_BOOTSTRAP_SERVERS: kafka:29092
       CURIE_KAFKA_ALERTS_CONSUMER: "true"
       CURIE_CLEAR_DEMO_ON_LIVE: "true"
       CURIE_KAFKA_ALERTS_GROUP: curie-api-alerts-v1
+      CURIE_IN_DOCKER: "1"
     depends_on:
       kafka:
         condition: service_healthy

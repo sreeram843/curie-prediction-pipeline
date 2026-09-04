@@ -11,7 +11,7 @@ from typing import Any
 from ingestion.extraction.settings import settings
 from reasoning.claim_validator import validate_draft
 from reasoning.context_builder import build_alert_context
-from reasoning.episode_context import build_episode_context
+from reasoning.episode_context import build_episode_context, serialize_episode_context_for_model
 from reasoning.episode_narrative import (
     generate_deterministic_episode,
     generate_episode_injection_attack,
@@ -132,11 +132,19 @@ def explain_episode(
             draft = generate_malformed_episode_draft(ctx, model_name=settings.grp_model_name)
         elif inject_ungrounded:
             draft = generate_episode_injection_attack(ctx, model_name=settings.grp_model_name)
-        elif settings.grp_backend in {"deterministic", "openai_compat"}:
-            # Episode path uses deterministic grounded generator even when alert path
-            # uses openai_compat — keeps episode narrative reproducible/offline-safe.
-            # Optional LLM can be layered later behind the same validator/gate.
+        elif settings.grp_backend == "deterministic":
             draft = generate_deterministic_episode(ctx, model_name=settings.grp_model_name)
+        elif settings.grp_backend == "openai_compat":
+            draft = generate_openai_compat(
+                ctx.as_alert_context(),
+                model_name=settings.grp_model_name,
+                base_url=settings.grp_base_url,
+                api_key=settings.grp_api_key,
+                timeout_s=settings.grp_timeout_s,
+                max_tokens=settings.grp_max_tokens,
+                temperature=settings.grp_temperature,
+                context_text=serialize_episode_context_for_model(ctx),
+            )
         else:
             return GateDecision(
                 status="error",
