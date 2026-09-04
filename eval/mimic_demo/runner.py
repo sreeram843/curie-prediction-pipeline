@@ -19,7 +19,7 @@ from ingestion.adapters.mimic.loader import (
     index_outputevents_urine,
     load_icustays,
 )
-from ingestion.adapters.mimic.paths import require_mimic_demo_dir
+from ingestion.adapters.mimic.paths import require_mimic_demo_dir, require_mimic_dir
 
 
 def _as_of_for_stay(stay: dict[str, str]) -> datetime:
@@ -33,8 +33,17 @@ def _as_of_for_stay(stay: dict[str, str]) -> datetime:
     return outtime
 
 
-def run_mimic_demo(*, limit: int | None = None) -> dict:
-    root = require_mimic_demo_dir()
+def run_mimic_demo(
+    *,
+    limit: int | None = None,
+    root: Path | None = None,
+    dataset: str | None = None,
+) -> dict:
+    if root is None:
+        root = require_mimic_demo_dir()
+        dataset = dataset or "mimic-iv-clinical-database-demo"
+    else:
+        dataset = dataset or "mimic-iv-3.1"
     sofa_bundle = load_rule_bundle("sepsis-sofa")
     aki_bundle = load_rule_bundle("aki-kdigo")
 
@@ -139,7 +148,7 @@ def run_mimic_demo(*, limit: int | None = None) -> dict:
 
     return {
         "source": str(root),
-        "dataset": "mimic-iv-clinical-database-demo",
+        "dataset": dataset,
         "stays_scored": len(rows),
         "totals": {
             "sofa_alertable": sofa_alertable,
@@ -158,13 +167,27 @@ def run_mimic_demo(*, limit: int | None = None) -> dict:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Score MIMIC-IV demo with Curie rules")
     parser.add_argument("--limit", type=int, default=None, help="Max ICU stays")
+    parser.add_argument(
+        "--full",
+        action="store_true",
+        help="Use credentialed MIMIC-IV 3.1 (CURIE_MIMIC_DIR), not the open demo",
+    )
     parser.add_argument("--json-out", type=Path, default=None)
     args = parser.parse_args(argv)
-    report = run_mimic_demo(limit=args.limit)
+    if args.full:
+        # ponytail: indexer still full-scans labevents/chartevents; default cap stays
+        report = run_mimic_demo(
+            limit=5 if args.limit is None else args.limit,
+            root=require_mimic_dir(),
+            dataset="mimic-iv-3.1",
+        )
+    else:
+        report = run_mimic_demo(limit=args.limit)
     print(
         json.dumps(
             {
                 "source": report["source"],
+                "dataset": report["dataset"],
                 "stays_scored": report["stays_scored"],
                 "totals": report["totals"],
                 "rule_bundles": report["rule_bundles"],

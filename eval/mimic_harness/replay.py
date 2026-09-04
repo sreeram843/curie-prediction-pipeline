@@ -119,8 +119,8 @@ def _apply_observation(
     elif component == SofaComponentName.RENAL:
         kwargs["creatinine_mg_dl"] = event.valuenum
     elif component == SofaComponentName.RESPIRATION:
-        if (event.unit or "").lower() in {"%", "percent"}:
-            kwargs["spo2_percent"] = event.valuenum
+        if (event.unit or "").lower() == "ratio":
+            kwargs["spo2_fio2"] = event.valuenum
         else:
             kwargs["spo2_percent"] = event.valuenum
     elif component == SofaComponentName.CARDIOVASCULAR:

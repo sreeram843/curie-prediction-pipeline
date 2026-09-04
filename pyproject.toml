@@ -27,6 +27,10 @@ api = [
 kafka = [
   "confluent-kafka>=2.5",
 ]
+# SYN-ICU (K-MIMIC) synthetic ICU adapter — xlsx reading only.
+syn-icu = [
+  "openpyxl>=3.1",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["eval", "ingestion", "action", "reasoning"]

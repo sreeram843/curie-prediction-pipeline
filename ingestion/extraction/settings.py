@@ -2,7 +2,28 @@
 
 from __future__ import annotations
 
+import os
+from pathlib import Path
+
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+def running_in_docker() -> bool:
+    """True inside a container (Compose sets CURIE_IN_DOCKER=1 as a fallback)."""
+    return Path("/.dockerenv").exists() or os.environ.get("CURIE_IN_DOCKER") == "1"
+
+
+def rewrite_grp_base_url(url: str, *, in_docker: bool | None = None) -> str:
+    """Host loopback inside Docker is the container, not LM Studio on the Mac.
+
+    Leave non-loopback URLs (cloud OpenAI, LAN vLLM) unchanged.
+    """
+    if not (running_in_docker() if in_docker is None else in_docker):
+        return url
+    return url.replace("://127.0.0.1", "://host.docker.internal").replace(
+        "://localhost", "://host.docker.internal"
+    )
 
 
 class CurieSettings(BaseSettings):
@@ -25,6 +46,11 @@ class CurieSettings(BaseSettings):
 
     # Hard policy
     grp_fail_closed: bool = True  # ungrounded claim → quarantine, never attach narrative
+
+    @field_validator("grp_base_url")
+    @classmethod
+    def _docker_loopback(cls, value: str) -> str:
+        return rewrite_grp_base_url(value)
 
 
 settings = CurieSettings()

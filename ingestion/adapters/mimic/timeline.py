@@ -27,7 +27,7 @@ class MimicTimelineEvent:
     subject_id: str
     hadm_id: str
     kind: EventKind
-    itemid: int | None
+    itemid: int | str | None
     valuenum: float | None
     unit: str | None
     event_time: datetime
@@ -70,6 +70,18 @@ def availability_for_lab(
     if storetime is None:
         return charttime
     return max(charttime, storetime)
+
+
+def _coerce_itemid(raw: Any) -> int | str | None:
+    """Keep numeric itemids as int; preserve alphanumeric codes (e.g. EDI) as str."""
+    if raw is None:
+        return None
+    text = str(raw).strip()
+    if not text:
+        return None
+    if text.isdigit():
+        return int(text)
+    return text
 
 
 def sort_by_availability(
@@ -120,7 +132,7 @@ def events_from_demo_schema_stay(stay: dict[str, Any]) -> list[MimicTimelineEven
                 subject_id=subject_id,
                 hadm_id=hadm_id,
                 kind="lab",
-                itemid=int(raw["itemid"]) if raw.get("itemid") is not None else None,
+                itemid=_coerce_itemid(raw.get("itemid")),
                 valuenum=float(raw["valuenum"]) if raw.get("valuenum") is not None else None,
                 unit=raw.get("unit"),
                 event_time=chart,
@@ -147,7 +159,7 @@ def events_from_demo_schema_stay(stay: dict[str, Any]) -> list[MimicTimelineEven
                 subject_id=subject_id,
                 hadm_id=hadm_id,
                 kind="chart",
-                itemid=int(raw["itemid"]) if raw.get("itemid") is not None else None,
+                itemid=_coerce_itemid(raw.get("itemid")),
                 valuenum=float(raw["valuenum"]) if raw.get("valuenum") is not None else None,
                 unit=raw.get("unit"),
                 event_time=chart,
