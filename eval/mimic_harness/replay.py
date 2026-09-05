@@ -10,7 +10,7 @@ from __future__ import annotations
 import hashlib
 import json
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -46,6 +46,17 @@ _LOINC_TO_COMPONENT: dict[str, SofaComponentName] = {
     "9269-2": SofaComponentName.CNS,
 }
 
+# FiO2 has no SOFA component of its own — it only pairs with SpO2 to form a
+# ratio (see below) — so it is tracked as running replay state, not scored
+# directly like the components above.
+_FIO2_LOINC = "3150-0"
+# How stale a previously observed FiO2 may be before it stops pairing with a
+# new SpO2 reading. Real charting rarely co-times SpO2/FiO2 (unlike labs,
+# which pair readily), so pairing "latest FiO2 at or before this SpO2" (mirrors
+# ingestion.adapters.mimic.extract.build_sofa_inputs) — bounded by a lookback
+# window so a ratio is never built from a setting that may no longer hold.
+_FIO2_LOOKBACK = timedelta(hours=24)
+
 
 class LeakageError(ValueError):
     """Future or unavailable information entered the scoring state."""
@@ -56,6 +67,9 @@ class StayReplayState:
     components: dict[SofaComponentName, SofaComponentInput] = field(default_factory=dict)
     creatinine_mg_dl: float | None = None
     creatinine_evidence: list[str] = field(default_factory=list)
+    fio2_fraction: float | None = None
+    fio2_evidence_id: str | None = None
+    fio2_observed_at: datetime | None = None
     seen_evidence: set[str] = field(default_factory=set)
     discharge_dx_codes: list[str] = field(default_factory=list)
     errors: list[str] = field(default_factory=list)
@@ -101,6 +115,16 @@ def _apply_observation(
             state.creatinine_evidence = [event.evidence_id]
         return
 
+    if code == _FIO2_LOINC:
+        # FiO2 is percent-scale on this path (ingestion.adapters.syn_icu.convert);
+        # never store a non-positive fraction — effective_resp_ratio treats that
+        # as "no FiO2 known" (C-SAFE-3: never assume ambient-air FiO2).
+        if event.valuenum is not None and event.valuenum > 0:
+            state.fio2_fraction = float(event.valuenum) / 100.0
+            state.fio2_evidence_id = event.evidence_id
+            state.fio2_observed_at = event.event_time or clock
+        return
+
     component = _LOINC_TO_COMPONENT.get(code)
     if component is None:
         state.missingness["unmapped_observation"] = (
@@ -123,6 +147,16 @@ def _apply_observation(
             kwargs["spo2_fio2"] = event.valuenum
         else:
             kwargs["spo2_percent"] = event.valuenum
+            observed_at = state.fio2_observed_at
+            spo2_time = event.event_time or clock
+            if (
+                state.fio2_fraction is not None
+                and observed_at is not None
+                and spo2_time - observed_at <= _FIO2_LOOKBACK
+                and spo2_time >= observed_at
+            ):
+                kwargs["fio2_fraction"] = state.fio2_fraction
+                kwargs["evidence_ids"] = [event.evidence_id, state.fio2_evidence_id]
     elif component == SofaComponentName.CARDIOVASCULAR:
         kwargs["map_mmhg"] = event.valuenum
     elif component == SofaComponentName.CNS:

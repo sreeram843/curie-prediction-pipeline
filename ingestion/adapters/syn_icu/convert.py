@@ -147,15 +147,16 @@ def _index_events(
 def _gcs_and_respiration(
     chart_events: list[dict[str, Any]],
 ) -> list[dict[str, Any]]:
-    """Reduce raw GCS and SpO2/FiO2 chart rows into scalar observations.
+    """Reduce raw GCS chart rows into scalar observations; pass SpO2/FiO2 through.
 
     GCS eye/verbal/motor are summed when aligned by timestamp; a ``gcs_total``
-    row passes through directly. SpO2 + FiO2 at the same timestamp become a
-    SpO2/FiO2 ratio (unit ``ratio``); lone SpO2 becomes a percent observation.
+    row passes through directly. SpO2 and FiO2 are left as independently
+    timestamped observations — real charting rarely co-times them, so the
+    SpO2/FiO2 ratio is formed downstream (eval.mimic_harness.replay) from the
+    most recently observed FiO2 rather than requiring an exact timestamp match.
     """
     gcs_by_ts: dict[str, dict[str, float]] = defaultdict(dict)
     gcs_total_rows: list[dict[str, Any]] = []
-    resp_by_ts: dict[str, dict[str, float]] = defaultdict(dict)
     others: list[dict[str, Any]] = []
 
     for ev in chart_events:
@@ -164,8 +165,6 @@ def _gcs_and_respiration(
             gcs_by_ts[ev["charttime"]][concept] = ev["valuenum"]
         elif concept == c.GCS_TOTAL:
             gcs_total_rows.append(ev)
-        elif concept in {c.SPO2, c.FIO2}:
-            resp_by_ts[ev["charttime"]][concept] = ev["valuenum"]
         else:
             others.append(ev)
 
@@ -187,32 +186,6 @@ def _gcs_and_respiration(
             )
     for ev in gcs_total_rows:
         out.append(ev)
-
-    for ts in sorted(resp_by_ts):
-        parts = resp_by_ts[ts]
-        if c.SPO2 in parts and c.FIO2 in parts and parts[c.FIO2] > 0:
-            ratio = parts[c.SPO2] / (parts[c.FIO2] / 100.0)
-            out.append(
-                {
-                    "concept": c.SPO2,
-                    "itemid": "spo2-fio2",
-                    "valuenum": round(ratio, 4),
-                    "unit": "ratio",
-                    "charttime": ts,
-                    "storetime": None,
-                }
-            )
-        elif c.SPO2 in parts:
-            out.append(
-                {
-                    "concept": c.SPO2,
-                    "itemid": "spo2-only",
-                    "valuenum": parts[c.SPO2],
-                    "unit": "%",
-                    "charttime": ts,
-                    "storetime": None,
-                }
-            )
 
     out.sort(key=lambda e: (e["charttime"], str(e["itemid"])))
     return out
@@ -257,7 +230,7 @@ def _emit_stay(
     )
     for seq, ev in enumerate(chart_rows):
         concept = ev["concept"]
-        if concept in {c.GCS_EYE, c.GCS_VERBAL, c.GCS_MOTOR, c.FIO2}:
+        if concept in {c.GCS_EYE, c.GCS_VERBAL, c.GCS_MOTOR}:
             continue
         charts.append(
             {

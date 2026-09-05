@@ -88,7 +88,11 @@ def test_to_float_and_ts_str() -> None:
     assert _ts_str("2019-01-01 10:00:00") == "2019-01-01 10:00:00"
 
 
-def test_gcs_summing_and_spo2_fio2_ratio() -> None:
+def test_gcs_summing_and_spo2_fio2_pass_through() -> None:
+    """SpO2/FiO2 are no longer paired by exact timestamp in the adapter — the
+    harness (eval.mimic_harness.replay) pairs the latest FiO2 with each SpO2
+    reading instead, so real (rarely co-timed) charting still scores."""
+
     def row(concept, itemid, value, ts):
         return {"concept": concept, "itemid": itemid, "valuenum": value,
                 "unit": "", "charttime": ts, "storetime": None}
@@ -98,14 +102,17 @@ def test_gcs_summing_and_spo2_fio2_ratio() -> None:
         row(c.GCS_VERBAL, "2", 5.0, "t1"),
         row(c.GCS_MOTOR, "3", 6.0, "t1"),
         row(c.SPO2, "4", 96.0, "t2"),
-        row(c.FIO2, "5", 40.0, "t2"),
+        row(c.FIO2, "5", 40.0, "t3"),
     ]
     out = _gcs_and_respiration(rows)
     gcs = next(e for e in out if e["concept"] == c.GCS_TOTAL and e["itemid"] == "gcs-sum")
     assert gcs["valuenum"] == 15.0
-    ratio = next(e for e in out if e["itemid"] == "spo2-fio2")
-    assert ratio["unit"] == "ratio"
-    assert ratio["valuenum"] == round(96.0 / 0.40, 4)
+    spo2 = next(e for e in out if e["concept"] == c.SPO2)
+    assert spo2["valuenum"] == 96.0
+    assert spo2["charttime"] == "t2"
+    fio2 = next(e for e in out if e["concept"] == c.FIO2)
+    assert fio2["valuenum"] == 40.0
+    assert fio2["charttime"] == "t3"
 
 
 def test_emit_stay_shape_and_harness_replay() -> None:
@@ -163,6 +170,68 @@ def test_emit_stay_shape_and_harness_replay() -> None:
     assert not result.errors
     assert result.envelopes >= 3
     assert result.signals, "deteriorating synthetic stay should emit at least one signal"
+
+
+def _resp_stay(chart_events: list[dict]) -> dict:
+    return _emit_stay(
+        stay_meta={
+            "stay_id": "resp-1",
+            "subject_id": "p1",
+            "hadm_id": "h1",
+            "intime": "2019-01-01 08:00:00",
+            "outtime": "2019-01-04 08:00:00",
+        },
+        lab_events=[],
+        chart_events=chart_events,
+        diagnoses=[],
+    )
+
+
+def _chart(concept, itemid, value, ts):
+    return {
+        "concept": concept,
+        "itemid": itemid,
+        "valuenum": value,
+        "unit": "%",
+        "charttime": ts,
+        "storetime": None,
+    }
+
+
+def test_respiration_pairs_latest_fio2_not_co_timed() -> None:
+    """SpO2 and FiO2 charted an hour apart (never co-timed) must still score —
+    this is the eICU-scale bug: real charting rarely lands both on one tick."""
+    stay = _resp_stay(
+        [
+            _chart(c.FIO2, "fio2-1", 60.0, "2019-01-01 09:00:00"),
+            _chart(c.SPO2, "spo2-1", 88.0, "2019-01-01 11:00:00"),
+        ]
+    )
+    result = replay_stay(stay)
+    assert not result.errors
+    final = result.snapshots[-1]
+    assert "respiration" not in final["missing_components"]
+
+
+def test_respiration_stays_missing_without_any_fio2() -> None:
+    """C-SAFE-3: a lone SpO2 must never score respiration via an assumed FiO2."""
+    stay = _resp_stay([_chart(c.SPO2, "spo2-1", 88.0, "2019-01-01 11:00:00")])
+    result = replay_stay(stay)
+    final = result.snapshots[-1]
+    assert "respiration" in final["missing_components"]
+
+
+def test_respiration_ignores_fio2_beyond_lookback_window() -> None:
+    """A FiO2 charted days before a SpO2 reading is too stale to still apply."""
+    stay = _resp_stay(
+        [
+            _chart(c.FIO2, "fio2-1", 60.0, "2019-01-01 00:00:00"),
+            _chart(c.SPO2, "spo2-1", 88.0, "2019-01-03 00:00:00"),
+        ]
+    )
+    result = replay_stay(stay)
+    final = result.snapshots[-1]
+    assert "respiration" in final["missing_components"]
 
 
 def test_index_events_routes_lab_by_subject(monkeypatch) -> None:
