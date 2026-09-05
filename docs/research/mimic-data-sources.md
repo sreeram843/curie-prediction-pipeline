@@ -119,6 +119,9 @@ mimiciv/
 | `data/eicu-crd-demo/` | Open eICU demo CSVs (PhysioNet) |
 | `data/mimic-iv-fhir-demo/` | Open MIMIC-IV demo on FHIR (NDJSON) |
 | `make open-eval` | Run every local open/synthetic set; Challenge 2019 is the only labeled detection card |
+| `make mimic-index` / `make eicu-index` | Build a deterministic stay-level Parquet index of the credentialed sources (Phase C infrastructure; optional `[study]` extra). Row mirror only — no clinical semantics. |
+| `make mimic-index-validate` | Validate the index (hash recomputation, partition coverage, ordering) and reconcile sampled stays row-for-row against the compressed sources. |
+| `make mimic-index-bench` | Bounded benchmark: compressed-source scan vs indexed load+replay. |
 
 Do **not** commit PhysioNet dumps or derived patient-level extracts to git (`data/` is gitignored).
 

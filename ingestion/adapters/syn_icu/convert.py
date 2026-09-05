@@ -234,11 +234,14 @@ def _sum_urine_by_hour(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
             buckets[hour] = {
                 **ev,
                 "charttime": hour,
-                "storetime": hour,
+                "storetime": ev.get("storetime") or ev["charttime"],
                 "valuenum": float(ev["valuenum"]),
             }
         else:
             prev["valuenum"] = float(prev["valuenum"]) + float(ev["valuenum"])
+            prev["storetime"] = max(
+                prev.get("storetime") or "", ev.get("storetime") or ev["charttime"]
+            )
     return sorted(buckets.values(), key=lambda e: str(e.get("charttime") or ""))
 
 
@@ -293,6 +296,7 @@ def _emit_stay(
                 "valuenum": ev["valuenum"],
                 "unit": ev["unit"],
                 "charttime": ev["charttime"],
+                "storetime": ev.get("storetime") or ev["charttime"],
                 "evidence_id": ev.get("evidence_id")
                 or f"{evidence_prefix}/{stay_id}/chart/{seq}",
                 "extras": ev.get("extras") or {},

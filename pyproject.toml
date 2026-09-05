@@ -31,6 +31,11 @@ kafka = [
 syn-icu = [
   "openpyxl>=3.1",
 ]
+# Optional study infrastructure (stay-level Parquet index, predicate pushdown).
+# The core runtime never imports pyarrow; indexing fails closed without it.
+study = [
+  "pyarrow>=15.0",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["eval", "ingestion", "action", "reasoning"]

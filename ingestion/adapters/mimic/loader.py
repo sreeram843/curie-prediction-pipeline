@@ -40,7 +40,7 @@ def index_labevents(
     subject_ids: set[str],
     itemids: set[int],
 ) -> dict[str, list[dict[str, Any]]]:
-    """subject_id → list of {hadm_id, charttime, itemid, valuenum}."""
+    """subject_id → list of {hadm_id, charttime, storetime, itemid, valuenum}."""
     wanted = {str(i) for i in itemids}
     out: dict[str, list[dict[str, Any]]] = {s: [] for s in subject_ids}
     path = root / "hosp" / "labevents.csv.gz"
@@ -57,8 +57,10 @@ def index_labevents(
             {
                 "hadm_id": row.get("hadm_id") or "",
                 "charttime": row.get("charttime") or "",
+                "storetime": row.get("storetime") or "",
                 "itemid": int(row["itemid"]),
                 "valuenum": val,
+                "valueuom": row.get("valueuom") or "",
             }
         )
     return out
@@ -85,8 +87,10 @@ def index_chartevents(
         out[stay].append(
             {
                 "charttime": row.get("charttime") or "",
+                "storetime": row.get("storetime") or "",
                 "itemid": int(row["itemid"]),
                 "valuenum": val,
+                "valueuom": row.get("valueuom") or "",
             }
         )
     return out
@@ -110,6 +114,7 @@ def index_inputevents_pressors(
         out[stay].append(
             {
                 "starttime": row.get("starttime") or "",
+                "storetime": row.get("storetime") or "",
                 "endtime": row.get("endtime") or "",
                 "itemid": int(row["itemid"]),
                 "rate": _to_float(row.get("rate")),
@@ -127,7 +132,7 @@ def index_chartevents_weights(
     stay_ids: set[str],
     itemids: set[int] | None = None,
 ) -> dict[str, list[dict[str, Any]]]:
-    """stay_id → [{charttime, itemid, valuenum}] for weight chartevents.
+    """stay_id → [{charttime, storetime, itemid, valuenum}] for weight chartevents.
 
     Defaults to the weight itemids from ``vasopressors.WEIGHT_ITEMIDS``
     (224639 daily kg, 226512 admission kg, 226531 admission lbs).
@@ -149,6 +154,7 @@ def index_chartevents_weights(
         out[stay].append(
             {
                 "charttime": row.get("charttime") or "",
+                "storetime": row.get("storetime") or "",
                 "itemid": int(row["itemid"]),
                 "valuenum": val,
             }
@@ -177,6 +183,7 @@ def index_outputevents_urine(
         out[stay].append(
             {
                 "charttime": row.get("charttime") or "",
+                "storetime": row.get("storetime") or "",
                 "itemid": int(row["itemid"]),
                 "value": val,
             }

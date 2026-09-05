@@ -3,15 +3,11 @@
 from __future__ import annotations
 
 import json
-from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-import pytest
-
 from eval.mimic_study.manifest import (
     MANIFEST_SCHEMA_VERSION,
-    _VOLATILE_KEYS,
     active_rule_bundles,
     build_run_manifest,
 )

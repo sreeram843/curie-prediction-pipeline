@@ -38,10 +38,11 @@ import shutil
 import subprocess
 import tempfile
 from collections import Counter, defaultdict
+from collections.abc import Callable, Iterator
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Callable, Iterator
+from typing import Any
 
 from ingestion.adapters.mimic.timeline import parse_mimic_ts
 
@@ -53,7 +54,7 @@ except ImportError:  # pragma: no cover - exercised only without the [study] ext
     pq = None  # type: ignore[assignment]
 
 INDEX_SCHEMA_VERSION = "1.0.0"
-BUILDER_VERSION = "0.1.0"
+BUILDER_VERSION = "0.2.0"
 
 EICU_EPOCH = datetime(2015, 1, 1, 0, 0, 0)
 _MAX_OPEN_SHARDS = 512
@@ -93,6 +94,15 @@ def _require_arrow() -> None:
 
 def sha256_hex(payload: bytes) -> str:
     return hashlib.sha256(payload).hexdigest()
+
+
+def file_sha256_hex(path: Path, *, chunk_size: int = 1 << 20) -> str:
+    """SHA-256 of the file bytes (streamed), matching ``sha256sum`` of the source."""
+    hasher = hashlib.sha256()
+    with path.open("rb") as fh:
+        while chunk := fh.read(chunk_size):
+            hasher.update(chunk)
+    return hasher.hexdigest()
 
 
 def canonical_json_bytes(obj: Any) -> bytes:
@@ -224,10 +234,6 @@ def _eicu_offset_ts(raw: Any) -> datetime | None:
     return EICU_EPOCH + timedelta(minutes=minutes)
 
 
-def _canonical_row_bytes(row: dict[str, str]) -> bytes:
-    return canonical_json_bytes({k: (v or "") for k, v in row.items()})
-
-
 # --------------------------------------------------------------------------- #
 # Dataset specs
 # --------------------------------------------------------------------------- #
@@ -325,23 +331,45 @@ def _eicu_mapped_filters() -> dict[str, Callable[[dict[str, str]], bool]]:
 
 
 _MIMIC_SPEC_ROWS = (
-    ("lab", "hosp/labevents.csv.gz", "subject", "subject_id", "charttime", "storetime", "itemid", "valueuom", "value", "valuenum"),
-    ("chart", "icu/chartevents.csv.gz", "stay", "stay_id", "charttime", None, "itemid", "valueuom", "value", "valuenum"),
-    ("input", "icu/inputevents.csv.gz", "stay", "stay_id", "starttime", None, "itemid", "rateuom", "rate", "rate"),
-    ("output", "icu/outputevents.csv.gz", "stay", "stay_id", "charttime", None, "itemid", "valueuom", "value", "value"),
-    ("diagnosis", "hosp/diagnoses_icd.csv.gz", "hadm", "hadm_id", "__dischtime__", None, "icd_code", "", "long_title", ""),
+    (
+        "lab", "hosp/labevents.csv.gz", "subject", "subject_id", "charttime",
+        "storetime", "itemid", "valueuom", "value", "valuenum",
+    ),
+    (
+        "chart", "icu/chartevents.csv.gz", "stay", "stay_id", "charttime",
+        "storetime", "itemid", "valueuom", "value", "valuenum",
+    ),
+    (
+        "input", "icu/inputevents.csv.gz", "stay", "stay_id", "starttime",
+        "storetime", "itemid", "rateuom", "rate", "rate",
+    ),
+    (
+        "output", "icu/outputevents.csv.gz", "stay", "stay_id", "charttime",
+        "storetime", "itemid", "valueuom", "value", "value",
+    ),
+    (
+        "diagnosis", "hosp/diagnoses_icd.csv.gz", "hadm", "hadm_id",
+        "__dischtime__", None, "icd_code", "", "long_title", "",
+    ),
 )
 
 _EICU_SPEC_ROWS = (
-    ("lab", "lab.csv.gz", "labresultoffset", "labname", "labmeasurenamesystem", "labresult", "labresult"),
+    ("lab", "lab.csv.gz", "labresultoffset", "labname", "labmeasurenamesystem",
+     "labresult", "labresult"),
     ("vital_periodic", "vitalPeriodic.csv.gz", "observationoffset", "", "", "", ""),
     ("vital_aperiodic", "vitalAperiodic.csv.gz", "observationoffset", "", "", "", ""),
-    ("nurse_charting", "nurseCharting.csv.gz", "nursingchartoffset", "nursingchartcelltypevallabel", "", "nursingchartvalue", "nursingchartvalue"),
-    ("respiratory_charting", "respiratoryCharting.csv.gz", "respchartoffset", "respchartvaluelabel", "", "respchartvalue", "respchartvalue"),
-    ("intake_output", "intakeOutput.csv.gz", "intakeoutputoffset", "celllabel", "", "cellvaluenumeric", "cellvaluenumeric"),
-    ("infusion_drug", "infusionDrug.csv.gz", "infusionoffset", "drugname", "", "drugrate", "drugrate"),
-    ("physical_exam", "physicalExam.csv.gz", "physicalexamoffset", "physicalexampath", "", "physicalexamvalue", "physicalexamvalue"),
-    ("diagnosis", "diagnosis.csv.gz", "diagnosisoffset", "icd9code", "", "diagnosisstring", ""),
+    ("nurse_charting", "nurseCharting.csv.gz", "nursingchartoffset",
+     "nursingchartcelltypevallabel", "", "nursingchartvalue", "nursingchartvalue"),
+    ("respiratory_charting", "respiratoryCharting.csv.gz", "respchartoffset",
+     "respchartvaluelabel", "", "respchartvalue", "respchartvalue"),
+    ("intake_output", "intakeOutput.csv.gz", "intakeoutputoffset", "celllabel", "",
+     "cellvaluenumeric", "cellvaluenumeric"),
+    ("infusion_drug", "infusionDrug.csv.gz", "infusionoffset", "drugname", "",
+     "drugrate", "drugrate"),
+    ("physical_exam", "physicalExam.csv.gz", "physicalexamoffset", "physicalexampath",
+     "", "physicalexamvalue", "physicalexamvalue"),
+    ("diagnosis", "diagnosis.csv.gz", "diagnosisoffset", "icd9code", "",
+     "diagnosisstring", ""),
 )
 
 
@@ -366,7 +394,10 @@ def _family_specs(dataset: str, items: str) -> list[FamilySpec]:
                 mapped_filter=filters.get(family) if mapped else None,
                 is_discharge_diagnosis=(family == "diagnosis"),
             )
-            for family, src, scope, scope_key, time_key, avail_key, itemid_key, unit_key, raw_key, num_key in _MIMIC_SPEC_ROWS
+            for (
+                family, src, scope, scope_key, time_key, avail_key, itemid_key,
+                unit_key, raw_key, num_key,
+            ) in _MIMIC_SPEC_ROWS
         ]
     filters = _eicu_mapped_filters() if mapped else {}
     return [
@@ -782,7 +813,6 @@ def build_index(
     try:
         for spec in specs:
             path = source_root / spec.source_file
-            hasher = hashlib.sha256()
             rows_seen = 0
             rows_selected = 0
             timestamp_failures = 0
@@ -790,7 +820,6 @@ def build_index(
             units = Counter()
             for ordinal, row in enumerate(_iter_csv_gz_rows(path)):
                 rows_seen += 1
-                hasher.update(_canonical_row_bytes(row))
                 result, events = extract_event(
                     row=row,
                     row_ordinal=ordinal,
@@ -815,7 +844,7 @@ def build_index(
                 elif result == "unassigned":
                     unassigned_rows += 1
             source_files[spec.source_file] = {
-                "sha256": hasher.hexdigest(),
+                "sha256": file_sha256_hex(path),
                 "size": path.stat().st_size,
                 "mtime_iso": datetime.fromtimestamp(path.stat().st_mtime).isoformat(),
                 "rows_seen": rows_seen,
@@ -1107,7 +1136,11 @@ def validate_index(
             check(
                 "event_count_consistency",
                 False,
-                {"stay_id": stay["stay_id"], "stays_table": stay.get("event_count"), "partition": len(events)},
+                {
+                    "stay_id": stay["stay_id"],
+                    "stays_table": stay.get("event_count"),
+                    "partition": len(events),
+                },
             )
         if idx < order_check_limit and events:
             keys = [
@@ -1201,7 +1234,8 @@ def reconcile_source_to_index(
     )
     for stay in sample:
         for event in load_stay_events(index_dir, str(stay["stay_id"])):
-            index_rows[str(stay["stay_id"])][event["event_family"]][int(event["source_row"])] = event
+            stay_key = str(stay["stay_id"])
+            index_rows[stay_key][event["event_family"]][int(event["source_row"])] = event
 
     report_files: dict[str, dict[str, Any]] = {}
     mismatches: list[dict[str, Any]] = []
@@ -1209,13 +1243,11 @@ def reconcile_source_to_index(
     ok = True
     for spec in specs:
         path = source_root / spec.source_file
-        hasher = hashlib.sha256()
         seen = 0
         matched = 0
         file_ok = True
         seen_ordinals: dict[str, set[int]] = defaultdict(set)
         for ordinal, row in enumerate(_iter_csv_gz_rows(path)):
-            hasher.update(_canonical_row_bytes(row))
             result, events = extract_event(
                 row=row,
                 row_ordinal=ordinal,
@@ -1277,7 +1309,7 @@ def reconcile_source_to_index(
                             "issue": "missing_from_source",
                         }
                     )
-        digest = hasher.hexdigest()
+        digest = file_sha256_hex(path)
         expected_hash = (meta.get("source_files") or {}).get(spec.source_file, {}).get("sha256")
         hash_ok = digest == expected_hash
         report_files[spec.source_file] = {

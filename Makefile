@@ -1,4 +1,4 @@
-.PHONY: help up up-full down logs topics test lint synthea rules flink-test api replay replay-aki mimic mimic-demo syn-icu mimic-study-protocol mimic-harness mimic-study manuscript manuscript-phi paper-tables investor-demo trusted-fact-bridge stewardship uncertainty-band challenge-2019 challenge-2019-sweep challenge-2019-robustness challenge-2019-paper-analyses open-eval parity
+.PHONY: help up up-full down logs topics test lint synthea rules flink-test api replay replay-aki mimic mimic-demo syn-icu mimic-study-protocol mimic-harness mimic-study mimic-index mimic-index-validate mimic-index-bench eicu-index eicu-index-validate eicu-index-bench manuscript manuscript-phi paper-tables investor-demo trusted-fact-bridge stewardship uncertainty-band challenge-2019 challenge-2019-sweep challenge-2019-robustness challenge-2019-paper-analyses open-eval parity
 
 help:
 	@echo "Targets:"
@@ -22,6 +22,10 @@ help:
 	@echo "  mimic-study-protocol - show frozen MIMIC-IV study protocol (CURIE-014)"
 	@echo "  mimic-harness - leakage-safe demo-schema timeline harness (CURIE-015)"
 	@echo "  mimic-study - locked MIMIC ablation/robustness study (CURIE-016)"
+	@echo "  mimic-index - build stay-level Parquet index (CURIE_MIMIC_DIR; LIMIT=0 full; [study] extra)"
+	@echo "  mimic-index-validate - validate + source-reconcile the index"
+	@echo "  mimic-index-bench - bounded compressed-source vs index benchmark"
+	@echo "  eicu-index / eicu-index-validate / eicu-index-bench - same, for credentialed eICU"
 	@echo "  manuscript - research manuscript package + paper/tables from frozen sidecars"
 	@echo "  manuscript-phi - scan manuscript artifacts for PHI-like leakage"
 	@echo "  paper-tables - regenerate paper/tables/*.tex from frozen Challenge JSON"
@@ -100,6 +104,27 @@ mimic-harness:
 
 mimic-study:
 	python -m eval.mimic_study.study run
+
+# Phase C study infrastructure: deterministic stay-level Parquet index.
+# LIMIT=0 builds the full index (default: bounded 200 stays). Requires the
+# [study] extra (pyarrow); the index lives under gitignored data/index/<dataset>.
+mimic-index:
+	python scripts/build_mimic_index.py --dataset mimic $(if $(LIMIT),--limit $(LIMIT),--limit 200) $(if $(ITEMS),--items $(ITEMS),) $(if $(FORCE),--force,)
+
+mimic-index-validate:
+	python scripts/validate_mimic_index.py --dataset mimic $(if $(SOURCE),--source $(SOURCE),) $(if $(RECONCILE_LIMIT),--reconcile-limit $(RECONCILE_LIMIT),)
+
+mimic-index-bench:
+	python -m eval.mimic_study.index_replay benchmark --dataset mimic $(if $(LIMIT),--limit $(LIMIT),--limit 20)
+
+eicu-index:
+	python scripts/build_mimic_index.py --dataset eicu $(if $(LIMIT),--limit $(LIMIT),--limit 200) $(if $(ITEMS),--items $(ITEMS),) $(if $(FORCE),--force,)
+
+eicu-index-validate:
+	python scripts/validate_mimic_index.py --dataset eicu $(if $(SOURCE),--source $(SOURCE),) $(if $(RECONCILE_LIMIT),--reconcile-limit $(RECONCILE_LIMIT),)
+
+eicu-index-bench:
+	python -m eval.mimic_study.index_replay benchmark --dataset eicu $(if $(LIMIT),--limit $(LIMIT),--limit 20)
 
 manuscript:
 	python -m eval.manuscript.package build

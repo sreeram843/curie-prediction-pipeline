@@ -137,9 +137,9 @@ def convert_mimic_demo(
                     "concept": concept,
                     "itemid": row["itemid"],
                     "valuenum": row["valuenum"],
-                    "unit": "",
+                    "unit": row.get("valueuom") or "",
                     "charttime": row["charttime"],
-                    "storetime": row["charttime"],
+                    "storetime": row.get("storetime") or row["charttime"],
                 }
             )
             counts[concept] += 1
@@ -153,9 +153,9 @@ def convert_mimic_demo(
                     "concept": concept,
                     "itemid": row["itemid"],
                     "valuenum": row["valuenum"],
-                    "unit": "",
+                    "unit": row.get("valueuom") or "",
                     "charttime": row["charttime"],
-                    "storetime": row["charttime"],
+                    "storetime": row.get("storetime") or row["charttime"],
                 }
             )
             counts[concept] += 1
@@ -167,7 +167,7 @@ def convert_mimic_demo(
                     "valuenum": row["value"],
                     "unit": "mL",
                     "charttime": row["charttime"],
-                    "storetime": row["charttime"],
+                    "storetime": row.get("storetime") or row["charttime"],
                 }
             )
             counts[c.URINE_OUTPUT] += 1
@@ -208,9 +208,9 @@ def convert_mimic_demo(
                     "concept": c.VASOPRESSOR,
                     "itemid": str(row["itemid"]),
                     "valuenum": conv.dose_ug_kg_min if conv.known else None,
-                    "unit": "mcg/kg/min" if conv.known else (conv.source_unit or "unknown"),
+                    "unit": "mcg/kg/min" if conv.known else (row.get("rateuom") or "unknown"),
                     "charttime": row["starttime"],
-                    "storetime": row["starttime"],
+                    "storetime": row.get("storetime") or row["starttime"],
                     "display": agent,
                     "evidence_id": (
                         f"{_PREFIX}/{stay_id}/input/{row['itemid']}/{row.get('starttime')}"

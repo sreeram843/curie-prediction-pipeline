@@ -16,7 +16,7 @@ import json
 import resource
 import sys
 import time
-from collections import Counter, defaultdict, defaultdict
+from collections import Counter, defaultdict
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -24,7 +24,6 @@ from typing import Any
 from eval.mimic_harness.replay import replay_stay, result_to_public_dict
 from eval.mimic_study.completeness_check import sofa_component_missing_rates
 from eval.mimic_study.indexing import (
-    EICU_EPOCH,
     IndexError,
     load_index_meta,
     load_stay_events,
@@ -217,7 +216,9 @@ def mimic_stay_from_index(index_dir: Path, stay_row: dict[str, Any]) -> dict[str
         lab_events.append(
             {
                 "concept": concept,
-                "itemid": event["itemid"],
+                "itemid": event["itemid_num"]
+                if event["itemid_num"] is not None
+                else event["itemid"],
                 "valuenum": event["value_num"],
                 "unit": event["unit"],
                 "charttime": _ts(event["event_time"]),
@@ -236,33 +237,54 @@ def mimic_stay_from_index(index_dir: Path, stay_row: dict[str, Any]) -> dict[str
         concept = chart_map.get(event["itemid_num"]) if event["itemid_num"] is not None else None
         if concept is None or event["value_num"] is None:
             continue
+        availability = event["availability_time"]
         chart_events.append(
             {
                 "concept": concept,
-                "itemid": event["itemid"],
+                "itemid": event["itemid_num"]
+                if event["itemid_num"] is not None
+                else event["itemid"],
                 "valuenum": event["value_num"],
                 "unit": event["unit"],
                 "charttime": _ts(event["event_time"]),
-                "storetime": _ts(event["event_time"]),
+                "storetime": (
+                    _ts(availability)
+                    if availability > event["event_time"]
+                    else _ts(event["event_time"])
+                ),
                 "evidence_id": event["evidence_id"],
             }
         )
     for event in by_family.get("output", []):
-        if event["itemid_num"] is not None and event["itemid_num"] in im.OUTPUT_URINE and event["value_num"] is not None:
+        is_urine = (
+            event["itemid_num"] in im.OUTPUT_URINE
+            if event["itemid_num"] is not None
+            else False
+        )
+        if is_urine and event["value_num"] is not None:
+            availability = event["availability_time"]
             chart_events.append(
                 {
                     "concept": c.URINE_OUTPUT,
-                    "itemid": event["itemid"],
+                    "itemid": event["itemid_num"]
+                    if event["itemid_num"] is not None
+                    else event["itemid"],
                     "valuenum": event["value_num"],
                     "unit": "mL",
                     "charttime": _ts(event["event_time"]),
-                    "storetime": _ts(event["event_time"]),
+                    "storetime": (
+                        _ts(availability)
+                        if availability > event["event_time"]
+                        else _ts(event["event_time"])
+                    ),
                     "evidence_id": event["evidence_id"],
                 }
             )
     for event in by_family.get("input", []):
         if event["itemid_num"] is not None and event["itemid_num"] in im.INPUT_VASOPRESSORS:
-            pressor_rows.append((event["event_time"], event, im.INPUT_VASOPRESSORS[event["itemid_num"]]))
+            pressor_rows.append(
+                (event["event_time"], event, im.INPUT_VASOPRESSORS[event["itemid_num"]])
+            )
     for event in by_family.get("diagnosis", []):
         diagnoses.append(
             {
@@ -292,7 +314,11 @@ def mimic_stay_from_index(index_dir: Path, stay_row: dict[str, Any]) -> dict[str
                 "valuenum": conv.dose_ug_kg_min if conv.known else None,
                 "unit": "mcg/kg/min" if conv.known else (event["unit"] or "unknown"),
                 "charttime": _ts(event_time),
-                "storetime": _ts(event_time),
+                "storetime": (
+                    _ts(event["availability_time"])
+                    if event["availability_time"] > event_time
+                    else _ts(event_time)
+                ),
                 "evidence_id": event["evidence_id"],
                 "display": agent,
                 "extras": {
@@ -472,7 +498,11 @@ def replay_indexed_stays(
             "mode": (
                 "stay_ids"
                 if stay_ids
-                else ("protocol_cohort" if apply_protocol_cohort else ("bounded" if limit else "full"))
+                else (
+                    "protocol_cohort"
+                    if apply_protocol_cohort
+                    else ("bounded" if limit else "full")
+                )
             ),
             "limit": limit,
             "seed": seed if apply_protocol_cohort else None,
@@ -618,6 +648,16 @@ def benchmark(
     _, index_peak = tracemalloc.get_traced_memory()
     tracemalloc.stop()
 
+    # Content equivalence compares the same artifact on both paths: the
+    # demo-schema stay (labs/charts), not the replay result dicts.
+    if dataset == "mimic":
+        stays_by_id = {str(s["stay_id"]): s for s in load_stays(index_dir)}
+        indexed_stays = [
+            mimic_stay_from_index(index_dir, stays_by_id[sid]) for sid in selected
+        ]
+    else:
+        indexed_stays = list(eicu_stays_from_index(index_dir, selected).values())
+
     def _hash_results(
         results: list[dict[str, Any]], *, semantic: bool
     ) -> str:
@@ -667,15 +707,17 @@ def benchmark(
         return out
 
     availability_shifted = 0
-    for stay in indexed["stays"]:
-        events = load_stay_events(index_dir, stay["stay_id"])
+    for stay_row in load_stays(index_dir):
+        if str(stay_row["stay_id"]) not in set(selected):
+            continue
+        events = load_stay_events(index_dir, str(stay_row["stay_id"]))
         if any(
             e["event_family"] == "lab" and e["availability_time"] > e["event_time"]
             for e in events
         ):
             availability_shifted += 1
     content_equivalent = _content_fingerprint(source_stays) == _content_fingerprint(
-        indexed["stays"]
+        indexed_stays
     )
     return {
         "benchmark_version": REPLAY_VERSION,
