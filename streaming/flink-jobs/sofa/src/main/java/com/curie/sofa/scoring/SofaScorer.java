@@ -199,9 +199,28 @@ public final class SofaScorer {
       return in.pao2Mmhg / in.fio2Fraction;
     }
     if (in.spo2Percent != null) {
-      return in.spo2Percent / in.fio2Fraction;
+      return imputePfFromSf(in.spo2Percent, in.fio2Fraction);
     }
     return null;
+  }
+
+  /**
+   * Rice et al. 2007 linear S/F→P/F imputation: P/F_est = 64 + 0.84 × (SpO2/FiO2),
+   * valid for SpO2 ≤ 97%. Above the cap the S/F ratio plateaus — fail closed (null)
+   * rather than comparing a raw S/F against P/F cutoffs.
+   */
+  static Double imputePfFromSf(double spo2Percent, double fio2Fraction) {
+    if (spo2Percent <= 0 || spo2Percent > 100) {
+      return null;
+    }
+    if (fio2Fraction <= 0) {
+      return null;
+    }
+    if (spo2Percent > 97.0) {
+      return null;
+    }
+    double sf = spo2Percent / fio2Fraction;
+    return 64.0 + 0.84 * sf;
   }
 
   public static Integer scoreCoagulation(ComponentInput in) {

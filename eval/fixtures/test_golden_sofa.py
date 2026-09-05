@@ -16,7 +16,7 @@ from eval.sofa.scoring import (
     tier_for_score,
 )
 
-GOLDEN = Path(__file__).resolve().parent / "golden" / "sofa_cases.v0.2.json"
+GOLDEN = Path(__file__).resolve().parent / "golden" / "sofa_cases.v0.3.json"
 T0 = datetime(2024, 6, 1, 12, 0, tzinfo=UTC)
 
 

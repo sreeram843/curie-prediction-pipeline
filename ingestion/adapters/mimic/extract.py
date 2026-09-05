@@ -209,6 +209,35 @@ def _pressor_at(
     return PressorAtResult(True, agent, dose, eids, details)  # type: ignore[arg-type]
 
 
+def _mechanically_ventilated_at(
+    vent_rows: list[dict[str, Any]] | None,
+    *,
+    as_of: datetime,
+    lookback_hours: float = 24.0,
+) -> bool | None:
+    """Invasive-MV status at ``as_of`` from charted ventilator settings.
+
+    Returns True when any mapped ventilation setting was charted within
+    ``lookback_hours`` before ``as_of``; False when vent rows were loaded but
+    none fall in the window; None when vent rows were not loaded at all —
+    missing evidence is never silently read as "not ventilated".
+    """
+    if vent_rows is None:
+        return None
+    window_start = as_of.timestamp() - lookback_hours * 3600
+    for row in vent_rows:
+        itemid = int(row.get("itemid") or -1)
+        if itemid not in im.CHART_VENTILATION:
+            continue
+        t = _parse_ts(str(row.get("charttime") or ""))
+        if t is None:
+            continue
+        if t > as_of or t.timestamp() < window_start:
+            continue
+        return True
+    return False
+
+
 def build_sofa_inputs(
     *,
     as_of: datetime,
@@ -217,14 +246,19 @@ def build_sofa_inputs(
     input_rows: list[dict[str, Any]],
     output_rows: list[dict[str, Any]],
     weight_rows: list[tuple[datetime, int, float]] | None = None,
+    vent_rows: list[dict[str, Any]] | None = None,
+    vent_lookback_hours: float = 24.0,
     stay_intime: datetime | None = None,
     return_pressor_details: bool = False,
 ) -> list[SofaComponentInput] | tuple[list[SofaComponentInput], list[dict[str, Any]]]:
     """Build per-component SOFA inputs at ``as_of``.
 
     ``weight_rows``: (charttime, itemid, valuenum) weight chart rows for the
-    availability-time pressor weight rule. ``stay_intime`` gates urine output
-    eligibility (a partial-day sum is never a 24h total).
+    availability-time pressor weight rule. ``vent_rows``: chartevents rows for
+    the mapped ventilation settings (see ``item_map.CHART_VENTILATION``); when
+    provided, ``mechanically_ventilated`` is resolved over the lookback window
+    and stays None (unknown) when they are not provided. ``stay_intime`` gates
+    urine output eligibility (a partial-day sum is never a 24h total).
     """
     inputs: list[SofaComponentInput] = []
     weight_rows = weight_rows or []
@@ -257,7 +291,9 @@ def build_sofa_inputs(
             name=SofaComponentName.RESPIRATION,
             pao2_fio2=resolved.pao2_fio2,
             spo2_fio2=resolved.spo2_fio2,
-            mechanically_ventilated=None,
+            mechanically_ventilated=_mechanically_ventilated_at(
+                vent_rows, as_of=as_of, lookback_hours=vent_lookback_hours
+            ),
             evidence_ids=list(resolved.evidence_ids),
         )
     )

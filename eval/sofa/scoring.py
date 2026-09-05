@@ -120,7 +120,14 @@ class AlertEvent(BaseModel):
 
 
 def effective_resp_ratio(inp: SofaComponentInput) -> float | None:
-    """Prefer explicit ratios; else PaO2/FiO2 or SpO2/FiO2 when FiO2 known. Never assumes 0.21."""
+    """Prefer explicit ratios; else PaO2/FiO2 or SpO2/FiO2 when FiO2 known.
+
+    Never assumes 0.21. A ratio computed from raw SpO2% + FiO2 uses the Rice
+    2007 linear imputation (valid SpO2 <= 97%); above 97% it fails closed
+    (None) rather than comparing a plateaued S/F against P/F cutoffs.
+    """
+    from ingestion.adapters.respiration import impute_pf_from_spo2
+
     if inp.pao2_fio2 is not None:
         return inp.pao2_fio2
     if inp.spo2_fio2 is not None:
@@ -130,7 +137,10 @@ def effective_resp_ratio(inp: SofaComponentInput) -> float | None:
     if inp.pao2_mmhg is not None:
         return inp.pao2_mmhg / inp.fio2_fraction
     if inp.spo2_percent is not None:
-        return inp.spo2_percent / inp.fio2_fraction
+        imputed, _ = impute_pf_from_spo2(
+            spo2_percent=inp.spo2_percent, fio2_fraction=inp.fio2_fraction
+        )
+        return imputed
     return None
 
 
