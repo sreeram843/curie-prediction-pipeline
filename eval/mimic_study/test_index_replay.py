@@ -18,10 +18,8 @@ pytest.importorskip("pyarrow")
 from eval.mimic_study.index_replay import (  # noqa: E402
     replay_indexed_stays,
     run_with_manifest,
-    select_stay_ids,
 )
 from eval.mimic_study.indexing import build_index, load_stay_events  # noqa: E402
-
 from eval.mimic_study.test_indexing import make_mimic_source  # noqa: E402
 
 
@@ -149,7 +147,6 @@ class TestLeakage:
         baseline = replay_indexed_stays(index_dir=mimic_index, limit=None)
         # Even if a labels sidecar existed in the index dir, feature replay must
         # not load it: the replay modules never import the labels package.
-        import sys
 
         for name in [n for n in sys.modules if n.startswith("eval.mimic_study.labels")]:
             del sys.modules[name]

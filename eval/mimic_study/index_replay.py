@@ -16,7 +16,7 @@ import json
 import resource
 import sys
 import time
-from collections import Counter, defaultdict, defaultdict
+from collections import Counter, defaultdict
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -24,7 +24,6 @@ from typing import Any
 from eval.mimic_harness.replay import replay_stay, result_to_public_dict
 from eval.mimic_study.completeness_check import sofa_component_missing_rates
 from eval.mimic_study.indexing import (
-    EICU_EPOCH,
     IndexError,
     load_index_meta,
     load_stay_events,
@@ -248,7 +247,11 @@ def mimic_stay_from_index(index_dir: Path, stay_row: dict[str, Any]) -> dict[str
             }
         )
     for event in by_family.get("output", []):
-        if event["itemid_num"] is not None and event["itemid_num"] in im.OUTPUT_URINE and event["value_num"] is not None:
+        if (
+            event["itemid_num"] is not None
+            and event["itemid_num"] in im.OUTPUT_URINE
+            and event["value_num"] is not None
+        ):
             chart_events.append(
                 {
                     "concept": c.URINE_OUTPUT,
@@ -262,7 +265,9 @@ def mimic_stay_from_index(index_dir: Path, stay_row: dict[str, Any]) -> dict[str
             )
     for event in by_family.get("input", []):
         if event["itemid_num"] is not None and event["itemid_num"] in im.INPUT_VASOPRESSORS:
-            pressor_rows.append((event["event_time"], event, im.INPUT_VASOPRESSORS[event["itemid_num"]]))
+            pressor_rows.append(
+                (event["event_time"], event, im.INPUT_VASOPRESSORS[event["itemid_num"]])
+            )
     for event in by_family.get("diagnosis", []):
         diagnoses.append(
             {
@@ -472,7 +477,11 @@ def replay_indexed_stays(
             "mode": (
                 "stay_ids"
                 if stay_ids
-                else ("protocol_cohort" if apply_protocol_cohort else ("bounded" if limit else "full"))
+                else (
+                    "protocol_cohort"
+                    if apply_protocol_cohort
+                    else ("bounded" if limit else "full")
+                )
             ),
             "limit": limit,
             "seed": seed if apply_protocol_cohort else None,

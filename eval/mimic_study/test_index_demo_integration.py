@@ -6,23 +6,21 @@ not committed). Skipped when absent.
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
-from typing import Any
 
 import pytest
 
 pytest.importorskip("pyarrow")
 
-from eval.mimic_study.indexing import (  # noqa: E402
-    build_index,
-    reconcile_source_to_index,
-    validate_index,
-)
 from eval.mimic_study.index_replay import (  # noqa: E402
     benchmark,
     replay_indexed_stays,
     run_with_manifest,
+)
+from eval.mimic_study.indexing import (  # noqa: E402
+    build_index,
+    reconcile_source_to_index,
+    validate_index,
 )
 
 pytestmark = pytest.mark.integration

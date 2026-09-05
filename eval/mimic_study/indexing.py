@@ -38,10 +38,11 @@ import shutil
 import subprocess
 import tempfile
 from collections import Counter, defaultdict
+from collections.abc import Callable, Iterator
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Callable, Iterator
+from typing import Any
 
 from ingestion.adapters.mimic.timeline import parse_mimic_ts
 
@@ -325,22 +326,55 @@ def _eicu_mapped_filters() -> dict[str, Callable[[dict[str, str]], bool]]:
 
 
 _MIMIC_SPEC_ROWS = (
-    ("lab", "hosp/labevents.csv.gz", "subject", "subject_id", "charttime", "storetime", "itemid", "valueuom", "value", "valuenum"),
-    ("chart", "icu/chartevents.csv.gz", "stay", "stay_id", "charttime", None, "itemid", "valueuom", "value", "valuenum"),
-    ("input", "icu/inputevents.csv.gz", "stay", "stay_id", "starttime", None, "itemid", "rateuom", "rate", "rate"),
-    ("output", "icu/outputevents.csv.gz", "stay", "stay_id", "charttime", None, "itemid", "valueuom", "value", "value"),
-    ("diagnosis", "hosp/diagnoses_icd.csv.gz", "hadm", "hadm_id", "__dischtime__", None, "icd_code", "", "long_title", ""),
+    (
+        "lab", "hosp/labevents.csv.gz", "subject", "subject_id", "charttime", "storetime",
+        "itemid", "valueuom", "value", "valuenum",
+    ),
+    (
+        "chart", "icu/chartevents.csv.gz", "stay", "stay_id", "charttime", None, "itemid",
+        "valueuom", "value", "valuenum",
+    ),
+    (
+        "input", "icu/inputevents.csv.gz", "stay", "stay_id", "starttime", None, "itemid",
+        "rateuom", "rate", "rate",
+    ),
+    (
+        "output", "icu/outputevents.csv.gz", "stay", "stay_id", "charttime", None, "itemid",
+        "valueuom", "value", "value",
+    ),
+    (
+        "diagnosis", "hosp/diagnoses_icd.csv.gz", "hadm", "hadm_id", "__dischtime__", None,
+        "icd_code", "", "long_title", "",
+    ),
 )
 
 _EICU_SPEC_ROWS = (
-    ("lab", "lab.csv.gz", "labresultoffset", "labname", "labmeasurenamesystem", "labresult", "labresult"),
+    (
+        "lab", "lab.csv.gz", "labresultoffset", "labname", "labmeasurenamesystem", "labresult",
+        "labresult",
+    ),
     ("vital_periodic", "vitalPeriodic.csv.gz", "observationoffset", "", "", "", ""),
     ("vital_aperiodic", "vitalAperiodic.csv.gz", "observationoffset", "", "", "", ""),
-    ("nurse_charting", "nurseCharting.csv.gz", "nursingchartoffset", "nursingchartcelltypevallabel", "", "nursingchartvalue", "nursingchartvalue"),
-    ("respiratory_charting", "respiratoryCharting.csv.gz", "respchartoffset", "respchartvaluelabel", "", "respchartvalue", "respchartvalue"),
-    ("intake_output", "intakeOutput.csv.gz", "intakeoutputoffset", "celllabel", "", "cellvaluenumeric", "cellvaluenumeric"),
-    ("infusion_drug", "infusionDrug.csv.gz", "infusionoffset", "drugname", "", "drugrate", "drugrate"),
-    ("physical_exam", "physicalExam.csv.gz", "physicalexamoffset", "physicalexampath", "", "physicalexamvalue", "physicalexamvalue"),
+    (
+        "nurse_charting", "nurseCharting.csv.gz", "nursingchartoffset",
+        "nursingchartcelltypevallabel", "", "nursingchartvalue", "nursingchartvalue",
+    ),
+    (
+        "respiratory_charting", "respiratoryCharting.csv.gz", "respchartoffset",
+        "respchartvaluelabel", "", "respchartvalue", "respchartvalue",
+    ),
+    (
+        "intake_output", "intakeOutput.csv.gz", "intakeoutputoffset", "celllabel", "",
+        "cellvaluenumeric", "cellvaluenumeric",
+    ),
+    (
+        "infusion_drug", "infusionDrug.csv.gz", "infusionoffset", "drugname", "", "drugrate",
+        "drugrate",
+    ),
+    (
+        "physical_exam", "physicalExam.csv.gz", "physicalexamoffset", "physicalexampath", "",
+        "physicalexamvalue", "physicalexamvalue",
+    ),
     ("diagnosis", "diagnosis.csv.gz", "diagnosisoffset", "icd9code", "", "diagnosisstring", ""),
 )
 
@@ -366,7 +400,9 @@ def _family_specs(dataset: str, items: str) -> list[FamilySpec]:
                 mapped_filter=filters.get(family) if mapped else None,
                 is_discharge_diagnosis=(family == "diagnosis"),
             )
-            for family, src, scope, scope_key, time_key, avail_key, itemid_key, unit_key, raw_key, num_key in _MIMIC_SPEC_ROWS
+            for family, src, scope, scope_key, time_key, avail_key, itemid_key, unit_key,
+            raw_key, num_key
+            in _MIMIC_SPEC_ROWS
         ]
     filters = _eicu_mapped_filters() if mapped else {}
     return [
@@ -1107,7 +1143,11 @@ def validate_index(
             check(
                 "event_count_consistency",
                 False,
-                {"stay_id": stay["stay_id"], "stays_table": stay.get("event_count"), "partition": len(events)},
+                {
+                    "stay_id": stay["stay_id"],
+                    "stays_table": stay.get("event_count"),
+                    "partition": len(events),
+                },
             )
         if idx < order_check_limit and events:
             keys = [
@@ -1201,7 +1241,9 @@ def reconcile_source_to_index(
     )
     for stay in sample:
         for event in load_stay_events(index_dir, str(stay["stay_id"])):
-            index_rows[str(stay["stay_id"])][event["event_family"]][int(event["source_row"])] = event
+            index_rows[str(stay["stay_id"])][event["event_family"]][
+                int(event["source_row"])
+            ] = event
 
     report_files: dict[str, dict[str, Any]] = {}
     mismatches: list[dict[str, Any]] = []

@@ -11,7 +11,7 @@ from __future__ import annotations
 import csv
 import gzip
 import shutil
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -24,7 +24,6 @@ from eval.mimic_study.indexing import (  # noqa: E402
     IndexError,
     build_index,
     compute_index_hash,
-    load_index_meta,
     load_stay_events,
     load_stays,
     reconcile_source_to_index,
@@ -70,7 +69,10 @@ def make_mimic_source(tmp: Path) -> Path:
     )
     _write_gz(
         root / "hosp" / "labevents.csv.gz",
-        ["subject_id", "hadm_id", "itemid", "charttime", "storetime", "value", "valuenum", "valueuom"],
+        [
+            "subject_id", "hadm_id", "itemid", "charttime", "storetime", "value", "valuenum",
+            "valueuom",
+        ],
         [
             # creatinine for stay 10 (storetime after charttime)
             [101, 1001, 50912, "2020-01-01 10:00:00", "2020-01-01 11:00:00", "1.2", "1.2", "mg/dL"],
@@ -90,7 +92,10 @@ def make_mimic_source(tmp: Path) -> Path:
     )
     _write_gz(
         root / "icu" / "chartevents.csv.gz",
-        ["subject_id", "hadm_id", "stay_id", "itemid", "charttime", "value", "valuenum", "valueuom"],
+        [
+            "subject_id", "hadm_id", "stay_id", "itemid", "charttime", "value", "valuenum",
+            "valueuom",
+        ],
         [
             [101, 1001, 10, 220052, "2020-01-01 09:00:00", "75", "75", "mmHg"],
             [101, 1001, 10, 220052, "2020-01-01 10:00:00", "61", "61", "mmHg"],
@@ -104,10 +109,19 @@ def make_mimic_source(tmp: Path) -> Path:
     )
     _write_gz(
         root / "icu" / "inputevents.csv.gz",
-        ["subject_id", "hadm_id", "stay_id", "itemid", "starttime", "endtime", "rate", "rateuom", "amount", "amountuom"],
         [
-            [101, 1001, 10, 221906, "2020-01-01 09:30:00", "2020-01-01 12:00:00", "0.3", "mcg/kg/min", "10", "mL"],
-            [101, 1001, 10, 221662, "2020-01-01 10:00:00", "2020-01-01 12:00:00", "5", "mcg/kg/min", "20", "mL"],
+            "subject_id", "hadm_id", "stay_id", "itemid", "starttime", "endtime", "rate",
+            "rateuom", "amount", "amountuom",
+        ],
+        [
+            [
+                101, 1001, 10, 221906, "2020-01-01 09:30:00", "2020-01-01 12:00:00", "0.3",
+                "mcg/kg/min", "10", "mL",
+            ],
+            [
+                101, 1001, 10, 221662, "2020-01-01 10:00:00", "2020-01-01 12:00:00", "5",
+                "mcg/kg/min", "20", "mL",
+            ],
         ],
     )
     _write_gz(
@@ -318,7 +332,9 @@ class TestMimicIndex:
         _, index_dir = _build(tmp_path, mimic_source, dataset="mimic")
         table = scan_index_events(index_dir, stay_ids=["10"])
         assert table is not None and table.num_rows == len(load_stay_events(index_dir, "10"))
-        filtered = scan_index_events(index_dir, stay_ids=["10", "11"], filters=[("itemid_num", "==", 50912)])
+        filtered = scan_index_events(
+            index_dir, stay_ids=["10", "11"], filters=[("itemid_num", "==", 50912)]
+        )
         assert all(int(r["itemid_num"]) == 50912 for r in filtered.to_pylist())
 
     def test_existing_index_requires_force(self, mimic_source: Path, tmp_path: Path) -> None:
