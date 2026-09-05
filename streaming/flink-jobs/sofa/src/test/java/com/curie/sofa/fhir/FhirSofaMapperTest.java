@@ -108,4 +108,59 @@ class FhirSofaMapperTest {
     assertEquals(1, result.inputs.size());
     assertEquals(0.4, result.inputs.get(0).fio2Fraction);
   }
+
+  @Test
+  void mapsExplicitInvasiveVentilationObservation() {
+    ObjectNode obs = mapper.createObjectNode();
+    obs.put("resourceType", "Observation");
+    obs.put("id", "vent-1");
+    obs.put("status", "final");
+    obs.putObject("code")
+        .putArray("coding")
+        .addObject()
+        .put("system", "http://loinc.org")
+        .put("code", FhirSofaMapper.LOINC_OXYGEN_DELIVERY_DEVICE)
+        .put("display", "Oxygen delivery device");
+    obs.putObject("valueCodeableConcept").put("text", "Invasive mechanical ventilation");
+
+    ExtractResult result = FhirSofaMapper.extractValidated(obs);
+    assertEquals(1, result.inputs.size());
+    assertEquals(Component.RESPIRATION, result.inputs.get(0).name);
+    assertEquals(Boolean.TRUE, result.inputs.get(0).mechanicallyVentilated);
+    assertEquals("Observation/vent-1", result.inputs.get(0).evidenceIds.get(0));
+    assertTrue(result.invalid.isEmpty());
+  }
+
+  @Test
+  void mapsNorepinephrineRateWhenAlreadyWeightNormalized() {
+    ObjectNode med = mapper.createObjectNode();
+    med.put("resourceType", "MedicationAdministration");
+    med.put("id", "norepi-1");
+    med.put("status", "in-progress");
+    med.putObject("medicationCodeableConcept").put("text", "Norepinephrine infusion");
+    med.putObject("dosage").putObject("rateQuantity").put("value", 0.02).put("unit", "mcg/kg/min");
+
+    ExtractResult result = FhirSofaMapper.extractValidated(med);
+    assertEquals(1, result.inputs.size());
+    assertEquals(Component.CARDIOVASCULAR, result.inputs.get(0).name);
+    assertEquals("norepinephrine", result.inputs.get(0).vasopressorAgent);
+    assertEquals(0.02, result.inputs.get(0).vasopressorDoseUgKgMin);
+    assertTrue(result.invalid.isEmpty());
+  }
+
+  @Test
+  void doesNotTreatVasopressinUnitsPerMinuteAsNorepinephrineDose() {
+    ObjectNode med = mapper.createObjectNode();
+    med.put("resourceType", "MedicationAdministration");
+    med.put("id", "vaso-1");
+    med.put("status", "in-progress");
+    med.putObject("medicationCodeableConcept").put("text", "Vasopressin");
+    med.putObject("dosage").putObject("rateQuantity").put("value", 0.03).put("unit", "units/min");
+
+    ExtractResult result = FhirSofaMapper.extractValidated(med);
+    assertEquals(1, result.inputs.size());
+    assertEquals("vasopressin", result.inputs.get(0).vasopressorAgent);
+    assertNull(result.inputs.get(0).vasopressorDoseUgKgMin);
+    assertTrue(result.invalid.isEmpty());
+  }
 }

@@ -24,6 +24,8 @@ public final class FhirSofaMapper {
   public static final String LOINC_MAP = "8478-0";
   public static final String LOINC_PAO2 = "2703-7";
   public static final String LOINC_FIO2 = "3150-0";
+  /** Oxygen delivery device / support observation commonly used by FHIR feeds. */
+  public static final String LOINC_OXYGEN_DELIVERY_DEVICE = "44971-8";
 
   private static final Set<String> USABLE_STATUS =
       Set.of("final", "amended", "corrected", "preliminary");
@@ -185,13 +187,39 @@ public final class FhirSofaMapper {
         out.inputs.add(
             withEvidence(Component.RESPIRATION, evidenceId, in -> in.fio2Fraction = frac));
       }
+      case LOINC_OXYGEN_DELIVERY_DEVICE -> mapVentilationObservation(resource, out, evidenceId);
       default -> {
-        // Unknown LOINC — ignore quietly (not an error)
+        // Some feeds omit the LOINC code but retain a descriptive observation name.
+        if (isVentilationObservation(resource)) {
+          mapVentilationObservation(resource, out, evidenceId);
+        }
       }
     }
   }
 
+  private static void mapVentilationObservation(
+      JsonNode resource, ExtractResult out, String evidenceId) {
+    Boolean invasive = ventilationValue(resource);
+    if (invasive == null) {
+      out.invalid.add(
+          new InvalidEvent(
+              "invalid_ventilation_value",
+              resource,
+              primaryCode(resource),
+              unit(resource),
+              text(resource, "status")));
+      return;
+    }
+    out.inputs.add(
+        withEvidence(Component.RESPIRATION, evidenceId, in -> in.mechanicallyVentilated = invasive));
+  }
+
   private static void mapMedication(JsonNode resource, ExtractResult out) {
+    String status = text(resource, "status");
+    if (status != null
+        && Set.of("not-done", "entered-in-error", "stopped").contains(status.toLowerCase(Locale.ROOT))) {
+      return;
+    }
     String display = medicationDisplay(resource).toLowerCase(Locale.ROOT);
     if (display.contains("norepinephrine")
         || display.contains("epinephrine")
@@ -209,15 +237,87 @@ public final class FhirSofaMapper {
         in.vasopressorAgent = "dopamine";
       } else if (display.contains("dobutamine")) {
         in.vasopressorAgent = "dobutamine";
+      } else if (display.contains("vasopressin")) {
+        in.vasopressorAgent = "vasopressin";
+      } else if (display.contains("phenylephrine")) {
+        in.vasopressorAgent = "phenylephrine";
       } else {
         in.vasopressorAgent = "other";
       }
+      // Only accept a rate already expressed as mass per kg per minute. A bare
+      // units/min vasopressin rate is intentionally not converted into a
+      // norepinephrine-equivalent dose; the scorer will use its unknown-dose policy.
+      in.vasopressorDoseUgKgMin = doseUgKgMin(resource);
       String eid = evidenceId(resource);
       if (eid != null) {
         in.evidenceIds.add(eid);
       }
       out.inputs.add(in);
     }
+  }
+
+  private static Double doseUgKgMin(JsonNode resource) {
+    JsonNode rate = resource.path("dosage").path("rateQuantity");
+    if (!rate.has("value") || !rate.get("value").isNumber()) {
+      return null;
+    }
+    String unit = text(rate, "unit");
+    if (unit == null) {
+      unit = text(rate, "code");
+    }
+    if (!isUgKgMin(unit)) {
+      return null;
+    }
+    double value = rate.get("value").asDouble();
+    return value >= 0 && Double.isFinite(value) ? value : null;
+  }
+
+  private static boolean isUgKgMin(String unit) {
+    if (unit == null) {
+      return false;
+    }
+    String normalized = unit.trim().toLowerCase(Locale.ROOT).replace("μ", "u").replace("µ", "u");
+    return Set.of(
+            "ug/kg/min", "mcg/kg/min", "microgram/kg/min", "micrograms/kg/min",
+            "ug/kg/minute", "mcg/kg/minute", "microgram/kg/minute", "micrograms/kg/minute")
+        .contains(normalized);
+  }
+
+  private static boolean isVentilationObservation(JsonNode resource) {
+    String display = primaryDisplay(resource);
+    return display != null
+        && (display.toLowerCase(Locale.ROOT).contains("oxygen delivery")
+            || display.toLowerCase(Locale.ROOT).contains("ventilat")
+            || display.toLowerCase(Locale.ROOT).contains("airway support"));
+  }
+
+  private static Boolean ventilationValue(JsonNode resource) {
+    String value = valueDisplay(resource);
+    if (value == null) {
+      JsonNode bool = resource.get("valueBoolean");
+      if (bool != null && bool.isBoolean()) {
+        return bool.asBoolean();
+      }
+      return null;
+    }
+    String normalized = value.toLowerCase(Locale.ROOT).trim();
+    if (normalized.contains("invasive")
+        || normalized.contains("mechanical")
+        || normalized.contains("ventilator")
+        || normalized.contains("intubat")
+        || normalized.contains("endotracheal")
+        || normalized.equals("ett")) {
+      return true;
+    }
+    if (normalized.contains("room air")
+        || normalized.contains("nasal cannula")
+        || normalized.contains("face mask")
+        || normalized.contains("simple mask")
+        || normalized.contains("high flow")
+        || normalized.equals("none")) {
+      return false;
+    }
+    return null;
   }
 
   private static boolean unitAllowed(String unit, String... allowed) {
@@ -283,6 +383,46 @@ public final class FhirSofaMapper {
       String code = text(c, "code");
       if (code != null) {
         return code;
+      }
+    }
+    return null;
+  }
+
+  private static String primaryDisplay(JsonNode resource) {
+    JsonNode coding = resource.path("code").path("coding");
+    if (!coding.isArray()) {
+      return text(resource.path("code"), "text");
+    }
+    for (JsonNode c : coding) {
+      String display = text(c, "display");
+      if (display != null) {
+        return display;
+      }
+    }
+    return text(resource.path("code"), "text");
+  }
+
+  private static String valueDisplay(JsonNode resource) {
+    String direct = text(resource, "valueString");
+    if (direct != null) {
+      return direct;
+    }
+    JsonNode concept = resource.path("valueCodeableConcept");
+    String conceptText = text(concept, "text");
+    if (conceptText != null) {
+      return conceptText;
+    }
+    JsonNode coding = concept.path("coding");
+    if (coding.isArray()) {
+      for (JsonNode c : coding) {
+        String display = text(c, "display");
+        if (display != null) {
+          return display;
+        }
+        String code = text(c, "code");
+        if (code != null) {
+          return code;
+        }
       }
     }
     return null;
