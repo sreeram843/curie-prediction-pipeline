@@ -3,12 +3,18 @@
 from __future__ import annotations
 
 import json
+from datetime import datetime, timedelta
 from pathlib import Path
 
 import pytest
 
 from eval.mimic_harness.replay import (
     LeakageError,
+    StayReplayState,
+    VasopressorState,
+    _active_vasopressor,
+    _apply_observation,
+    _urine_ml_day,
     assert_snapshot_leakage_free,
     load_leaky_snapshots_example,
     replay_stay,
@@ -19,6 +25,7 @@ from eval.mimic_harness.replay import (
 from eval.mimic_harness.runner import main
 from ingestion.adapters.mimic.envelope import events_to_envelopes
 from ingestion.adapters.mimic.timeline import (
+    MimicTimelineEvent,
     events_from_demo_schema_stay,
     sort_by_availability,
 )
@@ -109,3 +116,265 @@ def test_public_dict_omits_raw_snapshots_by_default() -> None:
     public = result_to_public_dict(result)
     assert "snapshots" not in public
     assert "final_snapshot" in public
+
+
+def test_harness_urine_only_scores_renal() -> None:
+    from eval.mimic_harness.replay import replay_stay
+
+    stay = {
+        "stay_id": "u1",
+        "subject_id": "s1",
+        "hadm_id": "h1",
+        "intime": "2019-01-01 00:00:00",
+        "outtime": "2019-01-02 12:00:00",
+        "labels": {"sepsis3_onset": None, "aki_kdigo_stage_ge_1": None},
+        "labs": [],
+        "charts": [
+            {
+                "itemid": "urine",
+                "code": "9187-6",
+                "display": "Urine output",
+                "valuenum": 400.0,
+                "unit": "mL",
+                "charttime": "2019-01-02 00:00:00",
+                "evidence_id": "uo/1",
+            }
+        ],
+        "conditions": [],
+    }
+    result = replay_stay(stay)
+    assert result.snapshots
+    assert "renal" not in (result.snapshots[-1].get("missing_components") or [])
+
+
+def test_urine_is_missing_until_full_24_hour_stay_window() -> None:
+    start = datetime(2019, 1, 1)
+    state = StayReplayState(stay_started_at=start)
+    state.urine_events.append((start + timedelta(hours=10), 400.0, "uo/1"))
+    assert _urine_ml_day(state, clock=start + timedelta(hours=23, minutes=59)) == (None, [])
+    assert _urine_ml_day(state, clock=start + timedelta(hours=24)) == (400.0, ["uo/1"])
+
+
+def test_harness_vasopressor_only_scores_cardiovascular() -> None:
+    from eval.mimic_harness.replay import replay_stay
+
+    stay = {
+        "stay_id": "u1",
+        "subject_id": "s1",
+        "hadm_id": "h1",
+        "intime": "2019-01-01 00:00:00",
+        "outtime": "2019-01-02 00:00:00",
+        "labels": {"sepsis3_onset": None, "aki_kdigo_stage_ge_1": None},
+        "labs": [],
+        "charts": [
+            {
+                "itemid": "norepinephrine",
+                "code": "curie-vasopressor",
+                "display": "norepinephrine",
+                "valuenum": 0.2,
+                "unit": "mcg/kg/min",
+                "charttime": "2019-01-01 10:00:00",
+                "evidence_id": "vaso/1",
+            }
+        ],
+        "conditions": [],
+    }
+    result = replay_stay(stay)
+    assert result.snapshots
+    assert "cardiovascular" not in (result.snapshots[-1].get("missing_components") or [])
+
+
+def test_unknown_vasopressor_dose_is_explicit_and_uses_fallback_points() -> None:
+    clock = datetime(2019, 1, 1, 1)
+    event = MimicTimelineEvent(
+        stay_id="u1",
+        subject_id="s1",
+        hadm_id="h1",
+        kind="chart",
+        itemid="norepinephrine",
+        valuenum=None,
+        unit="mcg/kg/min",
+        event_time=clock,
+        availability_time=clock,
+        evidence_id="vaso/unknown",
+        code="curie-vasopressor",
+        display="norepinephrine",
+    )
+    state = StayReplayState(stay_started_at=datetime(2019, 1, 1))
+    _apply_observation(state, event, clock=clock)
+    pressor = _active_vasopressor(state, clock=clock)
+    assert isinstance(pressor, VasopressorState)
+    assert state.vaso_dose_known is False
+    assert pressor.dose is None
+    component = state.components[
+        next(name for name in state.components if name.value == "cardiovascular")
+    ]
+    from eval.sofa.scoring import compute_sofa_score
+
+    score = compute_sofa_score(
+        patient_id="Patient/s1",
+        event_time=clock,
+        inputs=[component],
+        rule_bundle_id="sepsis-sofa",
+        rule_version="0.3.0",
+        min_components_required=1,
+    )
+    cardiovascular = next(
+        component for component in score.components if component.name.value == "cardiovascular"
+    )
+    assert cardiovascular.points == 3
+
+
+def test_non_normalized_pressor_unit_never_reads_dose() -> None:
+    """A positive valuenum with a non-normalized unit (e.g. mcg/min) must not be
+    silently read as mcg/kg/min (CURIE-051 fail-closed replay guard)."""
+    clock = datetime(2019, 1, 1, 1)
+    event = MimicTimelineEvent(
+        stay_id="u1",
+        subject_id="s1",
+        hadm_id="h1",
+        kind="chart",
+        itemid="221906",
+        valuenum=5.0,  # would be 5 mcg/kg/min if misread — an absurd dose
+        unit="mcg/min",
+        event_time=clock,
+        availability_time=clock,
+        evidence_id="vaso/mcg-min",
+        code="curie-vasopressor",
+        display="norepinephrine",
+    )
+    state = StayReplayState(stay_started_at=datetime(2019, 1, 1))
+    _apply_observation(state, event, clock=clock)
+    pressor = _active_vasopressor(state, clock=clock)
+    assert pressor.on_pressor
+    assert pressor.dose is None
+    assert state.vaso_dose_known is False
+
+
+def test_normalized_pressor_unit_reads_dose() -> None:
+    clock = datetime(2019, 1, 1, 1)
+    event = MimicTimelineEvent(
+        stay_id="u1",
+        subject_id="s1",
+        hadm_id="h1",
+        kind="chart",
+        itemid="221906",
+        valuenum=0.2,
+        unit="mcg/kg/min",
+        event_time=clock,
+        availability_time=clock,
+        evidence_id="vaso/ok",
+        code="curie-vasopressor",
+        display="norepinephrine",
+    )
+    state = StayReplayState(stay_started_at=datetime(2019, 1, 1))
+    _apply_observation(state, event, clock=clock)
+    pressor = _active_vasopressor(state, clock=clock)
+    assert pressor.on_pressor
+    assert pressor.dose == 0.2
+
+
+def test_pressor_extras_reason_recorded() -> None:
+    clock = datetime(2019, 1, 1, 1)
+    event = MimicTimelineEvent(
+        stay_id="u1",
+        subject_id="s1",
+        hadm_id="h1",
+        kind="chart",
+        itemid="222315",
+        valuenum=None,
+        unit="units/hour",
+        event_time=clock,
+        availability_time=clock,
+        evidence_id="vaso/units-hour",
+        code="curie-vasopressor",
+        display="other",
+        extras={"pressor": {"known": False, "reason": "unsupported_unit:units/hour"}},
+    )
+    state = StayReplayState(stay_started_at=datetime(2019, 1, 1))
+    _apply_observation(state, event, clock=clock)
+    assert state.vaso_dose_reason == "unsupported_unit:units/hour"
+
+
+def test_late_fio2_pairs_with_prior_spo2() -> None:
+    """FiO2 after SpO2 still forms a ratio (re-pair on FiO2 arrival)."""
+    stay = {
+        "stay_id": "stay-resp-1",
+        "subject_id": "s1",
+        "hadm_id": "h1",
+        "intime": "2150-01-01 00:00:00",
+        "outtime": "2150-01-01 06:00:00",
+        "labs": [],
+        "charts": [
+            {
+                "code_system": "http://loinc.org",
+                "code": "2708-6",
+                "display": "SpO2",
+                "valuenum": 88,
+                "unit": "%",
+                "charttime": "2150-01-01 01:00:00",
+                "storetime": "2150-01-01 01:00:00",
+                "evidence_id": "chart/spo2",
+                "itemid": 220277,
+            },
+            {
+                "code_system": "http://loinc.org",
+                "code": "3150-0",
+                "display": "FiO2",
+                "valuenum": 40,
+                "unit": "%",
+                "charttime": "2150-01-01 01:30:00",
+                "storetime": "2150-01-01 01:30:00",
+                "evidence_id": "chart/fio2",
+                "itemid": 223835,
+            },
+        ],
+        "conditions": [],
+        "labels": {},
+    }
+    result = replay_stay(stay)
+    assert result.snapshots
+    missing = result.snapshots[-1].get("missing_components") or []
+    assert "respiration" not in missing
+
+
+def test_pao2_with_fio2_scores_respiration() -> None:
+    stay = {
+        "stay_id": "stay-resp-2",
+        "subject_id": "s1",
+        "hadm_id": "h1",
+        "intime": "2150-01-01 00:00:00",
+        "outtime": "2150-01-01 06:00:00",
+        "labs": [
+            {
+                "code_system": "http://loinc.org",
+                "code": "2703-7",
+                "display": "PaO2",
+                "valuenum": 55,
+                "unit": "mmHg",
+                "charttime": "2150-01-01 02:00:00",
+                "storetime": "2150-01-01 02:00:00",
+                "evidence_id": "lab/pao2",
+                "itemid": 50821,
+            }
+        ],
+        "charts": [
+            {
+                "code_system": "http://loinc.org",
+                "code": "3150-0",
+                "display": "FiO2",
+                "valuenum": 50,
+                "unit": "%",
+                "charttime": "2150-01-01 01:00:00",
+                "storetime": "2150-01-01 01:00:00",
+                "evidence_id": "chart/fio2",
+                "itemid": 223835,
+            }
+        ],
+        "conditions": [],
+        "labels": {},
+    }
+    result = replay_stay(stay)
+    assert result.snapshots
+    missing = result.snapshots[-1].get("missing_components") or []
+    assert "respiration" not in missing

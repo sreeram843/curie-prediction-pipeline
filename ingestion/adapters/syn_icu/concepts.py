@@ -21,7 +21,10 @@ BILIRUBIN_LOINC = "1975-2"
 MAP_LOINC = "8478-0"
 SPO2_LOINC = "2708-6"
 FIO2_LOINC = "3150-0"
+PAO2_LOINC = "2703-7"
 GCS_LOINC = "9269-2"
+URINE_LOINC = "9187-6"
+VASOPRESSOR_CODE = "curie-vasopressor"
 
 # Concept keys shared across the adapter.
 CREATININE = "creatinine"
@@ -30,10 +33,13 @@ BILIRUBIN_TOTAL = "bilirubin_total"
 MAP = "map"
 SPO2 = "spo2"
 FIO2 = "fio2"
+PAO2 = "pao2"
 GCS_EYE = "gcs_eye"
 GCS_VERBAL = "gcs_verbal"
 GCS_MOTOR = "gcs_motor"
 GCS_TOTAL = "gcs_total"
+URINE_OUTPUT = "urine_output"
+VASOPRESSOR = "vasopressor"
 
 # label substrings (lowercase) → concept, matched against d_items/d_labitems labels.
 # Order matters: more specific first.
@@ -62,6 +68,9 @@ LABEL_MAP: tuple[tuple[str, str], ...] = (
     ("fio2", FIO2),
     ("inspired o2", FIO2),
     ("inspired oxygen", FIO2),
+    ("pao2", PAO2),
+    ("arterial po2", PAO2),
+    ("po2 arterial", PAO2),
     ("gcs - eye", GCS_EYE),
     ("gcs eye", GCS_EYE),
     ("eye opening", GCS_EYE),

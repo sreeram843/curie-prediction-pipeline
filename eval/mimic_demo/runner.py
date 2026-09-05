@@ -14,12 +14,24 @@ from ingestion.adapters.mimic import item_map as im
 from ingestion.adapters.mimic.extract import build_aki_input, build_sofa_inputs
 from ingestion.adapters.mimic.loader import (
     index_chartevents,
+    index_chartevents_weights,
     index_inputevents_pressors,
     index_labevents,
     index_outputevents_urine,
     load_icustays,
 )
 from ingestion.adapters.mimic.paths import require_mimic_demo_dir, require_mimic_dir
+
+
+def _parse_stay_ts(raw: str | None) -> datetime | None:
+    if not raw:
+        return None
+    for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M:%S.%f"):
+        try:
+            return datetime.strptime(raw, fmt)
+        except ValueError:
+            continue
+    return None
 
 
 def _as_of_for_stay(stay: dict[str, str]) -> datetime:
@@ -51,7 +63,7 @@ def run_mimic_demo(
     subject_ids = {s["subject_id"] for s in stays}
     stay_ids = {s["stay_id"] for s in stays}
 
-    lab_itemids = im.LAB_CREATININE | im.LAB_PLATELETS | im.LAB_BILIRUBIN_TOTAL
+    lab_itemids = im.LAB_CREATININE | im.LAB_PLATELETS | im.LAB_BILIRUBIN_TOTAL | im.LAB_PAO2
     chart_itemids = (
         im.CHART_MAP
         | im.CHART_SPO2
@@ -72,6 +84,7 @@ def run_mimic_demo(
     outputs_by_stay = index_outputevents_urine(
         root, stay_ids=stay_ids, itemids=im.OUTPUT_URINE
     )
+    weights_by_stay = index_chartevents_weights(root, stay_ids=stay_ids)
 
     rows: list[dict] = []
     sofa_alertable = 0
@@ -90,12 +103,21 @@ def run_mimic_demo(
             for r in labs_by_subject.get(sid, [])
             if not hadm or r.get("hadm_id") in {"", hadm}
         ]
-        sofa_inputs = build_sofa_inputs(
+        intime = _parse_stay_ts(stay.get("intime"))
+        weight_rows = [
+            (_parse_stay_ts(r["charttime"]), r["itemid"], r["valuenum"])
+            for r in weights_by_stay.get(stay_id, [])
+            if _parse_stay_ts(r["charttime"]) is not None
+        ]
+        sofa_inputs, pressor_details = build_sofa_inputs(
             as_of=as_of,
             lab_rows=lab_rows,
             chart_rows=charts_by_stay.get(stay_id, []),
             input_rows=inputs_by_stay.get(stay_id, []),
             output_rows=outputs_by_stay.get(stay_id, []),
+            weight_rows=weight_rows,
+            stay_intime=intime,
+            return_pressor_details=True,
         )
         sofa = compute_sofa_score(
             patient_id=f"Patient/{sid}",
@@ -143,6 +165,7 @@ def run_mimic_demo(
                 "aki_completeness": aki.completeness.value,
                 "aki_missing": aki.missing_components,
                 "aki_tier": aki_tier.value,
+                "pressor_details": pressor_details,
             }
         )
 

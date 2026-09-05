@@ -118,4 +118,4 @@ add/update fixtures in `eval/fixtures/golden/` and the matching Java test.
   (`make challenge-2019 / challenge-2019-sweep / challenge-2019-paper-analyses`), eICU demo at `data/eicu-crd-demo/`, MIMIC-IV FHIR demo at
   `data/mimic-iv-fhir-demo/`, SYN-ICU at `data/syn-icu/` (`make syn-icu`). Suite:
   `make open-eval`. Overridable via `CURIE_MIMIC_DIR` / `CURIE_MIMIC_DEMO_DIR` / `CURIE_CHALLENGE2019_DIR` /
-  `CURIE_EICU_DEMO_DIR` / `CURIE_MIMIC_FHIR_DEMO_DIR` / `CURIE_SYN_ICU_DIR`.
+  `CURIE_EICU_DIR` / `CURIE_EICU_DEMO_DIR` / `CURIE_MIMIC_FHIR_DEMO_DIR` / `CURIE_SYN_ICU_DIR`.

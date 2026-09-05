@@ -9,16 +9,19 @@ from __future__ import annotations
 
 import csv
 import gzip
+import re
 from collections import defaultdict
 from collections.abc import Iterable, Iterator
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
 from ingestion.adapters.demo_schema import downsample_hourly
-from ingestion.adapters.eicu.paths import require_eicu_demo_dir
+from ingestion.adapters.eicu.paths import require_eicu_demo_dir, require_eicu_dir
 from ingestion.adapters.syn_icu import concepts as c
 from ingestion.adapters.syn_icu.convert import _emit_stay
+from ingestion.completeness import filter_eicu_protocol_cohort, seeded_sample
 
 SCHEMA_VERSION = "1.0.0"
 EPOCH = datetime(2015, 1, 1, 0, 0, 0)
@@ -26,9 +29,20 @@ EPOCH = datetime(2015, 1, 1, 0, 0, 0)
 _LAB_NAMES: dict[str, str] = {
     "creatinine": c.CREATININE,
     "platelets x 1000": c.PLATELETS,
+    # SOFA liver needs total bilirubin only (CURIE-048). "direct bilirubin" is not a substitute.
     "total bilirubin": c.BILIRUBIN_TOTAL,
     "fio2": c.FIO2,
+    "pao2": c.PAO2,  # eICU blood-gas PaO2 (mmHg)
 }
+
+# respiratoryCharting FiO2 label variants (exact match after lower/strip).
+_RESP_FIO2_LABELS = frozenset({
+    "fio2",
+    "fio2 (%)",
+    "fio2(%)",
+    "o2 percentage",
+    "o2 %",
+})
 
 def _iter_csv_gz(path: Path) -> Iterator[dict[str, str]]:
     with gzip.open(path, "rt", newline="") as fh:
@@ -58,7 +72,7 @@ def _event(
     *,
     concept: str,
     itemid: str,
-    valuenum: float,
+    valuenum: float | None,
     unit: str,
     charttime: str,
 ) -> dict[str, Any]:
@@ -79,6 +93,141 @@ def _maybe_fio2_percent(value: float) -> float:
     return value
 
 
+_VASO_AGENTS = (
+    "norepinephrine",
+    "epinephrine",
+    "dopamine",
+    "dobutamine",
+    "phenylephrine",
+    "vasopressin",
+)
+
+
+@dataclass(frozen=True)
+class ParsedVasopressor:
+    agent: str
+    dose: float | None
+    unit: str
+    source_unit: str | None = None
+    reason: str = "unknown"
+
+
+def _parse_vasopressor(row: dict[str, str]) -> ParsedVasopressor | None:
+    """Convert an eICU infusionDrug row to (agent, dose_ug_kg_min, ...).
+
+    Same frozen B1 unit policy as the MIMIC adapter:
+    - mcg/kg/min unchanged; mg/kg/min x1000;
+    - mcg/min and mg/min divide by a valid contemporaneous row weight;
+    - volume rates (ml/hr, ml) and units/hour|min stay unknown (no
+      concentration column exists) — never a silent conversion.
+    """
+    from ingestion.adapters.mimic.vasopressors import (
+        convert_pressor_dose,
+        valid_weight_kg,
+    )
+
+    name = (row.get("drugname") or "").strip().lower()
+    if not name:
+        return None
+    agent = None
+    for key in _VASO_AGENTS:
+        if key in name:
+            agent = "other" if key in {"phenylephrine", "vasopressin"} else key
+            break
+    if agent is None:
+        return None
+    rate = _to_float(row.get("drugrate"))
+    weight = _to_float(row.get("patientweight"))
+    unit = ""
+    if "(" in name and ")" in name:
+        unit = name[name.rfind("(") + 1 : name.rfind(")")].strip()
+    conv = convert_pressor_dose(
+        rate=rate,
+        rate_uom=unit or None,
+        weight_kg=weight,
+        weight_available=valid_weight_kg(weight),
+        agent=agent,
+    )
+    dose = conv.dose_ug_kg_min if conv.known else None
+    return ParsedVasopressor(
+        agent=agent,
+        dose=dose,
+        unit="mcg/kg/min" if conv.known else (unit or "infusion"),
+        source_unit=conv.source_unit or unit or None,
+        reason=conv.reason,
+    )
+
+
+
+def _is_gcs_total_label(label: str, name: str) -> bool:
+    """True when nurseCharting row is a total GCS (not a component)."""
+    lab = label.lower().strip()
+    nam = name.lower().strip()
+    blob = f"{lab} {nam}".strip()
+    if "gcs total" in blob:
+        return True
+    if "glasgow coma" in lab and nam in {"value", "total", "score", "gcs total", ""}:
+        return True
+    if lab == "score (glasgow coma scale)" and nam in {"value", ""}:
+        return True
+    return False
+
+
+def _gcs_component_from_nurse(label: str, name: str) -> str | None:
+    """Return gcs_eye / gcs_verbal / gcs_motor concept, or None."""
+    lab = label.lower()
+    nam = name.lower()
+    if "glasgow" not in lab and "gcs" not in lab and "glasgow" not in nam:
+        return None
+    if nam in {"eyes", "eye"} or nam.startswith("eye"):
+        return c.GCS_EYE
+    if nam.startswith("verbal"):
+        return c.GCS_VERBAL
+    if nam.startswith("motor"):
+        return c.GCS_MOTOR
+    return None
+
+
+_PHYS_GCS_COMPONENT = re.compile(
+    r"/gcs/(eyes?|motor|verbal)\s*score/(\d+)",
+    re.IGNORECASE,
+)
+_PHYS_GCS_TOTAL = re.compile(r"/gcs/(\d{1,2})(?:\s|/|$)", re.IGNORECASE)
+
+
+def _gcs_events_from_physical_exam(row: dict[str, str]) -> list[tuple[str, float, str]]:
+    """Parse physicalExam paths into (concept, value, itemid) tuples."""
+    path = row.get("physicalexampath") or ""
+    path_l = path.lower()
+    if "/gcs/" not in path_l and "glasgow" not in path_l:
+        return []
+    out: list[tuple[str, float, str]] = []
+    m = _PHYS_GCS_COMPONENT.search(path_l)
+    if m:
+        kind = m.group(1).lower()
+        val = float(m.group(2))
+        if kind.startswith("eye"):
+            out.append((c.GCS_EYE, val, "phys-gcs-eye"))
+        elif kind.startswith("verbal"):
+            out.append((c.GCS_VERBAL, val, "phys-gcs-verbal"))
+        elif kind.startswith("motor"):
+            out.append((c.GCS_MOTOR, val, "phys-gcs-motor"))
+        return out
+    # Prefer numeric value column when path is a scored total marker.
+    val = _to_float(row.get("physicalexamvalue"))
+    if val is None:
+        val = _to_float(row.get("physicalexamtext"))
+    m_tot = _PHYS_GCS_TOTAL.search(path_l)
+    if m_tot and "/score/" not in path_l:
+        out.append((c.GCS_TOTAL, float(m_tot.group(1)), "phys-gcs-total"))
+        return out
+    if val is not None and 3 <= val <= 15 and "score" in path_l and "eyes" not in path_l:
+        # rare: numeric total in value with score path
+        if "motor" not in path_l and "verbal" not in path_l and "eye" not in path_l:
+            out.append((c.GCS_TOTAL, val, "phys-gcs-total"))
+    return out
+
+
 def convert_eicu_rows(
     *,
     patients: Iterable[dict[str, str]],
@@ -86,6 +235,10 @@ def convert_eicu_rows(
     vital_periodic: Iterable[dict[str, str]],
     vital_aperiodic: Iterable[dict[str, str]],
     nurse_charting: Iterable[dict[str, str]],
+    respiratory_charting: Iterable[dict[str, str]] | None = None,
+    intake_output: Iterable[dict[str, str]] | None = None,
+    infusion_drug: Iterable[dict[str, str]] | None = None,
+    physical_exam: Iterable[dict[str, str]] | None = None,
     limit: int | None = None,
 ) -> dict[str, Any]:
     stays_meta: dict[str, dict[str, Any]] = {}
@@ -144,6 +297,8 @@ def convert_eicu_rows(
             )
         else:
             unit = row.get("labmeasurenamesystem") or ""
+            if concept == c.PAO2 and not unit:
+                unit = "mmHg"
             add_lab(
                 stay_id,
                 _event(
@@ -210,7 +365,7 @@ def convert_eicu_rows(
         if val is None:
             continue
         blob = f"{label} {name}".lower()
-        if "gcs total" in blob or blob.strip() == "glasgow coma score gcs total":
+        if _is_gcs_total_label(label, name):
             add_chart(
                 stay_id,
                 _event(
@@ -221,7 +376,20 @@ def convert_eicu_rows(
                     charttime=ts,
                 ),
             )
-        elif label.lower() == "o2 saturation":
+        else:
+            component = _gcs_component_from_nurse(label, name)
+            if component is not None:
+                add_chart(
+                    stay_id,
+                    _event(
+                        concept=component,
+                        itemid=f"gcs-{component}",
+                        valuenum=val,
+                        unit="",
+                        charttime=ts,
+                    ),
+                )
+        if label.lower() == "o2 saturation":
             add_chart(
                 stay_id,
                 _event(concept=c.SPO2, itemid="o2sat", valuenum=val, unit="%", charttime=ts),
@@ -237,6 +405,109 @@ def convert_eicu_rows(
                     charttime=ts,
                 ),
             )
+
+    for row in physical_exam or ():
+        stay_id = (row.get("patientunitstayid") or "").strip()
+        if stay_id not in wanted:
+            continue
+        ts = _offset_ts(row.get("physicalexamoffset"))
+        if ts is None:
+            continue
+        for concept, valuenum, itemid in _gcs_events_from_physical_exam(row):
+            add_chart(
+                stay_id,
+                _event(
+                    concept=concept,
+                    itemid=itemid,
+                    valuenum=valuenum,
+                    unit="",
+                    charttime=ts,
+                ),
+            )
+
+    for row in respiratory_charting or ():
+        stay_id = (row.get("patientunitstayid") or "").strip()
+        if stay_id not in wanted:
+            continue
+        label = (row.get("respchartvaluelabel") or "").strip().lower()
+        if label not in _RESP_FIO2_LABELS:
+            continue
+        val = _to_float(row.get("respchartvalue"))
+        if val is None:
+            continue
+        ts = _offset_ts(row.get("respchartoffset"))
+        if ts is None:
+            continue
+        val = _maybe_fio2_percent(val)
+        add_chart(
+            stay_id,
+            _event(
+                concept=c.FIO2,
+                itemid="resp-fio2",
+                valuenum=val,
+                unit="%",
+                charttime=ts,
+            ),
+        )
+
+    for row in intake_output or ():
+        stay_id = (row.get("patientunitstayid") or "").strip()
+        if stay_id not in wanted:
+            continue
+        label = (row.get("celllabel") or "").strip().lower()
+        if label != "urine":
+            continue
+        val = _to_float(row.get("cellvaluenumeric"))
+        if val is None or val < 0:
+            continue
+        ts = _offset_ts(row.get("intakeoutputoffset"))
+        if ts is None:
+            continue
+        add_chart(
+            stay_id,
+            _event(
+                concept=c.URINE_OUTPUT,
+                itemid="urine",
+                valuenum=val,
+                unit="mL",
+                charttime=ts,
+            ),
+        )
+
+    for row in infusion_drug or ():
+        stay_id = (row.get("patientunitstayid") or "").strip()
+        if stay_id not in wanted:
+            continue
+        parsed = _parse_vasopressor(row)
+        if parsed is None:
+            continue
+        agent, dose, unit = parsed.agent, parsed.dose, parsed.unit
+        ts = _offset_ts(row.get("infusionoffset"))
+        if ts is None:
+            continue
+        # Unknown dose stays missing; replay handles pressor presence separately.
+        add_chart(
+            stay_id,
+            {
+                **_event(
+                    concept=c.VASOPRESSOR,
+                    itemid=agent,
+                    valuenum=float(dose) if dose is not None else None,
+                    unit=unit,
+                    charttime=ts,
+                ),
+                "display": agent,
+                "extras": {
+                    "pressor": {
+                        "known": dose is not None,
+                        "reason": parsed.reason,
+                        "source_unit": parsed.source_unit,
+                        "source_rate": _to_float(row.get("drugrate")),
+                        "source_row": f"eicu/infusionDrug/{row.get('infusiondrugid')}",
+                    }
+                },
+            },
+        )
 
     stays = []
     for stay_id, meta in stays_meta.items():
@@ -255,11 +526,12 @@ def convert_eicu_rows(
     return {
         "schema_version": SCHEMA_VERSION,
         "dataset_pin": {
-            "name": "eicu-crd-demo",
-            "version": "2.0.1",
+            "name": "eicu-crd",
+            "version": "2.0",
             "note": (
-                "Open PhysioNet eICU demo. Plumbing / coverage only; no Sepsis-3 "
-                "onset labels. Vitals downsampled to one value per concept-hour."
+                "PhysioNet eICU-CRD. Plumbing / coverage only; no Sepsis-3 onset "
+                "labels. Default convert_eicu applies adult/first-stay/LOS>=4h "
+                "cohort + seeded sample (CURIE-049). Vitals downsampled hourly."
             ),
         },
         "coverage": {"concepts": dict(counts), "stays": len(stays)},
@@ -268,11 +540,28 @@ def convert_eicu_rows(
     }
 
 
-def convert_eicu(root: Path | None = None, *, limit: int | None = None) -> dict[str, Any]:
-    root = root or require_eicu_demo_dir()
+def convert_eicu(
+    root: Path | None = None,
+    *,
+    limit: int | None = None,
+    apply_protocol_cohort: bool = True,
+    sample_seed: int = 42,
+) -> dict[str, Any]:
+    """Load eICU stays.
+
+    When ``apply_protocol_cohort`` is true (default), keep adult / first-stay /
+    LOS>=4h rows and draw ``limit`` stays with a seeded shuffle (CURIE-049).
+    Pass ``apply_protocol_cohort=False`` only for raw plumbing smoke tests.
+    """
+    root = root or (require_eicu_dir() if apply_protocol_cohort else require_eicu_demo_dir())
     patients = list(_iter_csv_gz(root / "patient.csv.gz"))
+    if apply_protocol_cohort:
+        patients = filter_eicu_protocol_cohort(patients)
     if limit is not None:
-        patients = patients[:limit]
+        if apply_protocol_cohort:
+            patients = seeded_sample(patients, limit, seed=sample_seed)
+        else:
+            patients = patients[:limit]
     wanted = {(p.get("patientunitstayid") or "").strip() for p in patients}
 
     def _filter(path: Path) -> Iterator[dict[str, str]]:
@@ -290,5 +579,9 @@ def convert_eicu(root: Path | None = None, *, limit: int | None = None) -> dict[
         vital_periodic=_filter(root / "vitalPeriodic.csv.gz"),
         vital_aperiodic=_filter(root / "vitalAperiodic.csv.gz"),
         nurse_charting=_filter(root / "nurseCharting.csv.gz"),
+        respiratory_charting=_filter(root / "respiratoryCharting.csv.gz"),
+        intake_output=_filter(root / "intakeOutput.csv.gz"),
+        infusion_drug=_filter(root / "infusionDrug.csv.gz"),
+        physical_exam=_filter(root / "physicalExam.csv.gz"),
         limit=None,
     )

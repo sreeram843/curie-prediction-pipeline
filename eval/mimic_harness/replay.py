@@ -28,8 +28,11 @@ from ingestion.adapters.mimic.timeline import (
     MimicTimelineEvent,
     content_hash_events,
     events_from_demo_schema_stay,
+    parse_mimic_ts,
     sort_by_availability,
 )
+from ingestion.adapters.mimic.vasopressors import is_normalized_dose_unit
+from ingestion.adapters.respiration import resolve_spo2_fio2_pao2
 
 HARNESS_VERSION = "0.1.0"
 FIXTURES_DIR = (
@@ -41,21 +44,24 @@ _LOINC_TO_COMPONENT: dict[str, SofaComponentName] = {
     "777-3": SofaComponentName.COAGULATION,
     "1975-2": SofaComponentName.LIVER,
     "2160-0": SofaComponentName.RENAL,
-    "2708-6": SofaComponentName.RESPIRATION,
     "8478-0": SofaComponentName.CARDIOVASCULAR,
     "9269-2": SofaComponentName.CNS,
 }
 
-# FiO2 has no SOFA component of its own — it only pairs with SpO2 to form a
-# ratio (see below) — so it is tracked as running replay state, not scored
-# directly like the components above.
+# FiO2 / SpO2 / PaO2 are held as running state and composed into RESPIRATION
+# at score time (PaO2 preferred over SpO2 when both pair with FiO2).
 _FIO2_LOINC = "3150-0"
+_PAO2_LOINC = "2703-7"
+_SPO2_LOINC = "2708-6"
 # How stale a previously observed FiO2 may be before it stops pairing with a
-# new SpO2 reading. Real charting rarely co-times SpO2/FiO2 (unlike labs,
-# which pair readily), so pairing "latest FiO2 at or before this SpO2" (mirrors
-# ingestion.adapters.mimic.extract.build_sofa_inputs) — bounded by a lookback
-# window so a ratio is never built from a setting that may no longer hold.
+# new SpO2/PaO2 reading. Real charting rarely co-times SpO2/FiO2 (unlike labs,
+# which pair readily), so pairing "latest FiO2 at or before this reading"
+# (mirrors ingestion.adapters.mimic.extract.build_sofa_inputs) — bounded by a
+# lookback window so a ratio is never built from a setting that may no longer hold.
 _FIO2_LOOKBACK = timedelta(hours=24)
+_URINE_LOINC = "9187-6"
+_VASO_CODE = "curie-vasopressor"
+_VASO_LOOKBACK = timedelta(hours=4)
 
 
 class LeakageError(ValueError):
@@ -64,16 +70,40 @@ class LeakageError(ValueError):
 
 @dataclass
 class StayReplayState:
+    stay_started_at: datetime | None = None
     components: dict[SofaComponentName, SofaComponentInput] = field(default_factory=dict)
     creatinine_mg_dl: float | None = None
     creatinine_evidence: list[str] = field(default_factory=list)
     fio2_fraction: float | None = None
     fio2_evidence_id: str | None = None
     fio2_observed_at: datetime | None = None
+    spo2_percent: float | None = None
+    spo2_evidence_id: str | None = None
+    spo2_observed_at: datetime | None = None
+    pao2_mmhg: float | None = None
+    pao2_evidence_id: str | None = None
+    pao2_observed_at: datetime | None = None
+    urine_events: list[tuple[datetime, float, str]] = field(default_factory=list)
+    vaso_agent: str | None = None
+    vaso_dose_ug_kg_min: float | None = None
+    vaso_evidence_id: str | None = None
+    vaso_observed_at: datetime | None = None
+    vaso_dose_known: bool = False
+    vaso_dose_reason: str | None = None
     seen_evidence: set[str] = field(default_factory=set)
     discharge_dx_codes: list[str] = field(default_factory=list)
     errors: list[str] = field(default_factory=list)
     missingness: dict[str, int] = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
+class VasopressorState:
+    """Named, auditable vasopressor state used by cardiovascular scoring."""
+
+    agent: str | None
+    dose: float | None
+    evidence_id: str | None
+    on_pressor: bool
 
 
 @dataclass
@@ -91,7 +121,114 @@ class StayHarnessResult:
     snapshots: list[dict[str, Any]]
 
 
+
+def _urine_ml_day(
+    state: StayReplayState, *, clock: datetime
+) -> tuple[float | None, list[str]]:
+    if state.stay_started_at is None or clock - state.stay_started_at < timedelta(hours=24):
+        return None, []
+    window_start = clock - timedelta(hours=24)
+    total = 0.0
+    eids: list[str] = []
+    for when, volume, eid in state.urine_events:
+        if when <= clock and when > window_start:
+            total += volume
+            eids.append(eid)
+    if not eids:
+        return None, []
+    return total, eids
+
+
+def _active_vasopressor(
+    state: StayReplayState, *, clock: datetime
+) -> VasopressorState:
+    if state.vaso_observed_at is None or state.vaso_agent is None:
+        return VasopressorState(None, None, None, False)
+    if clock < state.vaso_observed_at:
+        return VasopressorState(None, None, None, False)
+    if clock - state.vaso_observed_at > _VASO_LOOKBACK:
+        return VasopressorState(None, None, None, False)
+    dose = state.vaso_dose_ug_kg_min if state.vaso_dose_known else None
+    return VasopressorState(state.vaso_agent, dose, state.vaso_evidence_id, True)
+
+
+def _set_renal(
+    state: StayReplayState, *, clock: datetime, extra_eids: list[str] | None = None
+) -> None:
+    uo, uo_eids = _urine_ml_day(state, clock=clock)
+    eids = list(state.creatinine_evidence)
+    eids.extend(uo_eids)
+    if extra_eids:
+        eids.extend(extra_eids)
+    if state.creatinine_mg_dl is None and uo is None:
+        return
+    state.components[SofaComponentName.RENAL] = SofaComponentInput(
+        name=SofaComponentName.RENAL,
+        creatinine_mg_dl=state.creatinine_mg_dl,
+        urine_output_ml_day=uo,
+        evidence_ids=eids,
+    )
+
+
+def _set_cardiovascular(
+    state: StayReplayState,
+    *,
+    clock: datetime,
+    map_mmhg: float | None = None,
+    map_eid: str | None = None,
+) -> None:
+    prev = state.components.get(SofaComponentName.CARDIOVASCULAR)
+    if map_mmhg is None and prev is not None:
+        map_mmhg = prev.map_mmhg
+        if map_eid is None and prev.evidence_ids:
+            map_eid = prev.evidence_ids[0]
+    pressor = _active_vasopressor(state, clock=clock)
+    if map_mmhg is None and not pressor.on_pressor:
+        return
+    eids: list[str] = []
+    if map_eid:
+        eids.append(map_eid)
+    if pressor.evidence_id:
+        eids.append(pressor.evidence_id)
+    state.components[SofaComponentName.CARDIOVASCULAR] = SofaComponentInput(
+        name=SofaComponentName.CARDIOVASCULAR,
+        map_mmhg=map_mmhg,
+        on_vasopressors=True if pressor.on_pressor else None,
+        vasopressor_agent=pressor.agent,
+        vasopressor_dose_ug_kg_min=pressor.dose,
+        evidence_ids=eids,
+    )
+
+
+def _set_respiration(state: StayReplayState, *, clock: datetime) -> None:
+    """Compose RESPIRATION from latest PaO2/SpO2 + FiO2 (C-SAFE-3: no ambient FiO2)."""
+    resolved = resolve_spo2_fio2_pao2(
+        pao2_mmhg=state.pao2_mmhg,
+        pao2_observed_at=state.pao2_observed_at,
+        pao2_evidence_id=state.pao2_evidence_id,
+        spo2_percent=state.spo2_percent,
+        spo2_observed_at=state.spo2_observed_at,
+        spo2_evidence_id=state.spo2_evidence_id,
+        fio2_fraction=state.fio2_fraction,
+        fio2_observed_at=state.fio2_observed_at,
+        fio2_evidence_id=state.fio2_evidence_id,
+        as_of=clock,
+        lookback=_FIO2_LOOKBACK,
+    )
+    if resolved.source is not None:
+        state.components[SofaComponentName.RESPIRATION] = SofaComponentInput(
+            name=SofaComponentName.RESPIRATION,
+            pao2_fio2=resolved.pao2_fio2,
+            spo2_fio2=resolved.spo2_fio2,
+            evidence_ids=list(resolved.evidence_ids),
+        )
+        return
+    # Incomplete without FiO2 — leave prior incomplete/missing; clear scoreable resp.
+    state.components.pop(SofaComponentName.RESPIRATION, None)
+
+
 def _apply_observation(
+
     state: StayReplayState,
     event: MimicTimelineEvent,
     *,
@@ -113,6 +250,40 @@ def _apply_observation(
         if event.valuenum is not None:
             state.creatinine_mg_dl = float(event.valuenum)
             state.creatinine_evidence = [event.evidence_id]
+            _set_renal(state, clock=clock)
+        return
+
+    if code == _URINE_LOINC:
+        if event.valuenum is not None:
+            when = event.event_time or clock
+            state.urine_events.append((when, float(event.valuenum), event.evidence_id))
+            _set_renal(state, clock=clock, extra_eids=[event.evidence_id])
+        return
+
+    if code == _VASO_CODE:
+        agent = (event.display or "other").strip().lower() or "other"
+        state.vaso_agent = agent
+        state.vaso_evidence_id = event.evidence_id
+        state.vaso_observed_at = event.event_time or clock
+        pressor_meta = (event.extras or {}).get("pressor") or {}
+        state.vaso_dose_reason = str(
+            pressor_meta.get("reason") or "harness_event"
+        )
+        # Fail closed: a positive valuenum is only a known mcg/kg/min dose when
+        # the event unit is a normalized dose unit. Any other non-empty unit
+        # (mcg/min, units/hour, mL/hour, ...) is never silently re-read as
+        # mcg/kg/min — pressor stays present with an explicit unknown dose.
+        if (
+            event.valuenum is not None
+            and event.valuenum > 0
+            and is_normalized_dose_unit(event.unit)
+        ):
+            state.vaso_dose_ug_kg_min = float(event.valuenum)
+            state.vaso_dose_known = True
+        else:
+            state.vaso_dose_ug_kg_min = None
+            state.vaso_dose_known = False
+        _set_cardiovascular(state, clock=clock)
         return
 
     if code == _FIO2_LOINC:
@@ -123,6 +294,23 @@ def _apply_observation(
             state.fio2_fraction = float(event.valuenum) / 100.0
             state.fio2_evidence_id = event.evidence_id
             state.fio2_observed_at = event.event_time or clock
+            _set_respiration(state, clock=clock)
+        return
+
+    if code == _PAO2_LOINC:
+        if event.valuenum is not None and event.valuenum > 0:
+            state.pao2_mmhg = float(event.valuenum)
+            state.pao2_evidence_id = event.evidence_id
+            state.pao2_observed_at = event.event_time or clock
+            _set_respiration(state, clock=clock)
+        return
+
+    if code == _SPO2_LOINC:
+        if event.valuenum is not None:
+            state.spo2_percent = float(event.valuenum)
+            state.spo2_evidence_id = event.evidence_id
+            state.spo2_observed_at = event.event_time or clock
+            _set_respiration(state, clock=clock)
         return
 
     component = _LOINC_TO_COMPONENT.get(code)
@@ -142,23 +330,14 @@ def _apply_observation(
         kwargs["bilirubin_mg_dl"] = event.valuenum
     elif component == SofaComponentName.RENAL:
         kwargs["creatinine_mg_dl"] = event.valuenum
-    elif component == SofaComponentName.RESPIRATION:
-        if (event.unit or "").lower() == "ratio":
-            kwargs["spo2_fio2"] = event.valuenum
-        else:
-            kwargs["spo2_percent"] = event.valuenum
-            observed_at = state.fio2_observed_at
-            spo2_time = event.event_time or clock
-            if (
-                state.fio2_fraction is not None
-                and observed_at is not None
-                and spo2_time - observed_at <= _FIO2_LOOKBACK
-                and spo2_time >= observed_at
-            ):
-                kwargs["fio2_fraction"] = state.fio2_fraction
-                kwargs["evidence_ids"] = [event.evidence_id, state.fio2_evidence_id]
     elif component == SofaComponentName.CARDIOVASCULAR:
-        kwargs["map_mmhg"] = event.valuenum
+        _set_cardiovascular(
+            state,
+            clock=clock,
+            map_mmhg=float(event.valuenum) if event.valuenum is not None else None,
+            map_eid=event.evidence_id,
+        )
+        return
     elif component == SofaComponentName.CNS:
         kwargs["gcs"] = int(event.valuenum) if event.valuenum is not None else None
 
@@ -187,16 +366,27 @@ def assert_snapshot_leakage_free(
             )
 
 
+def _parse_stay_datetime(raw: Any) -> datetime | None:
+    return parse_mimic_ts(str(raw)) if raw else None
+
+
 def replay_stay(
     stay: dict[str, Any],
     *,
     check_leakage: bool = True,
+    score_every_event: bool = True,
 ) -> StayHarnessResult:
+    """Replay a demo-schema stay.
+
+    When ``score_every_event`` is false, observations are applied for the full
+    timeline but SOFA/AKI are scored once at the end. That matches final-snapshot
+    missingness cards (Milestone 11) at much lower cost.
+    """
     events = events_from_demo_schema_stay(stay)
     events = sort_by_availability(events)
     events_by_id = {e.evidence_id: e for e in events}
     envelopes = events_to_envelopes(events)
-    state = StayReplayState()
+    state = StayReplayState(stay_started_at=_parse_stay_datetime(stay.get("intime")))
     arb = EpisodeArbiter()
     signals: list[dict[str, Any]] = []
     snapshots: list[dict[str, Any]] = []
@@ -204,32 +394,26 @@ def replay_stay(
     encounter_id = f"Encounter/{stay.get('hadm_id') or stay['stay_id']}"
     aki_timeline = AkiTimelineState(patient_id=patient_id, encounter_id=encounter_id)
 
-    for event in events:
-        clock = event.availability_time
-        try:
-            _apply_observation(state, event, clock=clock)
-        except LeakageError:
-            raise
-        except Exception as exc:  # noqa: BLE001 — capture per-event errors
-            state.errors.append(f"{event.evidence_id}: {exc}")
-            continue
-
-        code = event.code or ""
-        if (
-            (code == "2160-0" or event.itemid in {50912, 52546, 220615})
-            and event.valuenum is not None
+    def _score_at(clock: datetime) -> None:
+        sofa_inputs = list(state.components.values())
+        if not sofa_inputs and any(
+            value is not None
+            for value in (state.pao2_mmhg, state.spo2_percent, state.fio2_fraction)
         ):
-            aki_timeline.ingest_creatinine(
-                CreatinineObs(
-                    event_time=event.event_time or clock,
-                    value_mg_dl=float(event.valuenum),
-                    evidence_id=event.evidence_id,
-                    status="final",
+            sofa_inputs.append(
+                SofaComponentInput(
+                    name=SofaComponentName.RESPIRATION,
+                    evidence_ids=[
+                        evidence_id
+                        for evidence_id in (
+                            state.pao2_evidence_id,
+                            state.spo2_evidence_id,
+                            state.fio2_evidence_id,
+                        )
+                        if evidence_id
+                    ],
                 )
             )
-
-        # Score after each availability tick that updates features
-        sofa_inputs = list(state.components.values())
         if state.creatinine_mg_dl is not None and SofaComponentName.RENAL not in state.components:
             sofa_inputs.append(
                 SofaComponentInput(
@@ -240,7 +424,7 @@ def replay_stay(
             )
 
         if not sofa_inputs and state.creatinine_mg_dl is None:
-            continue
+            return
 
         sofa = compute_sofa_score(
             patient_id=patient_id,
@@ -331,6 +515,38 @@ def replay_stay(
                     }
                 )
 
+    last_clock: datetime | None = None
+    for event in events:
+        clock = event.availability_time
+        last_clock = clock
+        try:
+            _apply_observation(state, event, clock=clock)
+        except LeakageError:
+            raise
+        except Exception as exc:  # noqa: BLE001 — capture per-event errors
+            state.errors.append(f"{event.evidence_id}: {exc}")
+            continue
+
+        code = event.code or ""
+        if (
+            (code == "2160-0" or event.itemid in {50912, 52546, 220615})
+            and event.valuenum is not None
+        ):
+            aki_timeline.ingest_creatinine(
+                CreatinineObs(
+                    event_time=event.event_time or clock,
+                    value_mg_dl=float(event.valuenum),
+                    evidence_id=event.evidence_id,
+                    status="final",
+                )
+            )
+
+        if score_every_event:
+            _score_at(clock)
+
+    if not score_every_event and last_clock is not None:
+        _score_at(last_clock)
+
     episodes = [e.model_dump(mode="json") for e in arb.list_for_patient(patient_id)]
     # Deterministic episode ids for content hashing (arbiter uses uuid4 at runtime).
     for idx, ep in enumerate(episodes):
@@ -350,6 +566,7 @@ def replay_stay(
         missingness=dict(state.missingness),
         snapshots=snapshots,
     )
+
 
 
 def result_to_public_dict(result: StayHarnessResult) -> dict[str, Any]:

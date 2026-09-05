@@ -170,6 +170,7 @@ def events_from_demo_schema_stay(stay: dict[str, Any]) -> list[MimicTimelineEven
                 display=raw.get("display"),
                 status=str(raw.get("status") or "final"),
                 raw_ref=raw.get("raw_ref"),
+                extras=dict(raw.get("extras") or {}),
             )
         )
 

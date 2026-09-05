@@ -188,3 +188,156 @@ def test_run_mimic_full_scores_tiny_dump(tmp_path: Path) -> None:
     assert report["dataset"] == "mimic-iv-3.1"
     assert report["stays_scored"] == 1
     assert Path(report["source"]) == tmp_path.resolve()
+
+
+# --- B1 pressor extraction integration (CURIE-051) ---------------------------
+
+
+def _pressor_row(**kw) -> dict:
+    row = {
+        "starttime": "2150-01-01 06:00:00",
+        "endtime": "2150-01-01 10:00:00",
+        "itemid": 221906,
+        "rate": 0.2,
+        "rateuom": "mcg/kg/min",
+        "ordercategoryname": "01-Drips",
+        "statusdescription": "Running",
+    }
+    row.update(kw)
+    return row
+
+
+def _weight_row(charttime: str, itemid: int = 224639, value: float = 70.0) -> tuple:
+    from ingestion.adapters.mimic.timeline import parse_mimic_ts
+
+    return (parse_mimic_ts(charttime), itemid, value)
+
+
+def test_pressor_at_known_dose_with_contemporaneous_weight() -> None:
+    from ingestion.adapters.mimic.extract import _pressor_at
+
+    result = _pressor_at(
+        [_pressor_row(rate=5.0, rateuom="mcg/min")],
+        weight_rows=[_weight_row("2150-01-01 05:00:00", value=50.0)],
+        as_of=datetime(2150, 1, 1, 8, 0, 0),
+    )
+    assert result.present
+    assert result.agent == "norepinephrine"
+    assert result.dose == pytest.approx(0.1)
+    assert result.evidence_ids == ["MIMIC/inputevents/221906/2150-01-01 06:00:00"]
+    assert result.details[0]["known"] is True
+    assert result.details[0]["reason"] == "divided_by_weight_kg"
+
+
+def test_pressor_at_unknown_unit_never_fabricates_dose() -> None:
+    from ingestion.adapters.mimic.extract import _pressor_at
+
+    result = _pressor_at(
+        [_pressor_row(itemid=222315, rate=3.0, rateuom="units/hour")],
+        weight_rows=[_weight_row("2150-01-01 05:00:00")],
+        as_of=datetime(2150, 1, 1, 8, 0, 0),
+    )
+    assert result.present  # pressor present ...
+    assert result.dose is None  # ... but dose explicitly unknown
+    assert result.agent == "other"
+    assert result.details[0]["reason"].startswith("unsupported_unit:")
+    assert result.details[0]["source_unit"] == "unsupported:units/hour"
+
+
+def test_pressor_at_future_only_weight_is_unknown_dose() -> None:
+    from ingestion.adapters.mimic.extract import _pressor_at
+
+    result = _pressor_at(
+        [_pressor_row(rate=5.0, rateuom="mcg/min")],
+        weight_rows=[_weight_row("2150-01-01 09:00:00", value=50.0)],  # after starttime
+        as_of=datetime(2150, 1, 1, 8, 0, 0),
+    )
+    assert result.present
+    assert result.dose is None
+    assert result.details[0]["weight_status"] == "only_future"
+
+
+def test_pressor_at_overlapping_agents_prefers_highest_band() -> None:
+    from ingestion.adapters.mimic.extract import _pressor_at
+
+    rows = [
+        _pressor_row(itemid=221653, rate=5.0, rateuom="mcg/kg/min"),  # dobutamine
+        _pressor_row(itemid=221906, rate=0.3, rateuom="mcg/kg/min"),  # norepinephrine
+    ]
+    result = _pressor_at(rows, weight_rows=[], as_of=datetime(2150, 1, 1, 8, 0, 0))
+    assert result.agent == "norepinephrine"
+    assert result.dose == 0.3
+    # all active rows' evidence preserved for auditability
+    assert len(result.evidence_ids) == 2
+
+
+def test_pressor_at_bolus_present_but_dose_not_applicable() -> None:
+    from ingestion.adapters.mimic.extract import _pressor_at
+
+    result = _pressor_at(
+        [
+            _pressor_row(
+                itemid=221749, rate=50.0, rateuom="mg", ordercategoryname="05-Med Bolus"
+            )
+        ],
+        weight_rows=[],
+        as_of=datetime(2150, 1, 1, 8, 0, 0),
+    )
+    assert result.present
+    assert result.dose is None
+    assert result.details[0]["reason"] == "bolus_order_dose_not_applicable"
+
+
+def test_pressor_at_inactive_rows_ignored() -> None:
+    from ingestion.adapters.mimic.extract import _pressor_at
+
+    result = _pressor_at(
+        [_pressor_row(starttime="2150-01-01 06:00:00", endtime="2150-01-01 07:00:00")],
+        weight_rows=[],
+        as_of=datetime(2150, 1, 1, 8, 0, 0),
+    )
+    assert not result.present
+
+
+def test_urine_output_ineligible_before_24h_window() -> None:
+    intime = datetime(2150, 1, 1, 0, 0, 0)
+    as_of = intime.replace(hour=12)  # only 12h of stay
+    output_rows = [{"charttime": "2150-01-01 06:00:00", "itemid": 226559, "value": 400.0}]
+    inputs = build_sofa_inputs(
+        as_of=as_of,
+        lab_rows=[],
+        chart_rows=[],
+        input_rows=[],
+        output_rows=output_rows,
+        stay_intime=intime,
+    )
+    renal = next(i for i in inputs if i.name == SofaComponentName.RENAL)
+    assert renal.urine_output_ml_day is None
+    # after 24h the same rows form a full-day total
+    inputs_after = build_sofa_inputs(
+        as_of=intime.replace(day=2),
+        lab_rows=[],
+        chart_rows=[],
+        input_rows=[],
+        output_rows=output_rows,
+        stay_intime=intime,
+    )
+    renal_after = next(i for i in inputs_after if i.name == SofaComponentName.RENAL)
+    assert renal_after.urine_output_ml_day == 400.0
+
+
+def test_build_sofa_inputs_returns_pressor_details_on_demand() -> None:
+    inputs, details = build_sofa_inputs(
+        as_of=datetime(2150, 1, 1, 8, 0, 0),
+        lab_rows=[],
+        chart_rows=[],
+        input_rows=[_pressor_row(rate=5.0, rateuom="mcg/min")],
+        output_rows=[],
+        weight_rows=[_weight_row("2150-01-01 05:00:00", value=50.0)],
+        return_pressor_details=True,
+    )
+    cv = next(i for i in inputs if i.name == SofaComponentName.CARDIOVASCULAR)
+    assert cv.on_vasopressors is True
+    assert cv.vasopressor_dose_ug_kg_min == pytest.approx(0.1)
+    assert details[0]["weight_kg"] == 50.0
+    assert details[0]["evidence_id"].startswith("MIMIC/inputevents/")

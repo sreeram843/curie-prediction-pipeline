@@ -114,6 +114,43 @@ def index_inputevents_pressors(
                 "itemid": int(row["itemid"]),
                 "rate": _to_float(row.get("rate")),
                 "rateuom": row.get("rateuom") or "",
+                "ordercategoryname": row.get("ordercategoryname") or "",
+                "statusdescription": row.get("statusdescription") or "",
+            }
+        )
+    return out
+
+
+def index_chartevents_weights(
+    root: Path,
+    *,
+    stay_ids: set[str],
+    itemids: set[int] | None = None,
+) -> dict[str, list[dict[str, Any]]]:
+    """stay_id → [{charttime, itemid, valuenum}] for weight chartevents.
+
+    Defaults to the weight itemids from ``vasopressors.WEIGHT_ITEMIDS``
+    (224639 daily kg, 226512 admission kg, 226531 admission lbs).
+    """
+    from ingestion.adapters.mimic.vasopressors import WEIGHT_ITEMIDS
+
+    wanted = {str(i) for i in (itemids or set(WEIGHT_ITEMIDS))}
+    out: dict[str, list[dict[str, Any]]] = {s: [] for s in stay_ids}
+    path = root / "icu" / "chartevents.csv.gz"
+    for row in iter_csv_gz(path):
+        stay = row.get("stay_id") or ""
+        if stay not in stay_ids:
+            continue
+        if row.get("itemid") not in wanted:
+            continue
+        val = _to_float(row.get("valuenum"))
+        if val is None:
+            continue
+        out[stay].append(
+            {
+                "charttime": row.get("charttime") or "",
+                "itemid": int(row["itemid"]),
+                "valuenum": val,
             }
         )
     return out

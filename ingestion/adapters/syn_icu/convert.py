@@ -13,13 +13,15 @@ from datetime import date, datetime
 from pathlib import Path
 from typing import Any
 
+from ingestion.adapters.mimic.timeline import parse_mimic_ts
+from ingestion.adapters.respiration import resolve_spo2_fio2_pao2
 from ingestion.adapters.syn_icu import concepts as c
 from ingestion.adapters.syn_icu import reader
 from ingestion.adapters.syn_icu.paths import require_syn_icu_dir
 
 SCHEMA_VERSION = "1.0.0"
 
-_LAB_CONCEPTS = {c.CREATININE, c.PLATELETS, c.BILIRUBIN_TOTAL}
+_LAB_CONCEPTS = {c.CREATININE, c.PLATELETS, c.BILIRUBIN_TOTAL, c.PAO2}
 _CHART_CONCEPTS = {
     c.MAP,
     c.SPO2,
@@ -31,6 +33,8 @@ _CHART_CONCEPTS = {
     c.CREATININE,
     c.PLATELETS,
     c.BILIRUBIN_TOTAL,
+    c.URINE_OUTPUT,
+    c.VASOPRESSOR,
 }
 
 _LOINC_BY_CONCEPT = {
@@ -40,7 +44,10 @@ _LOINC_BY_CONCEPT = {
     c.MAP: c.MAP_LOINC,
     c.SPO2: c.SPO2_LOINC,
     c.FIO2: c.FIO2_LOINC,
+    c.PAO2: c.PAO2_LOINC,
     c.GCS_TOTAL: c.GCS_LOINC,
+    c.URINE_OUTPUT: c.URINE_LOINC,
+    c.VASOPRESSOR: c.VASOPRESSOR_CODE,
 }
 
 _DISPLAY_BY_CONCEPT = {
@@ -50,7 +57,10 @@ _DISPLAY_BY_CONCEPT = {
     c.MAP: "MAP",
     c.SPO2: "SpO2",
     c.FIO2: "FiO2",
+    c.PAO2: "PaO2",
     c.GCS_TOTAL: "GCS",
+    c.URINE_OUTPUT: "Urine output",
+    c.VASOPRESSOR: "Vasopressor",
 }
 
 
@@ -81,6 +91,23 @@ def _get(row: dict[str, Any], *keys: str) -> Any:
         if key in row and row[key] is not None and str(row[key]).strip() != "":
             return row[key]
     return None
+
+
+def _latest_demo_observation(
+    rows: list[dict[str, Any]], *, code: str, as_of: datetime | None
+) -> tuple[float | None, datetime | None, str | None]:
+    best: tuple[datetime, float, str] | None = None
+    for row in rows:
+        if row.get("code") != code or row.get("valuenum") is None:
+            continue
+        observed_at = parse_mimic_ts(str(row.get("charttime") or ""))
+        if observed_at is None or (as_of is not None and observed_at > as_of):
+            continue
+        evidence_id = str(row.get("evidence_id") or "")
+        candidate = (observed_at, float(row["valuenum"]), evidence_id)
+        if best is None or candidate[0] >= best[0]:
+            best = candidate
+    return (best[1], best[0], best[2]) if best is not None else (None, None, None)
 
 
 def load_concept_index(root: Path) -> tuple[dict[str, str], dict[str, set[str]]]:
@@ -191,6 +218,30 @@ def _gcs_and_respiration(
     return out
 
 
+
+def _sum_urine_by_hour(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Sum urine volumes per clock-hour (downsample must not drop voids)."""
+    from ingestion.adapters.mimic.timeline import parse_mimic_ts
+
+    buckets: dict[str, dict[str, Any]] = {}
+    for ev in events:
+        clock = parse_mimic_ts(str(ev.get("charttime") or ""))
+        if clock is None or ev.get("valuenum") is None:
+            continue
+        hour = clock.replace(minute=0, second=0, microsecond=0).strftime("%Y-%m-%d %H:%M:%S")
+        prev = buckets.get(hour)
+        if prev is None:
+            buckets[hour] = {
+                **ev,
+                "charttime": hour,
+                "storetime": hour,
+                "valuenum": float(ev["valuenum"]),
+            }
+        else:
+            prev["valuenum"] = float(prev["valuenum"]) + float(ev["valuenum"])
+    return sorted(buckets.values(), key=lambda e: str(e.get("charttime") or ""))
+
+
 def _emit_stay(
     *,
     stay_meta: dict[str, Any],
@@ -225,24 +276,51 @@ def _emit_stay(
             }
         )
 
-    chart_rows = _gcs_and_respiration(
-        [e for e in chart_events if e["concept"] in _CHART_CONCEPTS]
-    )
+    chart_src = [e for e in chart_events if e["concept"] in _CHART_CONCEPTS]
+    urine = [e for e in chart_src if e["concept"] == c.URINE_OUTPUT]
+    other = [e for e in chart_src if e["concept"] != c.URINE_OUTPUT]
+    chart_rows = _gcs_and_respiration(other) + _sum_urine_by_hour(urine)
     for seq, ev in enumerate(chart_rows):
         concept = ev["concept"]
         if concept in {c.GCS_EYE, c.GCS_VERBAL, c.GCS_MOTOR}:
             continue
+        display = ev.get("display") or _DISPLAY_BY_CONCEPT[concept]
         charts.append(
             {
                 "itemid": ev["itemid"],
                 "code": _LOINC_BY_CONCEPT[concept],
-                "display": _DISPLAY_BY_CONCEPT[concept],
+                "display": display,
                 "valuenum": ev["valuenum"],
                 "unit": ev["unit"],
                 "charttime": ev["charttime"],
-                "evidence_id": f"{evidence_prefix}/{stay_id}/chart/{seq}",
+                "evidence_id": ev.get("evidence_id")
+                or f"{evidence_prefix}/{stay_id}/chart/{seq}",
+                "extras": ev.get("extras") or {},
             }
         )
+
+    as_of = parse_mimic_ts(str(stay_meta.get("outtime") or ""))
+    spo2, spo2_at, spo2_eid = _latest_demo_observation(
+        charts, code=c.SPO2_LOINC, as_of=as_of
+    )
+    fio2_pct, fio2_at, fio2_eid = _latest_demo_observation(
+        charts, code=c.FIO2_LOINC, as_of=as_of
+    )
+    pao2, pao2_at, pao2_eid = _latest_demo_observation(
+        labs, code=c.PAO2_LOINC, as_of=as_of
+    )
+    resolved_respiration = resolve_spo2_fio2_pao2(
+        pao2_mmhg=pao2,
+        pao2_observed_at=pao2_at,
+        pao2_evidence_id=pao2_eid,
+        spo2_percent=spo2,
+        spo2_observed_at=spo2_at,
+        spo2_evidence_id=spo2_eid,
+        fio2_fraction=(fio2_pct / 100.0) if fio2_pct and fio2_pct > 0 else None,
+        fio2_observed_at=fio2_at,
+        fio2_evidence_id=fio2_eid,
+        as_of=as_of,
+    )
 
     conditions: list[dict[str, Any]] = []
     dischtime = stay_meta.get("dischtime") or stay_meta.get("outtime")
@@ -272,6 +350,10 @@ def _emit_stay(
         "labs": labs,
         "charts": charts,
         "conditions": conditions,
+        "respiration_resolution": {
+            "source": resolved_respiration.source,
+            "evidence_ids": list(resolved_respiration.evidence_ids),
+        },
     }
 
 

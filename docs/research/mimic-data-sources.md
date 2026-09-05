@@ -24,6 +24,7 @@ Nothing below **generates** MIMIC patients. They process or derive from data you
 |---|---|---|---|
 | **MIMIC-IV Clinical Database Demo** | Open (no credential) | `data/mimic-iv-demo/` → `make mimic-demo` | Smoke / plumbing only |
 | **MIMIC-IV** (full hosp + icu) | Credentialed + DUA | `CURIE_MIMIC_DIR` → `make mimic` (SOFA/AKI smoke; not Stage B labels) | Stage B retrospective eval |
+| **eICU-CRD** (full) | Credentialed + DUA | `CURIE_EICU_DIR` → protocol-filtered completeness/replay | Stage C external validation |
 | **MIMIC-IV-Note**, **MIMIC-CXR**, ECG/echo/wave | Credentialed (per project) | Not used | Optional multimodal; out of core Curie path |
 | **PhysioNet Challenge 2019** | Local `data/archive/` | Primary sepsis alert eval | Keep as labeled hourly proxy |
 
@@ -109,6 +110,7 @@ mimiciv/
 |---|---|
 | `data/mimic-iv-demo/` (+ `CURIE_MIMIC_DEMO_DIR`) | Open demo CSVs |
 | `CURIE_MIMIC_DIR` + `make mimic` | Credentialed MIMIC-IV 3.1 (`hosp` + `icu`); plumbing / smoke only |
+| `CURIE_EICU_DIR` | Credentialed eICU-CRD root (`patient.csv.gz`, `lab.csv.gz`, and event tables); completeness/replay only |
 | `make mimic-demo` | Score SOFA/AKI rules on demo stays — **not** clinical validity |
 | `data/archive/` + `make challenge-2019` | Labeled hourly sepsis eval (~40k stays) |
 | `ingestion/adapters/mimic/` | Demo extract → Curie inputs |

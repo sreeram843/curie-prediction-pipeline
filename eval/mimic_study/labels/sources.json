@@ -1,0 +1,46 @@
+{
+  "schema_version": "1.0.0",
+  "source": "MIT-LCP/mimic-code",
+  "git_commit": "303d26c623dcc9c49cc0f204468d4acc2f063797",
+  "pinned_at": "2026-09-05",
+  "concept_dialect": "concepts_postgres",
+  "role": "label/comparator source pins (C3 scaffolding). NOT a frozen study artifact.",
+  "files": {
+    "sepsis3.sql": {
+      "git_blob_sha": "6d2a2563486bccc443a6b4865b2b0622a4537927",
+      "sha256": "060328fe73c6bd77c759ad92d0b1963529785e3ceffdd87e10e1a5188b6f7a19",
+      "bytes": 2718,
+      "remote_path": "mimic-iv/concepts_postgres/sepsis3.sql"
+    },
+    "suspicion_of_infection.sql": {
+      "git_blob_sha": "d60e1f6d82b1e4c9303d6ac747cda2f3d2c8f126",
+      "sha256": "2cb84ee40430de7ba9ad09d509ba7cf3ed518619c0fcce1d1dfd444957175cee",
+      "bytes": 6264,
+      "remote_path": "mimic-iv/concepts_postgres/suspicion_of_infection.sql"
+    },
+    "kdigo_creatinine.sql": {
+      "git_blob_sha": "6b055b3be6147a72a99352153e80b50de2f201fc",
+      "sha256": "af06fde2a30eb33a0a697215ba61e3c755e19fb8035304f65e298ebc65ed4970",
+      "bytes": 1811,
+      "remote_path": "mimic-iv/concepts_postgres/kdigo_creatinine.sql"
+    },
+    "kdigo_stages.sql": {
+      "git_blob_sha": "3946bccfb68ce52aa0be977df07abbc5387fbb0b",
+      "sha256": "50a4f35d6b84edb5be68fc17d11715bff526222236bab4ee79f9fc7a1d2f44bb",
+      "bytes": 4697,
+      "remote_path": "mimic-iv/concepts_postgres/kdigo_stages.sql"
+    },
+    "kdigo_uo.sql": {
+      "git_blob_sha": "e514dcc0bf12361c160cdc3da0850b754e28ff89",
+      "sha256": "5481a929883dce4b444330b98df419cf78ef3901903ad21c71e23eb2f09afd01",
+      "bytes": 3922,
+      "remote_path": "mimic-iv/concepts_postgres/kdigo_uo.sql"
+    },
+    "sofa.sql": {
+      "git_blob_sha": "d59a51739b99afc1104e844516f66c3e8bfa2087",
+      "sha256": "d72274cd450c5ab0a8724bf135b543aed565bcc65d281f44afc071a08c9d35a3",
+      "bytes": 10918,
+      "remote_path": "mimic-iv/concepts_postgres/sofa.sql"
+    }
+  }
+}

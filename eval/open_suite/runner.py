@@ -135,7 +135,7 @@ def _run_eicu(*, limit: int | None) -> dict[str, Any]:
     return _harness_card(
         dataset_id="eicu-crd-demo",
         title="eICU Collaborative Research Database Demo",
-        converted=convert_eicu(limit=limit),
+        converted=convert_eicu(limit=limit, apply_protocol_cohort=False),
     )
 
 

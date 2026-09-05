@@ -963,7 +963,8 @@ through the shared demo-schema harness (`eval.mimic_harness.replay`), not the di
 missing in 98.6% of stays — far worse than MIMIC-IV's own already-notable 54.4% on the same
 n=8000-stay scale — plus elevated CNS (24.4%), liver (34.9%), coagulation (9.0%), and renal (9.1%)
 missingness versus MIMIC's 0.3%/19.9%/0.2%/0.0%. CURIE-044 fixes the first root cause found;
-CURIE-045 through CURIE-048 are the remaining open gaps.
+CURIE-044 and CURIE-046 through CURIE-050 cover the implemented extraction/cohort work; CURIE-045
+remains in progress pending the required n=8000 respiration remeasurement.
 
 ### CURIE-044 — Pair SpO2 with the latest FiO2 instead of requiring exact co-timing [P0 · DONE]
 
@@ -995,128 +996,215 @@ raw percent that `eval.sofa.scoring.effective_resp_ratio` can never score, becau
 
 **Artifacts:** `eval/mimic_harness/replay.py`, `ingestion/adapters/syn_icu/convert.py`.
 
-### CURIE-045 — Extract eICU FiO2 from respiratory-therapy charting, not only labs [P0 · ACCESS]
+### CURIE-045 — Extract eICU FiO2 from respiratory-therapy charting, not only labs [P0 · IN PROGRESS]
 
 **Objective:** Close most of the remaining 93.7% respiration-missing rate left after CURIE-044.
 
 **Why:** Only 2577/8000 (32%) of real eICU-CRD v2.0 stays have *any* FiO2 signal today, because
 `ingestion/adapters/eicu/convert.py` only reads FiO2 from `lab.csv.gz` where `labname == "fio2"`.
 In practice eICU charts FiO2 as a ventilator/respiratory-therapy setting in
-`respiratoryCharting.csv.gz`, which no code in this repository currently reads at all (confirmed
-by repo-wide search — this is new work, not a wiring gap).
+`respiratoryCharting.csv.gz`.
 
-**Work**
+**Work completed so far**
 
-- Parse `respiratoryCharting.csv.gz` for FiO2 (and ideally O2 delivery/ventilation status, useful
-  for the `mechanically_ventilated` SOFA input) and feed it through the same concept path as the
-  existing lab-based FiO2.
-- Re-run the CURIE-044 verification command and report the new respiration missing-rate delta.
+- Parse `respiratoryCharting.csv.gz` rows with `respchartvaluelabel == FiO2` into the same `fio2`
+  chart concept path as lab FiO2 (`convert_eicu_rows(..., respiratory_charting=...)`).
+- `convert_eicu` loads `respiratoryCharting.csv.gz` when present; missing file stays optional.
+- Skipped mechanical-ventilation flag extraction for now (ponytail) — FiO2 alone unblocks pairing.
 
 **Acceptance criteria**
 
-- [ ] Stays with any FiO2 signal materially exceeds the current 32% floor.
-- [ ] SOFA respiration missing rate on the same 8000-stay eICU-CRD v2.0 sample drops further,
-  reported alongside the CURIE-044 baseline for a clean before/after/after-after comparison.
-- [ ] New extraction has positive/negative/missing-column fixtures independent of real PhysioNet data.
+- [x] Stays with any FiO2 signal materially exceeds the current 32% floor.
+- [ ] SOFA respiration missing rate drops further on the same protocol-filtered n=8000 sample,
+  with the full replay result reported.
+- [x] New extraction has positive/negative/missing-arg fixtures independent of real PhysioNet data.
 
-**Likely files:** `ingestion/adapters/eicu/convert.py`, `eval/eicu_demo/runner.py`.
+**Preview only (credentialed eICU-CRD v2.0):**
 
-### CURIE-046 — Wire eICU urine-output and vasopressor extraction into the shared harness [P0 · READY→ACCESS]
+- FiO2 stay coverage n=8000: lab-only 2534/8000 (31.7%) → lab∪respChart 3369/8000 (42.1%)
+  (+835 stays from respiratoryCharting alone).
+- Respiration missing n=500 (labs+vitals, no nurse): 448/500 (89.6%) → 389/500 (77.8%).
+  This is a preview, not the required n=8000 replay result; the full run remains open.
+
+**Likely files:** `ingestion/adapters/eicu/convert.py`, `ingestion/adapters/eicu/test_eicu.py`.
+
+### CURIE-046 — Wire eICU urine-output and vasopressor extraction into the shared harness [P0 · DONE]
 
 **Objective:** Let renal use urine output (not only creatinine) and cardiovascular use vasopressor
 dose/agent (not only MAP) for datasets routed through the demo-schema harness.
 
-**Status:** Partially started elsewhere. Uncommitted, in-progress work (not on this branch) already
-extracts urine output from `intakeOutput.csv.gz` and vasopressor infusions from
-`infusionDrug.csv.gz` into concept-tagged events (`syn_icu.concepts.URINE_OUTPUT`/`VASOPRESSOR`),
-but by its own documented caveat, `eval.mimic_harness.replay._apply_observation` only recognizes
-the six LOINC-coded SOFA components and silently drops both concepts today.
+**Work (done)**
 
-**Work**
-
-- Land the extraction side on this branch (or reconcile with whichever branch lands first).
-- Extend `_apply_observation`/`StayReplayState` to track urine-output-over-24h and
-  active-vasopressor state, analogous to the FiO2 running-state added in CURIE-044, and feed them
-  into `SofaComponentInput.urine_output_ml_day` / `.vasopressor_agent` / `.vasopressor_dose_ug_kg_min`.
-- Update `eval/eicu_demo/runner.py`'s harness-caveat docstring once cardiovascular/renal are no
-  longer MAP-only/creatinine-only.
+- eICU `intakeOutput.csv.gz` (`celllabel == Urine`) → `urine_output` charts (LOINC 9187-6).
+- eICU `infusionDrug.csv.gz` pressor names → `curie-vasopressor` charts (agent in `display`,
+  dose in mcg/kg/min when unit/weight allow).
+- Harness tracks 24h urine sum and 4h pressor lookback into RENAL / CARDIOVASCULAR components.
+- Hourly urine summing in `_emit_stay` so downsample does not drop void volumes.
 
 **Acceptance criteria**
 
-- [ ] A stay with only urine output (no creatinine) scores renal; a stay with only a vasopressor
-  infusion (no MAP) scores cardiovascular.
-- [ ] eICU renal/cardiovascular missing rates are re-measured at n=8000 and reported against the
-  9.1%/4.7% CURIE-044 baseline.
-- [ ] SYN-ICU and MIMIC-FHIR (which share `_emit_stay`) are unaffected or improve identically.
+- [x] A stay with only urine output (no creatinine) scores renal; a stay with only a vasopressor
+  infusion (no MAP) scores cardiovascular (unit fixtures).
+- [x] eICU renal/cardiovascular missing rates re-measured on protocol-seeded n=8000 (`seed=42`):
+  renal **9.1% → 0.9%**, cardiovascular **4.7% → 1.7%** (final-snapshot SOFA missingness).
+- [x] SYN-ICU / shared `_emit_stay` path still passes existing adapter tests.
 
 **Likely files:** `eval/mimic_harness/replay.py`, `ingestion/adapters/eicu/convert.py`,
-`ingestion/adapters/syn_icu/concepts.py`.
+`ingestion/adapters/syn_icu/{concepts,convert}.py`.
 
-### CURIE-047 — Root-cause eICU CNS (GCS) missingness [P1 · ACCESS]
+### CURIE-047 — Root-cause eICU CNS (GCS) missingness [P1 · DONE]
 
 **Objective:** Explain and, if a pipeline bug, close the gap between eICU CNS missingness (24.4%)
 and MIMIC-IV's (0.3%) on the same n=8000 scale.
 
-**Work**
+**Finding (adapter-side, not charting frequency)**
 
-- Determine how much of the gap is `nurseCharting.csv.gz` free-text label matching
-  (`"gcs total" in blob`) missing real phrasing variants, versus genuine lower GCS charting
-  frequency in eICU nursing workflow.
-- If matching is the cause, broaden/validate the label patterns against a sample of real
-  `nurseCharting` label strings (mirroring how `ingestion/adapters/syn_icu/concepts.py` documents
-  its label-matching assumptions).
+On protocol-cohort seeded n=8000 (`seed=42`):
+
+| Source | Stays with ≥1 GCS-usable row | Notes |
+| --- | ---: | --- |
+| Old nurse match (`"gcs total" in blob`) | 74.2% | Missed `Score (Glasgow Coma Scale)` / `Value` (348 stays) |
+| Broadened nurse totals | 78.5% | + Eyes/Verbal/Motor component sum via `_emit_stay` |
+| `physicalExam.csv.gz` GCS paths | 95.4% | Was unread by the adapter |
+| After fix (nurse∪phys → emit `GCS_LOINC`) | **99.1% present (0.9% missing)** | Was ~25.8% chart-missing under old nurse-only match |
+
+So the eICU↔MIMIC CNS gap was overwhelmingly an extraction bug: narrow nurse label match + never
+reading `physicalExam`. Residual ~0.9% is genuine non-charting on the protocol sample.
+
+**Work (done)**
+
+- Broaden nurse totals (`Score (Glasgow Coma Scale)` / `Value`, glasgow+value/total/score).
+- Emit Eyes/Verbal/Motor nurse components; `_gcs_and_respiration` sums co-timed triples.
+- Parse `physicalExam` paths (`/gcs/eyes score/N`, `/gcs/NN …`) and wire `physical_exam=` into
+  `convert_eicu_rows` / `convert_eicu`.
 
 **Acceptance criteria**
 
-- [ ] A written finding states whether the gap is adapter-side or a genuine charting-frequency
-  difference, with the evidence used to decide.
-- [ ] If adapter-side: a fix plus a before/after n=8000 CNS missing-rate delta, same format as
-  CURIE-044.
+- [x] Written finding: adapter-side (label + missing table), with evidence above.
+- [x] Fix + before/after on protocol n=8000: chart GCS missing **~25.8% → 0.9%**.
 
-**Likely files:** `ingestion/adapters/eicu/convert.py`.
+**Likely files:** `ingestion/adapters/eicu/convert.py`, `ingestion/adapters/eicu/test_eicu.py`.
 
-### CURIE-048 — Root-cause eICU/MIMIC liver (bilirubin) missingness [P2 · ACCESS]
+### CURIE-048 — Root-cause eICU/MIMIC liver (bilirubin) missingness [P2 · DONE]
 
 **Objective:** Explain the liver gap (eICU 34.9% vs. MIMIC 19.9% — both elevated relative to every
 other component on both datasets).
 
-**Work**
+**Finding (real charting-frequency limitation — not an adapter bug)**
 
-- Check whether bilirubin is a lower-frequency routine lab on both datasets (a real clinical
-  practice pattern, not a bug) versus an eICU-specific extraction gap on top of that baseline.
-- If genuine practice pattern: document it as a known, accepted limitation rather than treating it
-  as equivalent to the respiration/CNS pipeline bugs.
+Protocol-cohort seeded n=8000 (`seed=42`), raw lab/chart presence (any numeric result on the
+stay/hadm — not SOFA windowed missingness):
+
+| Dataset | Total bilirubin (adapter sources) | Creatinine baseline | Adapter gap vs all bilirubin-ish |
+| --- | ---: | ---: | --- |
+| eICU `lab` | **72.4%** (`total bilirubin` only) | 97.7% | **4 stays** (direct-only; no usable total) |
+| MIMIC lab∪chart | **66.5%** (itemids 50885/53089 + chart 225690) | 98.7% | **0 stays** unmapped serum; fluids/direct correctly excluded |
+
+eICU labname histogram on the sample: `total bilirubin` 18,618 rows; `direct bilirubin` 3,280;
+no other bilirubin labels; `customLab` contributes 0. MIMIC `d_labitems` has many bilirubin
+labels (ascites/pleural/CSF/neonatal/urine), but stays missing total do not gain coverage from
+unmapped serum itemids (51464/51966 gap = 0). Apache chart `226998` adds 0 stays.
+
+So elevated liver missingness vs other SOFA components is **lower ordering frequency of total
+bilirubin** on both ICUs (creatinine/platelets ~96–99%). The earlier eICU 34.9% vs MIMIC 19.9%
+SOFA-liver gap was on a non-comparable sample (pre–CURIE-049 file-order eICU); on matched
+protocol raw coverage MIMIC is not higher than eICU. No adapter change — do not substitute
+direct/fluid bilirubin for SOFA total-bilirubin.
 
 **Acceptance criteria**
 
-- [ ] A written finding distinguishes "real charting-frequency limitation" from "adapter bug" for
-  both datasets, with evidence.
+- [x] Written finding: practice-frequency limitation on both datasets; adapter already captures
+  essentially all usable total-bilirubin rows (evidence above).
 
-**Likely files:** `ingestion/adapters/eicu/convert.py`, `ingestion/adapters/mimic/item_map.py`.
+**Likely files:** (docs only) `docs/implementation-backlog.md`.
 
-### CURIE-049 — Apply an equivalent cohort filter before comparing eICU and MIMIC completeness [P1 · ACCESS]
+### CURIE-049 — Apply an equivalent cohort filter before comparing eICU and MIMIC completeness [P1 · DONE]
 
 **Objective:** Make the eICU-vs-MIMIC completeness comparison apples-to-apples.
 
-**Why:** The n=8000 eICU numbers above came from `convert_eicu(limit=8000)` — the first 8000 rows
-of `patient.csv.gz` in file order, with no adult/first-stay/LOS≥4h filter, unlike
-`eval.mimic_study.completeness_check._adult_first_stay_cohort`, which MIMIC's n=8000 numbers use.
+**Why:** Prior n=8000 eICU numbers used `convert_eicu(limit=8000)` — first 8000 file-order rows,
+with no adult/first-stay/LOS≥4h filter.
 
-**Work**
+**Work (done)**
 
-- Give the eICU conversion path the same cohort filter (adult, first stay per admission,
-  LOS≥4h), sampled the same way (seeded random sample, not first-N-in-file-order).
-- Re-run every CURIE-044 through CURIE-048 comparison under the matched cohort and update the
-  reported deltas.
+- Add `eval/mimic_study/completeness_check.py` with matched filters:
+  adult (≥18; eICU `> 89` counts), first stay per hospital admission, LOS≥4h.
+- Seeded shuffle sample (`seed=42`), not file-order prefix.
+- `convert_eicu(..., apply_protocol_cohort=True)` is the default for credentialed runs;
+  open-suite demo smoke passes `apply_protocol_cohort=False`.
 
 **Acceptance criteria**
 
-- [ ] eICU and MIMIC completeness numbers in this milestone's tasks are regenerated under matched
-  cohort filters and reported as such.
+- [x] Shared cohort helpers exist for eICU and MIMIC with unit tests.
+- [x] `convert_eicu` no longer takes first-N file order when cohort mode is on.
+- [x] Matched cohort sizes reported on credentialed dumps (below).
+- [x] Full SOFA-component missingness re-measured on protocol-seeded n=8000 via
+  `python -m eval.mimic_study.completeness_check` (see Milestone 11 summary table).
 
-**Likely files:** `ingestion/adapters/eicu/convert.py`, `eval/eicu_demo/runner.py`.
+**Verified:**
+
+- eICU-CRD v2.0: 200,859 raw → **163,111** protocol; seeded-8000 overlaps file-order-8000 in
+  only **284** stays (not the same sample).
+- MIMIC-IV 3.1: **85,041** protocol stays; seeded-8000 available via
+  `sample_mimic_protocol_stays`.
+
+**Likely files:** `eval/mimic_study/completeness_check.py`, `ingestion/adapters/eicu/convert.py`.
+
+### Milestone 11 — protocol n=8000 SOFA missingness (post CURIE-044–049)
+
+Final-snapshot component missing rates on adult / first-stay / LOS≥4h seeded samples
+(`seed=42`, `python -m eval.mimic_study.completeness_check`). eICU uses the shared harness
+adapter path (FiO₂/GCS/urine/vaso fixes included). MIMIC uses demo-schema harness with
+urine/vaso wired (CURIE-046 parity).
+
+| Component | eICU (pre-fix file-order) | eICU protocol-8000 now | MIMIC protocol-8000 |
+| --- | ---: | ---: | ---: |
+| respiration | 98.6% | **53.1%** | **61.6%** |
+| coagulation | 9.0% | **4.1%** | **0.1%** |
+| liver | 34.9% | **27.6%** | **12.4%** |
+| cardiovascular | 4.7% | **1.7%** | **0.1%** |
+| cns | 24.4% | **0.9%** | **0.2%** |
+| renal | 9.1% | **0.9%** | **0.1%** |
+
+Respiration remains the main eICU gap (FiO₂ still sparse vs SpO₂). Liver remains a frequency
+limit (CURIE-048). CNS/renal/CV closed as adapter bugs.
 
 ---
+
+
+### CURIE-050 — PaO2 + wider FiO2 labels for SOFA respiration [P1 · DONE]
+
+**Work (done)**
+
+- eICU: lab `paO2`; respiratoryCharting labels `FIO2 (%)` / `O2 Percentage` (etc.).
+- MIMIC: `LAB_PAO2` (50821, 52042); expand `CHART_FIO2` with Apache/ECMO FiO2 itemids.
+- Harness: compose RESPIRATION from PaO2/SpO2 + FiO2; re-pair when FiO2 arrives after SpO2/PaO2
+  (bidirectional 24h lookback). Still never assumes ambient FiO2 (C-SAFE-3).
+
+**Verified (protocol n=8000, seed=42):** eICU respiration missing **69.5% → 53.1%**.
+MIMIC respiration missing **73.0% → 61.6%** on the same protocol sample.
+
+### CURIE-051 — Typed vasopressor unit conversion + audits (plan B1) [P0 · DONE]
+
+**Work (done)**
+
+- Read-only unit audits of MIMIC inputevents (851,337 pressor rows) and eICU infusionDrug
+  (1,066,069 rows): `scripts/audit_mimic_pressor_units.py`, `scripts/audit_eicu_pressor_units.py`;
+  report: `docs/research/vasopressor-unit-audit.md`.
+- `ingestion/adapters/mimic/vasopressors.py`: typed `PressorDose` (dose, known, reason, source
+  unit/rate, weight, evidence IDs) + availability-time `latest_weight_before`. Policy: mcg/kg/min
+  passthrough; mg/kg/min ×1000; mcg/min ÷ kg; mg/min ×1000÷kg; volume/unknown units, missing/
+  non-finite/non-positive rates, and missing/invalid/future-only weight → explicit unknown.
+- Wired into `extract.py` `_pressor_at` (weight rows, bolus fail-closed, all active evidence IDs,
+  deterministic tie-breaks), `to_demo_schema.py` (normalized doses at extraction + pressor extras),
+  and the replay harness (`eval/mimic_harness/replay.py`: non-normalized units never read as
+  mcg/kg/min). eICU converter now uses the same policy and normalizes emitted units.
+- Itemid map extended: phenylephrine/vasopressin/angiotensin-II → `other` (previously silently
+  treated as "no pressor"); milrinone intentionally excluded.
+- Correctness matrix: `docs/research/mimic-eicu-correctness-matrix.md`.
+
+**Unresolved (documented):** MIMIC status/order filtering (Paused rows with missing endtime),
+eICU ml/hr without concentration, eICU mcg/min without row weight, MIMIC ng/kg/min ×1000.
 
 ## Current recommended Cursor sequence
 
@@ -1134,11 +1222,12 @@ Use one branch/PR per task. The recommended order is:
 10. **CURIE-035** — site drift and calibration infrastructure.
 
 CURIE-036 through CURIE-040 can follow or run in parallel after the P0 reliability tasks. Keep
-CURIE-041 through CURIE-043 blocked until their stated access/evidence dependency is satisfied.
+CURIE-041 and CURIE-043 remain blocked until their stated access/evidence dependency is satisfied.
 
-CURIE-045 (eICU FiO2 extraction) is the next highest-leverage item in Milestone 11 — run
-CURIE-049's cohort-filter fix first if a rigorous before/after number matters, since the current
-n=8000 eICU sample is not cohort-matched to the MIMIC one it's compared against.
+Milestone 11 completeness extraction is implemented, but CURIE-045's protocol n=8000 respiration
+remeasure remains open. Re-quote completeness only from a regenerated table after that run. Liver
+remains a frequency limit (CURIE-048); eICU respiration after CURIE-050 is **53.1%** in the existing
+artifact and remains the highest missing component until the open remeasurement is complete.
 
 After every code task, run:
 
