@@ -560,3 +560,125 @@ def test_eicu_pao2_with_fio2_scores_respiration() -> None:
     assert not result.errors
     missing = result.snapshots[-1].get("missing_components") or []
     assert "respiration" not in missing
+
+
+# --- MAP derivation: SBP+DBP pairable only (plan B req 8) ----------------------
+
+def _vital_aperiodic_row(**overrides) -> dict[str, str]:
+    row = {
+        "patientunitstayid": "1",
+        "observationoffset": "100",
+        "noninvasivesystolic": "",
+        "noninvasivediastolic": "",
+        "noninvasivemean": "",
+    }
+    row.update(overrides)
+    return row
+
+
+def _charts_of(converted) -> list[dict]:
+    return converted["stays"][0]["charts"]
+
+
+def test_map_derived_when_sbp_and_dbp_paired_and_mean_missing() -> None:
+    converted = convert_eicu_rows(
+        patients=[_patient()],
+        labs=[],
+        vital_periodic=[],
+        vital_aperiodic=[
+            _vital_aperiodic_row(noninvasivesystolic="120", noninvasivediastolic="80")
+        ],
+        nurse_charting=[],
+    )
+    maps = [ev for ev in _charts_of(converted) if ev["code"] == c.MAP_LOINC]
+    assert len(maps) == 1
+    # MAP = (SBP + 2*DBP) / 3
+    assert maps[0]["valuenum"] == pytest.approx((120 + 2 * 80) / 3)
+    assert maps[0]["itemid"] == "nibp-derived-map"
+
+
+def test_map_not_derived_when_only_sbp_present() -> None:
+    converted = convert_eicu_rows(
+        patients=[_patient()],
+        labs=[],
+        vital_periodic=[],
+        vital_aperiodic=[_vital_aperiodic_row(noninvasivesystolic="120")],
+        nurse_charting=[],
+    )
+    assert not [ev for ev in _charts_of(converted) if ev["code"] == c.MAP_LOINC]
+
+
+def test_map_not_derived_when_only_dbp_present() -> None:
+    converted = convert_eicu_rows(
+        patients=[_patient()],
+        labs=[],
+        vital_periodic=[],
+        vital_aperiodic=[_vital_aperiodic_row(noninvasivediastolic="80")],
+        nurse_charting=[],
+    )
+    assert not [ev for ev in _charts_of(converted) if ev["code"] == c.MAP_LOINC]
+
+
+def test_documented_mean_wins_over_derivation() -> None:
+    converted = convert_eicu_rows(
+        patients=[_patient()],
+        labs=[],
+        vital_periodic=[],
+        vital_aperiodic=[
+            _vital_aperiodic_row(
+                noninvasivesystolic="120",
+                noninvasivediastolic="80",
+                noninvasivemean="77",
+            )
+        ],
+        nurse_charting=[],
+    )
+    maps = [ev for ev in _charts_of(converted) if ev["code"] == c.MAP_LOINC]
+    assert len(maps) == 1
+    assert maps[0]["valuenum"] == 77.0
+    assert maps[0]["itemid"] == "nibp-mean"
+
+
+def test_map_derivation_never_uses_pulmonary_artery_columns() -> None:
+    # PA mean is not systemic MAP; systemic SBP/DBP absent → nothing to derive.
+    converted = convert_eicu_rows(
+        patients=[_patient()],
+        labs=[],
+        vital_periodic=[
+            {
+                "patientunitstayid": "1",
+                "observationoffset": "100",
+                "pasystolic": "30",
+                "padiastolic": "15",
+                "pamean": "20",
+                "systemicsystolic": "",
+                "systemicdiastolic": "",
+                "systemicmean": "",
+            }
+        ],
+        vital_aperiodic=[],
+        nurse_charting=[],
+    )
+    assert not [ev for ev in _charts_of(converted) if ev["code"] == c.MAP_LOINC]
+
+
+def test_map_derivation_vital_periodic_systemic_pair() -> None:
+    converted = convert_eicu_rows(
+        patients=[_patient()],
+        labs=[],
+        vital_periodic=[
+            {
+                "patientunitstayid": "1",
+                "observationoffset": "100",
+                "systemicsystolic": "150",
+                "systemicdiastolic": "90",
+                "systemicmean": "",
+            }
+        ],
+        vital_aperiodic=[],
+        nurse_charting=[],
+    )
+    maps = [ev for ev in _charts_of(converted) if ev["code"] == c.MAP_LOINC]
+    assert len(maps) == 1
+    assert maps[0]["valuenum"] == pytest.approx((150 + 2 * 90) / 3)
+    assert maps[0]["itemid"] == "systemic-derived-map"

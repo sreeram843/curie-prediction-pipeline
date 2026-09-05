@@ -26,6 +26,26 @@ CHART_CREATININE = {220615}
 CHART_BILIRUBIN = {225690}  # Total Bilirubin; not Direct/Apache (CURIE-048)
 CHART_PLATELETS = {225678}
 
+# icu/chartevents.csv.gz — invasive mechanical-ventilation settings. Presence
+# within the ventilation lookback window is the SOFA respiration-band evidence
+# (verified against d_items.csv category "Respiratory"). Explicitly excluded:
+# 225794 (Non-invasive Ventilation, procedureevents — not MV), 226260
+# ("Mechanically Ventilated" flag, ambiguous active-vs-ever semantics).
+CHART_VENTILATION = {
+    223848,  # Ventilator Type
+    223849,  # Ventilator Mode
+    229314,  # Ventilator Mode (Hamilton)
+    230045,  # Intellivent (Hamilton Vent Mode)
+    220339,  # PEEP set
+    224699,  # ZAuto Peep Level
+    224700,  # Total PEEP Level
+    224684,  # Tidal Volume (set)
+    224685,  # Tidal Volume (observed)
+    224686,  # Tidal Volume (spontaneous)
+    224695,  # Peak Insp. Pressure
+    224696,  # Plateau Pressure
+}
+
 # icu/inputevents.csv.gz — presence implies on_vasopressors.
 # SOFA dose-ladder agents plus "other" pressors (phenylephrine, vasopressin,
 # angiotensin II) that mark pressor support but rarely have mcg/kg/min doses

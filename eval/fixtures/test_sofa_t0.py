@@ -193,10 +193,19 @@ def test_spo2_alone_does_not_assume_ambient_fio2() -> None:
     assert effective_resp_ratio(alone) is None
     assert score_respiration(alone) is None
 
-    with_fio2 = SofaComponentInput(
+    # SpO2 98 + FiO2: the S/F plateau above 97% has no reliable imputation, so
+    # the ratio fails closed instead of comparing raw S/F against P/F cutoffs.
+    above_cap = SofaComponentInput(
         name=SofaComponentName.RESPIRATION, spo2_percent=98, fio2_fraction=0.4
     )
-    assert effective_resp_ratio(with_fio2) == 245.0
+    assert effective_resp_ratio(above_cap) is None
+    assert score_respiration(above_cap) is None
+
+    # SpO2 96 + FiO2 0.4 → S/F 240 → imputed P/F = 64 + 0.84*240 = 265.6 → 2 pts.
+    with_fio2 = SofaComponentInput(
+        name=SofaComponentName.RESPIRATION, spo2_percent=96, fio2_fraction=0.4
+    )
+    assert effective_resp_ratio(with_fio2) == pytest.approx(265.6, abs=0.05)
     assert score_respiration(with_fio2) == 2
 
 
@@ -265,3 +274,62 @@ def test_renal_urine_output_only() -> None:
         )
         == 3
     )
+
+def test_cardiovascular_three_state_pressor_distinction() -> None:
+    """No pressor / known dose / unknown dose are three distinct states."""
+    from eval.sofa.scoring import score_cardiovascular
+
+    none = SofaComponentInput(
+        name=SofaComponentName.CARDIOVASCULAR,
+        map_mmhg=80,
+        on_vasopressors=False,
+    )
+    known = SofaComponentInput(
+        name=SofaComponentName.CARDIOVASCULAR,
+        on_vasopressors=True,
+        vasopressor_agent="norepinephrine",
+        vasopressor_dose_ug_kg_min=0.05,
+    )
+    unknown = SofaComponentInput(
+        name=SofaComponentName.CARDIOVASCULAR,
+        on_vasopressors=True,
+        vasopressor_agent="norepinephrine",
+        vasopressor_dose_ug_kg_min=None,
+    )
+    assert score_cardiovascular(none) == 0
+    assert score_cardiovascular(known) == 3
+    assert score_cardiovascular(unknown) == 3  # unknown-dose fallback band
+    # the unknown-dose fallback must never collapse to "no pressor" (0)
+    assert score_cardiovascular(unknown) != score_cardiovascular(none)
+
+
+def test_unknown_dose_fallback_points_from_bundle() -> None:
+    from datetime import UTC, datetime
+
+    from eval.indicators.registry import load_rule_bundle
+    from eval.sofa.scoring import compute_sofa_score
+
+    bundle = load_rule_bundle("sepsis-sofa")
+    result = compute_sofa_score(
+        patient_id="p",
+        event_time=datetime(2024, 6, 1, 12, 0, tzinfo=UTC),
+        inputs=[
+            SofaComponentInput(
+                name=SofaComponentName.CARDIOVASCULAR,
+                on_vasopressors=True,
+                vasopressor_agent="norepinephrine",
+                vasopressor_dose_ug_kg_min=None,
+                evidence_ids=["MIMIC/inputevents/221906/x"],
+            ),
+            SofaComponentInput(
+                name=SofaComponentName.COAGULATION, platelets_10e9_l=200.0
+            ),
+            SofaComponentInput(name=SofaComponentName.CNS, gcs=15),
+        ],
+        rule_bundle_id=bundle["bundle_id"],
+        rule_version=bundle["version"],
+        rule_bundle=bundle,
+    )
+    cv = next(c for c in result.components if c.name == SofaComponentName.CARDIOVASCULAR)
+    assert cv.points == 3
+    assert cv.evidence_ids == ["MIMIC/inputevents/221906/x"]

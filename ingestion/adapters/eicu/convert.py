@@ -86,6 +86,37 @@ def _event(
     }
 
 
+def _derive_map_event(
+    *,
+    sbp: float | None,
+    dbp: float | None,
+    itemid: str,
+    charttime: str,
+) -> dict[str, Any] | None:
+    """Derive MAP = (SBP + 2*DBP) / 3 only when SBP and DBP are temporally
+    pairable — i.e. present in the *same* observation row. Unrelated latest
+    values are never combined, and pulmonary-artery columns are never used."""
+    if sbp is None or dbp is None:
+        return None
+    if sbp <= 0 or dbp <= 0 or dbp > sbp:
+        return None
+    event = _event(
+        concept=c.MAP,
+        itemid=itemid,
+        valuenum=(sbp + 2 * dbp) / 3.0,
+        unit="mmHg",
+        charttime=charttime,
+    )
+    event["extras"] = {
+        "map_derivation": {
+            "source": "sbp_dbp_same_row",
+            "sbp_mmhg": sbp,
+            "dbp_mmhg": dbp,
+        }
+    }
+    return event
+
+
 def _maybe_fio2_percent(value: float) -> float:
     # eICU FiO2 is usually percent; a fraction in (0, 1] is scaled up.
     if 0 < value <= 1.0:
@@ -331,6 +362,15 @@ def convert_eicu_rows(
                     charttime=ts,
                 ),
             )
+        else:
+            derived = _derive_map_event(
+                sbp=_to_float(row.get("systemicsystolic")),
+                dbp=_to_float(row.get("systemicdiastolic")),
+                itemid="systemic-derived-map",
+                charttime=ts,
+            )
+            if derived is not None:
+                add_chart(stay_id, derived)
 
     for row in vital_aperiodic:
         stay_id = (row.get("patientunitstayid") or "").strip()
@@ -351,6 +391,15 @@ def convert_eicu_rows(
                     charttime=ts,
                 ),
             )
+        else:
+            derived = _derive_map_event(
+                sbp=_to_float(row.get("noninvasivesystolic")),
+                dbp=_to_float(row.get("noninvasivediastolic")),
+                itemid="nibp-derived-map",
+                charttime=ts,
+            )
+            if derived is not None:
+                add_chart(stay_id, derived)
 
     for row in nurse_charting:
         stay_id = (row.get("patientunitstayid") or "").strip()

@@ -46,10 +46,17 @@ class CheckpointStyleStateTest {
     assertTrue(state.apply(fio2, 2_000L, 2L));
 
     PatientSofaState restored = roundTrip(state);
-    ComponentInput resp = restored.latest.get(Component.RESPIRATION).input;
+    ComponentInput resp =
+        restored.values.get(Component.RESPIRATION) == null
+            ? new ComponentInput(Component.RESPIRATION)
+            : restored.snapshotInputs(2_000L).stream()
+                .filter(i -> i.name == Component.RESPIRATION)
+                .findFirst()
+                .orElseThrow();
     assertEquals(96.0, resp.spo2Percent);
     assertEquals(0.5, resp.fio2Fraction);
-    assertEquals(192.0, SofaScorer.effectiveRatio(resp));
+    // SpO2 96 + FiO2 0.5 → S/F 192 → Rice 2007 imputed P/F = 64 + 0.84*192.
+    assertEquals(225.28, SofaScorer.effectiveRatio(resp), 0.001);
   }
 
   @Test

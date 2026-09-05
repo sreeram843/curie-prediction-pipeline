@@ -341,3 +341,70 @@ def test_build_sofa_inputs_returns_pressor_details_on_demand() -> None:
     assert cv.vasopressor_dose_ug_kg_min == pytest.approx(0.1)
     assert details[0]["weight_kg"] == 50.0
     assert details[0]["evidence_id"].startswith("MIMIC/inputevents/")
+
+
+# --- mechanical ventilation (plan B req 5) ------------------------------------
+
+def _vent_row(charttime: str, itemid: int = 223849, valuenum: float = 1.0) -> dict:
+    return {"itemid": itemid, "charttime": charttime, "valuenum": valuenum}
+
+
+def test_mechanically_ventilated_when_recent_vent_settings_loaded() -> None:
+    inputs = build_sofa_inputs(
+        as_of=datetime(2150, 1, 1, 8, 0, 0),
+        lab_rows=[],
+        chart_rows=[],
+        input_rows=[],
+        output_rows=[],
+        vent_rows=[_vent_row("2150-01-01 07:00:00")],
+    )
+    resp = next(i for i in inputs if i.name == SofaComponentName.RESPIRATION)
+    assert resp.mechanically_ventilated is True
+
+
+def test_not_ventilated_when_vent_settings_stale_beyond_lookback() -> None:
+    inputs = build_sofa_inputs(
+        as_of=datetime(2150, 1, 3, 8, 0, 0),
+        lab_rows=[],
+        chart_rows=[],
+        input_rows=[],
+        output_rows=[],
+        vent_rows=[_vent_row("2150-01-01 07:00:00")],
+    )
+    resp = next(i for i in inputs if i.name == SofaComponentName.RESPIRATION)
+    assert resp.mechanically_ventilated is False
+
+
+def test_vent_unknown_when_vent_rows_not_loaded() -> None:
+    # Missing vent evidence must not become a reassuring False.
+    inputs = build_sofa_inputs(
+        as_of=datetime(2150, 1, 1, 8, 0, 0),
+        lab_rows=[],
+        chart_rows=[],
+        input_rows=[],
+        output_rows=[],
+    )
+    resp = next(i for i in inputs if i.name == SofaComponentName.RESPIRATION)
+    assert resp.mechanically_ventilated is None
+
+
+def test_vent_lookback_boundary_inclusive_at_exactly_24h() -> None:
+    from ingestion.adapters.mimic.extract import _mechanically_ventilated_at
+
+    as_of = datetime(2150, 1, 2, 8, 0, 0)
+    exactly = as_of.replace(day=1)  # exactly 24h earlier
+    assert _mechanically_ventilated_at(
+        [_vent_row(exactly.strftime("%Y-%m-%d %H:%M:%S"))],
+        as_of=as_of,
+        lookback_hours=24.0,
+    )
+
+
+def test_vent_row_bad_timestamp_never_counts() -> None:
+    from ingestion.adapters.mimic.extract import _mechanically_ventilated_at
+
+    assert not _mechanically_ventilated_at(
+        [_vent_row("not-a-time")],
+        as_of=datetime(2150, 1, 1, 8, 0, 0),
+        lookback_hours=24.0,
+    )

@@ -155,10 +155,28 @@ class SofaScorerTest {
     assertNull(SofaScorer.effectiveRatio(alone));
     assertNull(SofaScorer.scoreRespiration(alone));
 
+    // SpO2 98 + FiO2: S/F plateau above 97% has no reliable imputation → fail closed.
+    ComponentInput aboveCap = new ComponentInput(Component.RESPIRATION);
+    aboveCap.spo2Percent = 98.0;
+    aboveCap.fio2Fraction = 0.4;
+    assertNull(SofaScorer.effectiveRatio(aboveCap));
+    assertNull(SofaScorer.scoreRespiration(aboveCap));
+
+    // SpO2 96 + FiO2 0.4 → S/F 240 → imputed P/F = 64 + 0.84*240 = 265.6 → 2 pts.
     ComponentInput withFio2 = new ComponentInput(Component.RESPIRATION);
-    withFio2.spo2Percent = 98.0;
+    withFio2.spo2Percent = 96.0;
     withFio2.fio2Fraction = 0.4;
-    assertEquals(245.0, SofaScorer.effectiveRatio(withFio2));
+    assertEquals(265.6, SofaScorer.effectiveRatio(withFio2), 0.05);
     assertEquals(2, SofaScorer.scoreRespiration(withFio2));
+  }
+
+  @Test
+  void spo2ImputationMatchesRice2007() {
+    assertEquals(263.5, SofaScorer.imputePfFromSf(95.0, 0.4), 0.01);
+    assertEquals(340.0, SofaScorer.imputePfFromSf(92.0, 0.28), 0.1);
+    assertNull(SofaScorer.imputePfFromSf(97.01, 0.4));
+    assertNull(SofaScorer.imputePfFromSf(100.0, 0.4));
+    assertNull(SofaScorer.imputePfFromSf(0.0, 0.4));
+    assertNull(SofaScorer.imputePfFromSf(95.0, 0.0));
   }
 }

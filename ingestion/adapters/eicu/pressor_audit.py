@@ -1,24 +1,24 @@
-"""Read-only pressor unit audit for MIMIC-IV inputevents (plan B1 step 1).
+"""Read-only pressor unit audit for eICU infusionDrug (plan B1 eICU companion).
 
-Companion to ``ingestion.adapters.mimic.vasopressors`` (which owns the conversion
-policy). This module only *observes*: it streams ``icu/inputevents.csv.gz`` once,
-reports the raw ``rateuom`` spelling distribution for mapped pressor rows, and
-classifies each row's dose under the shared conversion policy (known vs unknown
-with explicit reasons, plus weight availability). It never alters source files
-and never changes how the adapter scores.
+Mirrors ``ingestion.adapters.mimic.pressor_audit``: streams
+``infusiondrug.csv.gz`` once, reports the raw drugname/unit spelling
+distribution for pressor rows, and classifies each row under the shared
+conversion policy (known vs unknown with explicit reasons, weight
+availability). Never alters source files, never changes adapter behavior.
 
 AUDIT-ONLY output; results are not frozen study numbers.
 """
 
 from __future__ import annotations
 
+import argparse
+import json
 import math
 from collections import Counter, defaultdict
 from pathlib import Path
 from typing import Any
 
-from ingestion.adapters.mimic import item_map as im
-from ingestion.adapters.mimic.loader import iter_csv_gz
+from ingestion.adapters.eicu.convert import _VASO_AGENTS, _iter_csv_gz
 from ingestion.adapters.mimic.vasopressors import convert_pressor_dose, valid_weight_kg
 
 
@@ -31,38 +31,55 @@ def _to_float(raw: str | None) -> float | None:
         return None
 
 
-def audit_inputevents_pressors(
+def _pressor_agent(name: str) -> str | None:
+    text = (name or "").strip().lower()
+    if not text:
+        return None
+    for key in _VASO_AGENTS:
+        if key in text:
+            return "other" if key in {"phenylephrine", "vasopressin"} else key
+    return None
+
+
+def _rate_unit_from_drugname(name: str) -> str:
+    text = (name or "").strip()
+    if "(" in text and ")" in text:
+        return text[text.rfind("(") + 1 : text.rfind(")")].strip()
+    return ""
+
+
+def audit_eicu_pressors(
     root: Path,
     *,
-    pressor_map: dict[int, str] | None = None,
     limit_rows: int | None = None,
 ) -> dict[str, Any]:
-    """Unit distribution + dose classification for mapped pressor rows."""
-    agent_of = pressor_map or im.INPUT_VASOPRESSORS
-    wanted = {str(i) for i in agent_of}
+    """Unit distribution + dose classification for eICU pressor infusion rows."""
     per_unit: dict[str, dict[str, int]] = defaultdict(Counter)
+    per_agent: dict[str, int] = Counter()
     n_press = 0
     n_nonpress = 0
     seen = 0
-    path = root / "icu" / "inputevents.csv.gz"
-    for row in iter_csv_gz(path):
+    for row in _iter_csv_gz(root / "infusiondrug.csv.gz"):
         seen += 1
         if limit_rows is not None and seen >= limit_rows:
             break
-        if row.get("itemid") not in wanted:
+        agent = _pressor_agent(row.get("drugname") or "")
+        if agent is None:
             n_nonpress += 1
             continue
         n_press += 1
-        raw_unit = (row.get("rateuom") or "").strip()
+        per_agent[agent] += 1
+        raw_unit = _rate_unit_from_drugname(row.get("drugname") or "")
         slot = per_unit[raw_unit or "<blank>"]
         slot["rows"] += 1
-        rate = _to_float(row.get("rate"))
+        rate = _to_float(row.get("drugrate"))
         weight = _to_float(row.get("patientweight"))
         conv = convert_pressor_dose(
             rate=rate,
-            rate_uom=raw_unit,
+            rate_uom=raw_unit or None,
             weight_kg=weight,
             weight_available=valid_weight_kg(weight),
+            agent=agent,
         )
         if conv.known:
             slot["dose_known"] += 1
@@ -78,33 +95,27 @@ def audit_inputevents_pressors(
             slot["weight_needed_but_unavailable"] += 1
 
     return {
-        "dataset": "mimic-iv",
-        "table": "icu/inputevents.csv.gz",
+        "dataset": "eicu-crd",
+        "table": "infusiondrug.csv.gz",
         "status": "AUDIT_ONLY_NOT_FROZEN",
         "rows_scanned": seen,
         "mapped_pressor_rows": n_press,
         "non_pressor_rows": n_nonpress,
+        "agents": dict(sorted(per_agent.items())),
         "units": {unit: dict(counts) for unit, counts in sorted(per_unit.items())},
-        "mapped_itemids": {str(k): v for k, v in sorted(agent_of.items())},
     }
 
 
 def main(argv: list[str] | None = None) -> int:
-    """CLI: run the read-only pressor unit audit on a MIMIC-IV root."""
-    import argparse
-    import json
-
-    from ingestion.adapters.mimic.paths import require_mimic_demo_dir
-
+    """CLI: run the read-only eICU pressor unit audit on an eICU root."""
     parser = argparse.ArgumentParser(
-        description="Read-only MIMIC-IV inputevents pressor unit audit"
+        description="Read-only eICU infusiondrug pressor unit audit"
     )
-    parser.add_argument("--root", type=Path, default=None)
+    parser.add_argument("--root", type=Path, required=True)
     parser.add_argument("--limit-rows", type=int, default=None)
     parser.add_argument("--json-out", type=Path, default=None)
     args = parser.parse_args(argv)
-    root = Path(args.root) if args.root else require_mimic_demo_dir()
-    report = audit_inputevents_pressors(root, limit_rows=args.limit_rows)
+    report = audit_eicu_pressors(Path(args.root), limit_rows=args.limit_rows)
     print(json.dumps(report, indent=2))
     if args.json_out:
         args.json_out.parent.mkdir(parents=True, exist_ok=True)

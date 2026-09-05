@@ -6,6 +6,8 @@ import pickle
 from copy import deepcopy
 from datetime import UTC, datetime, timedelta
 
+import pytest
+
 from eval.replay_harness.governance import GovernanceConfig, PatientGovState, evaluate
 from eval.sofa.scoring import SofaComponentInput, SofaComponentName, compute_sofa_score
 from eval.sofa.stream_scorer import PatientState, observation_to_input
@@ -32,7 +34,8 @@ def test_patient_state_pickle_roundtrip_preserves_spo2_fio2_merge() -> None:
     assert resp.fio2_fraction == 0.5
     from eval.sofa.scoring import effective_resp_ratio
 
-    assert effective_resp_ratio(resp) == 192.0
+    # SpO2 96 + FiO2 0.5 → S/F 192 → Rice 2007 imputed P/F = 64 + 0.84*192.
+    assert effective_resp_ratio(resp) == pytest.approx(225.28)
 
 
 def test_idempotency_survives_restart_and_duplicate_replay() -> None:

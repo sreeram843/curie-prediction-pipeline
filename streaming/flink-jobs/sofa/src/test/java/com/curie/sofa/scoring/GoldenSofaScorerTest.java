@@ -32,7 +32,7 @@ class GoldenSofaScorerTest {
     }
     SofaThresholds thresholds = SofaThresholds.fromBundle(bundle);
     try (InputStream in =
-        GoldenSofaScorerTest.class.getResourceAsStream("/golden/sofa_cases.v0.2.json")) {
+        GoldenSofaScorerTest.class.getResourceAsStream("/golden/sofa_cases.v0.3.json")) {
       JsonNode root = MAPPER.readTree(in);
       String bundleId = root.get("rule_bundle_id").asText();
       String version = root.get("rule_version").asText();
@@ -77,6 +77,15 @@ class GoldenSofaScorerTest {
       }
       if (v.hasNonNull("spo2_fio2")) {
         in.spo2Fio2 = v.get("spo2_fio2").asDouble();
+      }
+      if (v.hasNonNull("spo2_percent")) {
+        in.spo2Percent = v.get("spo2_percent").asDouble();
+      }
+      if (v.hasNonNull("pao2_mmhg")) {
+        in.pao2Mmhg = v.get("pao2_mmhg").asDouble();
+      }
+      if (v.hasNonNull("fio2_fraction")) {
+        in.fio2Fraction = v.get("fio2_fraction").asDouble();
       }
       if (v.hasNonNull("mechanically_ventilated")) {
         in.mechanicallyVentilated = v.get("mechanically_ventilated").asBoolean();
