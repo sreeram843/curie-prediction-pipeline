@@ -53,6 +53,7 @@ _LOINC_TO_COMPONENT: dict[str, SofaComponentName] = {
 _FIO2_LOINC = "3150-0"
 _PAO2_LOINC = "2703-7"
 _SPO2_LOINC = "2708-6"
+_VENT_CODE = "curie-mechanical-ventilation"
 # How stale a previously observed FiO2 may be before it stops pairing with a
 # new SpO2/PaO2 reading. Real charting rarely co-times SpO2/FiO2 (unlike labs,
 # which pair readily), so pairing "latest FiO2 at or before this reading"
@@ -83,6 +84,9 @@ class StayReplayState:
     pao2_mmhg: float | None = None
     pao2_evidence_id: str | None = None
     pao2_observed_at: datetime | None = None
+    mechanically_ventilated: bool | None = None
+    ventilation_evidence_id: str | None = None
+    ventilation_observed_at: datetime | None = None
     urine_events: list[tuple[datetime, float, str]] = field(default_factory=list)
     vaso_agent: str | None = None
     vaso_dose_ug_kg_min: float | None = None
@@ -220,6 +224,7 @@ def _set_respiration(state: StayReplayState, *, clock: datetime) -> None:
             name=SofaComponentName.RESPIRATION,
             pao2_fio2=resolved.pao2_fio2,
             spo2_fio2=resolved.spo2_fio2,
+            mechanically_ventilated=state.mechanically_ventilated,
             evidence_ids=list(resolved.evidence_ids),
         )
         return
@@ -310,6 +315,14 @@ def _apply_observation(
             state.spo2_percent = float(event.valuenum)
             state.spo2_evidence_id = event.evidence_id
             state.spo2_observed_at = event.event_time or clock
+            _set_respiration(state, clock=clock)
+        return
+
+    if code == _VENT_CODE:
+        if event.valuenum is not None and float(event.valuenum) in {0.0, 1.0}:
+            state.mechanically_ventilated = bool(float(event.valuenum))
+            state.ventilation_evidence_id = event.evidence_id
+            state.ventilation_observed_at = event.event_time or clock
             _set_respiration(state, clock=clock)
         return
 

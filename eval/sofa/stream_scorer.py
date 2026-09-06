@@ -30,8 +30,12 @@ LOINC_CREATININE = "2160-0"
 LOINC_GCS = "9269-2"
 LOINC_SPO2 = "2708-6"
 LOINC_MAP = "8478-0"
+LOINC_BLOOD_PRESSURE_PANEL = "85354-9"
+LOINC_SYSTOLIC_BP = "8480-6"
+LOINC_DIASTOLIC_BP = "8462-4"
 LOINC_PAO2 = "2703-7"
 LOINC_FIO2 = "3150-0"
+LOINC_OXYGEN_DELIVERY_DEVICE = "44971-8"
 
 USABLE_STATUS = frozenset({"final", "amended", "corrected", "preliminary"})
 IDEMPOTENCY_TTL = timedelta(hours=24)
@@ -106,6 +110,98 @@ def _evidence_id(resource: dict[str, Any]) -> str | None:
     return None
 
 
+def _display_value(resource: dict[str, Any]) -> str | None:
+    direct = resource.get("valueString")
+    if direct is not None:
+        return str(direct)
+    concept = resource.get("valueCodeableConcept") or {}
+    if concept.get("text"):
+        return str(concept["text"])
+    for coding in concept.get("coding") or []:
+        if coding.get("display"):
+            return str(coding["display"])
+        if coding.get("code"):
+            return str(coding["code"])
+    value_boolean = resource.get("valueBoolean")
+    if isinstance(value_boolean, bool):
+        return str(value_boolean)
+    return None
+
+
+def _ventilation_value(resource: dict[str, Any]) -> bool | None:
+    value = _display_value(resource)
+    if value is None:
+        return None
+    normalized = value.lower().strip()
+    if any(
+        token in normalized
+        for token in (
+            "invasive",
+            "mechanical",
+            "ventilator",
+            "intubat",
+            "endotracheal",
+            "ett",
+        )
+    ):
+        return True
+    if any(
+        token in normalized
+        for token in (
+            "room air",
+            "nasal cannula",
+            "face mask",
+            "simple mask",
+            "high flow",
+            "non-invasive",
+            "non invasive",
+            "cpap",
+            "bipap",
+            "none",
+        )
+    ):
+        return False
+    return None
+
+
+def _component_code(component: dict[str, Any]) -> str | None:
+    for coding in (component.get("code") or {}).get("coding") or []:
+        if coding.get("code"):
+            return str(coding["code"])
+    return None
+
+
+def _blood_pressure_map(resource: dict[str, Any]) -> float | None:
+    values: dict[str, float] = {}
+    for component in resource.get("component") or []:
+        code = _component_code(component)
+        value = _numeric(component)
+        if code in {LOINC_SYSTOLIC_BP, LOINC_DIASTOLIC_BP}:
+            if value is None or not _unit_ok(_unit(component), "mmHg", "mm[Hg]", "mmhg"):
+                return None
+            values[code] = value
+    sbp = values.get(LOINC_SYSTOLIC_BP)
+    dbp = values.get(LOINC_DIASTOLIC_BP)
+    if sbp is None or dbp is None or sbp <= 0 or dbp <= 0 or dbp > sbp:
+        return None
+    return (sbp + 2 * dbp) / 3.0
+
+
+def _is_ventilation_observation(resource: dict[str, Any]) -> bool:
+    display = " ".join(
+        str(value)
+        for value in ((resource.get("code") or {}).get("text"),)
+        if value
+    )
+    display += " " + " ".join(
+        str(coding.get("display"))
+        for coding in (resource.get("code") or {}).get("coding") or []
+        if coding.get("display")
+    )
+    normalized = display.lower()
+    return any(token in normalized for token in ("oxygen delivery", "ventilat", "airway support"))
+
+
 def _unit_ok(unit: str | None, *allowed: str | None) -> bool:
     if unit is None or not str(unit).strip():
         return None in allowed
@@ -135,6 +231,24 @@ def observation_to_input(resource: dict[str, Any]) -> SofaComponentInput | None:
     unit = _unit(resource)
     eid = _evidence_id(resource)
     evidence = [eid] if eid else []
+    if code == LOINC_BLOOD_PRESSURE_PANEL:
+        map_mmhg = _blood_pressure_map(resource)
+        if map_mmhg is None:
+            return None
+        return SofaComponentInput(
+            name=SofaComponentName.CARDIOVASCULAR,
+            map_mmhg=map_mmhg,
+            evidence_ids=evidence,
+        )
+    if code == LOINC_OXYGEN_DELIVERY_DEVICE or _is_ventilation_observation(resource):
+        invasive = _ventilation_value(resource)
+        if invasive is None:
+            return None
+        return SofaComponentInput(
+            name=SofaComponentName.RESPIRATION,
+            mechanically_ventilated=invasive,
+            evidence_ids=evidence,
+        )
     if code == LOINC_PLATELETS and value is not None:
         platelets = _normalize_platelets(value, unit)
         if platelets is None:

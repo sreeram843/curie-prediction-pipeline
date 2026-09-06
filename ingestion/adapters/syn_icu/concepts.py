@@ -25,6 +25,7 @@ PAO2_LOINC = "2703-7"
 GCS_LOINC = "9269-2"
 URINE_LOINC = "9187-6"
 VASOPRESSOR_CODE = "curie-vasopressor"
+MECHANICALLY_VENTILATED_CODE = "curie-mechanical-ventilation"
 
 # Concept keys shared across the adapter.
 CREATININE = "creatinine"
@@ -40,6 +41,7 @@ GCS_MOTOR = "gcs_motor"
 GCS_TOTAL = "gcs_total"
 URINE_OUTPUT = "urine_output"
 VASOPRESSOR = "vasopressor"
+MECHANICALLY_VENTILATED = "mechanically_ventilated"
 
 # label substrings (lowercase) → concept, matched against d_items/d_labitems labels.
 # Order matters: more specific first.

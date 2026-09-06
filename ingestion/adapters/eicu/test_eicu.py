@@ -174,7 +174,7 @@ def test_respiratory_charting_emits_explicit_invasive_ventilation() -> None:
             {
                 "patientunitstayid": "1",
                 "observationoffset": "31",
-                "sao2": "80",
+                "sao2": "64",
                 "systemicmean": "55",
             }
         ],

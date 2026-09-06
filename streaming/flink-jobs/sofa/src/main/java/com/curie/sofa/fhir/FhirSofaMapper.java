@@ -22,6 +22,9 @@ public final class FhirSofaMapper {
   public static final String LOINC_GCS = "9269-2";
   public static final String LOINC_SPO2 = "2708-6";
   public static final String LOINC_MAP = "8478-0";
+  public static final String LOINC_BLOOD_PRESSURE_PANEL = "85354-9";
+  public static final String LOINC_SYSTOLIC_BP = "8480-6";
+  public static final String LOINC_DIASTOLIC_BP = "8462-4";
   public static final String LOINC_PAO2 = "2703-7";
   public static final String LOINC_FIO2 = "3150-0";
   /** Oxygen delivery device / support observation commonly used by FHIR feeds. */
@@ -91,6 +94,7 @@ public final class FhirSofaMapper {
     String evidenceId = evidenceId(resource);
 
     switch (code) {
+      case LOINC_BLOOD_PRESSURE_PANEL -> mapBloodPressurePanel(resource, out, evidenceId, status);
       case LOINC_PLATELETS -> {
         if (value == null) {
           out.invalid.add(new InvalidEvent("missing_value", resource, code, unit, status));
@@ -195,6 +199,45 @@ public final class FhirSofaMapper {
         }
       }
     }
+  }
+
+  private static void mapBloodPressurePanel(
+      JsonNode resource, ExtractResult out, String evidenceId, String status) {
+    Double sbp = componentValue(resource, LOINC_SYSTOLIC_BP);
+    Double dbp = componentValue(resource, LOINC_DIASTOLIC_BP);
+    if (sbp == null || dbp == null || sbp <= 0 || dbp <= 0 || dbp > sbp) {
+      out.invalid.add(
+          new InvalidEvent(
+              "invalid_blood_pressure_panel",
+              resource,
+              LOINC_BLOOD_PRESSURE_PANEL,
+              null,
+              status));
+      return;
+    }
+    double map = (sbp + 2.0 * dbp) / 3.0;
+    out.inputs.add(withEvidence(Component.CARDIOVASCULAR, evidenceId, in -> in.mapMmhg = map));
+  }
+
+  private static Double componentValue(JsonNode resource, String expectedCode) {
+    JsonNode components = resource.path("component");
+    if (!components.isArray()) {
+      return null;
+    }
+    for (JsonNode component : components) {
+      if (!expectedCode.equals(primaryCode(component))) {
+        continue;
+      }
+      Double value = numericValue(component);
+      String unit = unit(component);
+      if (value == null
+          || !Double.isFinite(value)
+          || !unitAllowed(unit, "mmHg", "mm[Hg]", "mmhg")) {
+        return null;
+      }
+      return value;
+    }
+    return null;
   }
 
   private static void mapVentilationObservation(

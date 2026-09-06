@@ -44,6 +44,65 @@ _RESP_FIO2_LABELS = frozenset({
     "o2 %",
 })
 
+
+def _mechanical_ventilation_value(label: str, value: str) -> bool | None:
+    """Parse explicit invasive-ventilation charting without guessing from FiO2."""
+    label_norm = re.sub(r"[^a-z0-9]+", " ", label.lower()).strip()
+    value_norm = re.sub(r"[^a-z0-9]+", " ", value.lower()).strip()
+    known_label = any(
+        marker in label_norm
+        for marker in (
+            "ventilator mode",
+            "ventilator type",
+            "vent mode",
+            "mechanical ventilation",
+            "ventilation status",
+            "airway type",
+            "intubated",
+            "rt vent on off",
+        )
+    )
+    if not known_label or not value_norm:
+        return None
+    if any(
+        marker in value_norm
+        for marker in (
+            "invasive",
+            "mechanical",
+            "ventilator",
+            "intubat",
+            "endotracheal",
+            "ett",
+        )
+    ):
+        return True
+    if "rt vent on off" in label_norm and value_norm in {"on", "yes", "active", "continued"}:
+        return True
+    if any(
+        marker in value_norm
+        for marker in (
+            "room air",
+            "nasal cannula",
+            "face mask",
+            "simple mask",
+            "high flow",
+            "non invasive",
+            "noninvasive",
+            "cpap",
+            "bipap",
+            "extubat",
+            "off",
+            "none",
+        )
+    ):
+        return False
+    if value_norm in {"no", "off", "none"}:
+        return False
+    if "ventilator mode" in label_norm or "vent mode" in label_norm:
+        if value_norm not in {"unknown", "not documented", "not available", "na"}:
+            return True
+    return None
+
 def _iter_csv_gz(path: Path) -> Iterator[dict[str, str]]:
     with gzip.open(path, "rt", newline="") as fh:
         reader = csv.DictReader(fh)
@@ -479,6 +538,31 @@ def convert_eicu_rows(
         if stay_id not in wanted:
             continue
         label = (row.get("respchartvaluelabel") or "").strip().lower()
+        ventilation = _mechanical_ventilation_value(
+            label, (row.get("respchartvalue") or "").strip()
+        )
+        if ventilation is not None:
+            ts = _offset_ts(row.get("respchartoffset"))
+            if ts is not None:
+                add_chart(
+                    stay_id,
+                    {
+                        **_event(
+                            concept=c.MECHANICALLY_VENTILATED,
+                            itemid="resp-ventilation",
+                            valuenum=1.0 if ventilation else 0.0,
+                            unit="",
+                            charttime=ts,
+                        ),
+                        "display": "mechanically_ventilated",
+                        "extras": {
+                            "ventilation": {
+                                "source_label": label,
+                                "source_value": row.get("respchartvalue") or "",
+                            }
+                        },
+                    },
+                )
         if label not in _RESP_FIO2_LABELS:
             continue
         val = _to_float(row.get("respchartvalue"))

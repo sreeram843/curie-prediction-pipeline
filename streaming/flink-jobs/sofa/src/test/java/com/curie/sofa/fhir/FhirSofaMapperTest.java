@@ -142,28 +142,18 @@ class FhirSofaMapperTest {
         .addObject()
         .put("system", "http://loinc.org")
         .put("code", FhirSofaMapper.LOINC_BLOOD_PRESSURE_PANEL);
-    obs.putArray("component")
-        .addObject()
-        .putObject("code")
+    ObjectNode sbp = obs.putArray("component").addObject();
+    sbp.putObject("code")
         .putArray("coding")
         .addObject()
         .put("code", FhirSofaMapper.LOINC_SYSTOLIC_BP);
-    obs.withArray("component")
-        .get(0)
-        .putObject("valueQuantity")
-        .put("value", 120)
-        .put("unit", "mmHg");
-    obs.withArray("component")
-        .addObject()
-        .putObject("code")
+    sbp.putObject("valueQuantity").put("value", 120).put("unit", "mmHg");
+    ObjectNode dbp = obs.withArray("component").addObject();
+    dbp.putObject("code")
         .putArray("coding")
         .addObject()
         .put("code", FhirSofaMapper.LOINC_DIASTOLIC_BP);
-    obs.withArray("component")
-        .get(1)
-        .putObject("valueQuantity")
-        .put("value", 60)
-        .put("unit", "mmHg");
+    dbp.putObject("valueQuantity").put("value", 60).put("unit", "mmHg");
 
     ExtractResult result = FhirSofaMapper.extractValidated(obs);
 
@@ -184,13 +174,12 @@ class FhirSofaMapperTest {
         .putArray("coding")
         .addObject()
         .put("code", FhirSofaMapper.LOINC_BLOOD_PRESSURE_PANEL);
-    obs.putArray("component")
-        .addObject()
-        .putObject("code")
+    ObjectNode sbp = obs.putArray("component").addObject();
+    sbp.putObject("code")
         .putArray("coding")
         .addObject()
         .put("code", FhirSofaMapper.LOINC_SYSTOLIC_BP);
-    obs.withArray("component").get(0).putObject("valueQuantity").put("value", 120).put("unit", "mmHg");
+    sbp.putObject("valueQuantity").put("value", 120).put("unit", "mmHg");
 
     ExtractResult result = FhirSofaMapper.extractValidated(obs);
 
