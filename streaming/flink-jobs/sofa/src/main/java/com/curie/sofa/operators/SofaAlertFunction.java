@@ -107,6 +107,12 @@ public class SofaAlertFunction
       return;
     }
     long eventTimeMs = eventTimeMsObj;
+    Long availabilityTimeMsObj = effectiveAvailabilityTimeMs(event);
+    if (availabilityTimeMsObj == null) {
+      emitDlq(ctx, event, "invalid_availability_timestamp", null, null, null);
+      return;
+    }
+    long availabilityTimeMs = availabilityTimeMsObj;
     long ingestTimeMs = eventTimeMs;
     if (event.ingest_time != null && !event.ingest_time.isBlank()) {
       Long ingest = tryParseTimeMs(event.ingest_time);
@@ -135,9 +141,10 @@ public class SofaAlertFunction
         event.idempotency_key != null && !event.idempotency_key.isBlank()
             ? event.idempotency_key
             : "";
-    EventTimeBuffer.FlushResult<CanonicalEvent> flush = buffer.offer(eventTimeMs, event, tie);
+    EventTimeBuffer.FlushResult<CanonicalEvent> flush =
+        buffer.offer(availabilityTimeMs, event, tie);
     // Timer advances watermark so a lone final event still flushes (CURIE-026).
-    ctx.timerService().registerEventTimeTimer(buffer.flushTimerTimestamp(eventTimeMs));
+    ctx.timerService().registerEventTimeTimer(buffer.flushTimerTimestamp(availabilityTimeMs));
     eventBuffer.update(buffer);
 
     applyFlush(flush, ctx, out);
@@ -164,14 +171,23 @@ public class SofaAlertFunction
       emitDlq(ctx, late.payload, EventTimeBuffer.LATE_DISPOSITION, null, null, null);
     }
     for (EventTimeBuffer.BufferedEvent<CanonicalEvent> ready : flush.ready) {
-      scoreReadyEvent(ready.payload, ready.eventTimeMs, ctx, out);
+      Long clinicalTimeMs = tryParseTimeMs(ready.payload.event_time);
+      if (clinicalTimeMs == null) {
+        emitDlq(ctx, ready.payload, "invalid_timestamp", null, null, null);
+        continue;
+      }
+      scoreReadyEvent(ready.payload, clinicalTimeMs, ready.eventTimeMs, ctx, out);
     }
   }
 
   private void scoreReadyEvent(
-      CanonicalEvent event, long eventTimeMs, ReadOnlyContext ctx, Collector<AlertEvent> out)
+      CanonicalEvent event,
+      long clinicalEventTimeMs,
+      long availabilityTimeMs,
+      ReadOnlyContext ctx,
+      Collector<AlertEvent> out)
       throws Exception {
-    long ingestTimeMs = eventTimeMs;
+    long ingestTimeMs = clinicalEventTimeMs;
     if (event.ingest_time != null && !event.ingest_time.isBlank()) {
       Long ingest = tryParseTimeMs(event.ingest_time);
       if (ingest != null) {
@@ -216,7 +232,7 @@ public class SofaAlertFunction
 
     boolean anyApplied = false;
     for (ComponentInput u : updates) {
-      if (state.apply(u, eventTimeMs, ingestTimeMs)) {
+      if (state.apply(u, clinicalEventTimeMs, ingestTimeMs)) {
         anyApplied = true;
       }
     }
@@ -239,8 +255,8 @@ public class SofaAlertFunction
         SofaScorer.compute(
             state.patientId,
             state.encounterId,
-            eventTimeMs,
-            state.snapshotInputs(),
+            availabilityTimeMs,
+            state.snapshotInputs(availabilityTimeMs),
             rules.bundle_id,
             rules.version,
             minComponents,
@@ -255,7 +271,9 @@ public class SofaAlertFunction
     Tier tier = SofaScorer.tierForScore(score.totalScore, threshold, bands);
 
     String ingestIso =
-        event.ingest_time != null ? event.ingest_time : Instant.ofEpochMilli(eventTimeMs).toString();
+        event.ingest_time != null
+            ? event.ingest_time
+            : Instant.ofEpochMilli(availabilityTimeMs).toString();
     String indicator =
         rules.indicator != null && !rules.indicator.isBlank()
             ? rules.indicator
@@ -266,9 +284,16 @@ public class SofaAlertFunction
             state.encounterId,
             indicator,
             score.totalScore,
-            eventTimeMs,
+            availabilityTimeMs,
             rules.version);
-    AlertEvent alert = AlertEvent.fromScore(score, tier, alertId, ingestIso);
+    AlertEvent alert =
+        AlertEvent.fromScore(
+            score,
+            tier,
+            alertId,
+            ingestIso,
+            Instant.ofEpochMilli(clinicalEventTimeMs).toString(),
+            Instant.ofEpochMilli(availabilityTimeMs).toString());
     alert.indicator = indicator;
     alert.rule_bundle_id = rules.bundle_id;
     alert.rule_version = rules.version;
@@ -311,6 +336,20 @@ public class SofaAlertFunction
     } catch (Exception e) {
       return null;
     }
+  }
+
+  /** Select the leakage-safe evaluation clock, preferring explicit availability metadata. */
+  public static Long effectiveAvailabilityTimeMs(CanonicalEvent event) {
+    if (event == null) {
+      return null;
+    }
+    if (event.availability_time != null && !event.availability_time.isBlank()) {
+      return tryParseTimeMs(event.availability_time);
+    }
+    if (event.ingest_time != null && !event.ingest_time.isBlank()) {
+      return tryParseTimeMs(event.ingest_time);
+    }
+    return tryParseTimeMs(event.event_time);
   }
 
   /** @deprecated prefer {@link #tryParseTimeMs}; blank → epoch, invalid → throws */

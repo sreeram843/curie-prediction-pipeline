@@ -64,6 +64,19 @@ VALUE_TTL: dict[str, timedelta] = {
 }
 
 
+def effective_availability_time(envelope: dict[str, Any]) -> datetime:
+    """Return the leakage-safe evaluation clock for a canonical envelope."""
+    for key in ("availability_time", "ingest_time", "event_time"):
+        raw = envelope.get(key)
+        if raw is None or not str(raw).strip():
+            continue
+        try:
+            return datetime.fromisoformat(str(raw).replace("Z", "+00:00"))
+        except ValueError as exc:
+            raise ValueError(f"invalid {key}: {raw}") from exc
+    raise ValueError("missing event_time")
+
+
 def _primary_code(resource: dict[str, Any]) -> str | None:
     for coding in (resource.get("code") or {}).get("coding") or []:
         if coding.get("code"):
@@ -370,6 +383,7 @@ def main(argv: list[str] | None = None) -> int:
             event_time = datetime.fromisoformat(
                 str(env.get("event_time")).replace("Z", "+00:00")
             )
+            availability_time = effective_availability_time(env)
             if not state.apply(update, event_time):
                 if args.max_messages and seen >= args.max_messages:
                     break
@@ -380,7 +394,7 @@ def main(argv: list[str] | None = None) -> int:
             result = compute_sofa_score(
                 patient_id=patient_id,
                 encounter_id=state.encounter_id,
-                event_time=event_time,
+                event_time=availability_time,
                 inputs=state.inputs(),
                 rule_bundle_id=bundle["bundle_id"],
                 rule_version=bundle["version"],
@@ -403,7 +417,7 @@ def main(argv: list[str] | None = None) -> int:
                 "alert_id": alert_id(
                     patient_id,
                     result.total_score,
-                    event_time,
+                    availability_time,
                     result.rule_version,
                     encounter_id=state.encounter_id,
                 ),
@@ -411,6 +425,8 @@ def main(argv: list[str] | None = None) -> int:
                 "encounter_id": state.encounter_id,
                 "indicator": "sofa-deterioration",
                 "event_time": event_time.isoformat(),
+                "clinical_event_time": event_time.isoformat(),
+                "availability_time": availability_time.isoformat(),
                 "ingest_time": datetime.now(UTC).isoformat(),
                 "score": result.total_score,
                 "completeness": result.completeness.value,

@@ -105,6 +105,12 @@ public class AkiAlertFunction
       return;
     }
     long eventTimeMs = eventTimeMsObj;
+    Long availabilityTimeMsObj = SofaAlertFunction.effectiveAvailabilityTimeMs(event);
+    if (availabilityTimeMsObj == null) {
+      emitDlq(ctx, event, "invalid_availability_timestamp", null, null, null);
+      return;
+    }
+    long availabilityTimeMs = availabilityTimeMsObj;
     long ingestTimeMs = eventTimeMs;
     if (event.ingest_time != null && !event.ingest_time.isBlank()) {
       Long ingest = SofaAlertFunction.tryParseTimeMs(event.ingest_time);
@@ -133,8 +139,9 @@ public class AkiAlertFunction
         event.idempotency_key != null && !event.idempotency_key.isBlank()
             ? event.idempotency_key
             : "";
-    EventTimeBuffer.FlushResult<CanonicalEvent> flush = buffer.offer(eventTimeMs, event, tie);
-    ctx.timerService().registerEventTimeTimer(buffer.flushTimerTimestamp(eventTimeMs));
+    EventTimeBuffer.FlushResult<CanonicalEvent> flush =
+        buffer.offer(availabilityTimeMs, event, tie);
+    ctx.timerService().registerEventTimeTimer(buffer.flushTimerTimestamp(availabilityTimeMs));
     eventBuffer.update(buffer);
     applyFlush(flush, ctx, out);
   }
@@ -160,12 +167,21 @@ public class AkiAlertFunction
       emitDlq(ctx, late.payload, EventTimeBuffer.LATE_DISPOSITION, null, null, null);
     }
     for (EventTimeBuffer.BufferedEvent<CanonicalEvent> ready : flush.ready) {
-      scoreReadyEvent(ready.payload, ready.eventTimeMs, ctx, out);
+      Long clinicalTimeMs = SofaAlertFunction.tryParseTimeMs(ready.payload.event_time);
+      if (clinicalTimeMs == null) {
+        emitDlq(ctx, ready.payload, "invalid_timestamp", null, null, null);
+        continue;
+      }
+      scoreReadyEvent(ready.payload, clinicalTimeMs, ready.eventTimeMs, ctx, out);
     }
   }
 
   private void scoreReadyEvent(
-      CanonicalEvent event, long eventTimeMs, ReadOnlyContext ctx, Collector<AlertEvent> out)
+      CanonicalEvent event,
+      long clinicalEventTimeMs,
+      long availabilityTimeMs,
+      ReadOnlyContext ctx,
+      Collector<AlertEvent> out)
       throws Exception {
     JsonNode resource = event.resource;
     if (!"Observation".equals(text(resource, "resourceType"))) {
@@ -200,11 +216,15 @@ public class AkiAlertFunction
     String evidenceId = evidenceId(resource);
     boolean applied;
     if (LOINC_CREATININE.equals(code)) {
-      applied = applyCreatinine(ctx, event, state, resource, code, status, eventTimeMs, evidenceId);
+      applied =
+          applyCreatinine(
+              ctx, event, state, resource, code, status, clinicalEventTimeMs, evidenceId);
     } else if (LOINC_URINE_OUTPUT.equals(code)) {
-      applied = applyUrineRate(ctx, event, state, resource, code, status, eventTimeMs, evidenceId);
+      applied =
+          applyUrineRate(
+              ctx, event, state, resource, code, status, clinicalEventTimeMs, evidenceId);
     } else if (CODE_ANURIA.equalsIgnoreCase(code) || CURIE_ANURIA.equalsIgnoreCase(code)) {
-      applied = applyAnuria(state, resource, eventTimeMs, evidenceId);
+      applied = applyAnuria(state, resource, clinicalEventTimeMs, evidenceId);
     } else {
       return;
     }
@@ -218,7 +238,7 @@ public class AkiAlertFunction
       rules = akiDefaults();
     }
     int threshold = rules.alert != null ? rules.alert.naive_threshold : 2;
-    AkiTimeline.Result timelineScore = state.evaluate(eventTimeMs);
+    AkiTimeline.Result timelineScore = state.evaluate(clinicalEventTimeMs);
     if ("insufficient_data".equals(timelineScore.completeness)
         || "excluded".equals(timelineScore.status)
         || timelineScore.totalScore == null) {
@@ -227,7 +247,7 @@ public class AkiAlertFunction
     AkiScorer.Result score = new AkiScorer.Result();
     score.patientId = state.patientId;
     score.encounterId = state.encounterId;
-    score.eventTimeEpochMs = eventTimeMs;
+    score.eventTimeEpochMs = availabilityTimeMs;
     score.stage = timelineScore.stage;
     score.creatinineStage = timelineScore.creatinineStage;
     score.urineStage = timelineScore.urineStage;
@@ -242,16 +262,23 @@ public class AkiAlertFunction
     String ingest =
         event.ingest_time != null
             ? event.ingest_time
-            : Instant.ofEpochMilli(eventTimeMs).toString();
+            : Instant.ofEpochMilli(availabilityTimeMs).toString();
     String alertId =
         AlertIds.of(
             event.patient_id,
             state.encounterId,
             "aki",
             score.totalScore,
-            eventTimeMs,
+            availabilityTimeMs,
             rules.version);
-    AlertEvent alert = AlertEvent.fromAki(score, tier, alertId, ingest);
+    AlertEvent alert =
+        AlertEvent.fromAki(
+            score,
+            tier,
+            alertId,
+            ingest,
+            Instant.ofEpochMilli(clinicalEventTimeMs).toString(),
+            Instant.ofEpochMilli(availabilityTimeMs).toString());
     alert.rule_bundle_id = rules.bundle_id;
     alert.rule_version = rules.version;
     alert.rule_bundle_hash = rules.content_hash;

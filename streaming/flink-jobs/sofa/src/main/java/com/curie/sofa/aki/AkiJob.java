@@ -66,8 +66,7 @@ public final class AkiJob {
                 WatermarkStrategy.<CanonicalEvent>forBoundedOutOfOrderness(Duration.ofMinutes(5))
                     .withTimestampAssigner(
                         (e, ts) -> {
-                          Long ms =
-                              SofaAlertFunction.tryParseTimeMs(e != null ? e.event_time : null);
+                          Long ms = SofaAlertFunction.effectiveAvailabilityTimeMs(e);
                           return ms != null ? ms : 0L;
                         }),
                 "aki-clinical-events")

@@ -14,6 +14,8 @@ public class CanonicalEvent implements Serializable {
   public JsonNode resource;
   public String event_time;
   public String ingest_time;
+  /** When the fact became knowable to the scoring pipeline; falls back to ingest_time. */
+  public String availability_time;
   public String source;
   public String idempotency_key;
   /** Optional clinical/context suppression flags (e.g. comfort_care). */

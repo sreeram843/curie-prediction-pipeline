@@ -13,6 +13,10 @@ public class AlertEvent implements Serializable {
   public String encounter_id;
   public String indicator = "sofa-deterioration";
   public String event_time;
+  /** Clinical occurrence time of the observation that triggered this evaluation. */
+  public String clinical_event_time;
+  /** Availability clock used for the evaluation; normally equal to event_time. */
+  public String availability_time;
   public String ingest_time;
   public Integer score;
   public String completeness;
@@ -44,11 +48,23 @@ public class AlertEvent implements Serializable {
 
   public static AlertEvent fromScore(
       SofaScorer.ScoreResult score, SofaScorer.Tier tier, String alertId, String ingestTimeIso) {
+    return fromScore(score, tier, alertId, ingestTimeIso, null, null);
+  }
+
+  public static AlertEvent fromScore(
+      SofaScorer.ScoreResult score,
+      SofaScorer.Tier tier,
+      String alertId,
+      String ingestTimeIso,
+      String clinicalEventTimeIso,
+      String availabilityTimeIso) {
     AlertEvent a = new AlertEvent();
     a.alert_id = alertId;
     a.patient_id = score.patientId;
     a.encounter_id = score.encounterId;
     a.event_time = java.time.Instant.ofEpochMilli(score.eventTimeEpochMs).toString();
+    a.clinical_event_time = clinicalEventTimeIso;
+    a.availability_time = availabilityTimeIso;
     a.ingest_time = ingestTimeIso;
     a.score = score.totalScore;
     a.completeness = score.completeness.wireName();
@@ -79,12 +95,24 @@ public class AlertEvent implements Serializable {
       String tier,
       String alertId,
       String ingestTimeIso) {
+    return fromAki(score, tier, alertId, ingestTimeIso, null, null);
+  }
+
+  public static AlertEvent fromAki(
+      com.curie.sofa.aki.AkiScorer.Result score,
+      String tier,
+      String alertId,
+      String ingestTimeIso,
+      String clinicalEventTimeIso,
+      String availabilityTimeIso) {
     AlertEvent a = new AlertEvent();
     a.alert_id = alertId;
     a.patient_id = score.patientId;
     a.encounter_id = score.encounterId;
     a.indicator = "aki";
     a.event_time = java.time.Instant.ofEpochMilli(score.eventTimeEpochMs).toString();
+    a.clinical_event_time = clinicalEventTimeIso;
+    a.availability_time = availabilityTimeIso;
     a.ingest_time = ingestTimeIso;
     a.score = score.totalScore;
     a.completeness = score.completeness;
