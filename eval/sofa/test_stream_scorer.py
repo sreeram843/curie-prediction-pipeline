@@ -11,11 +11,38 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 
 from eval.sofa.scoring import SofaComponentInput, SofaComponentName
-from eval.sofa.stream_scorer import VALUE_TTL, PatientState
+from eval.sofa.stream_scorer import (
+    VALUE_TTL,
+    PatientState,
+    effective_availability_time,
+)
 
 
 def _t(hours: float) -> datetime:
     return datetime(2024, 1, 1, 0, 0, tzinfo=UTC) + timedelta(hours=hours)
+
+
+def test_effective_availability_prefers_explicit_then_ingest_then_event() -> None:
+    assert effective_availability_time(
+        {"event_time": "2024-01-01T09:00:00+00:00", "ingest_time": "2024-01-01T09:45:00+00:00",
+         "availability_time": "2024-01-01T10:00:00+00:00"}
+    ) == _t(10)
+    assert effective_availability_time(
+        {"event_time": "2024-01-01T09:00:00+00:00", "ingest_time": "2024-01-01T09:45:00+00:00"}
+    ) == _t(9.75)
+    assert effective_availability_time({"event_time": "2024-01-01T09:00:00+00:00"}) == _t(9)
+
+
+def test_delayed_lab_is_scored_at_availability_clock() -> None:
+    state = PatientState()
+    clinical_time = _t(9)
+    availability_time = _t(10)
+    assert state.apply(
+        SofaComponentInput(name=SofaComponentName.RENAL, creatinine_mg_dl=4.0), clinical_time
+    )
+    inputs = state.inputs(as_of=availability_time)
+    renal = next(item for item in inputs if item.name == SofaComponentName.RENAL)
+    assert renal.creatinine_mg_dl == 4.0
 
 
 class TestPartialUpdatesDoNotRefreshUnrelatedFields:
