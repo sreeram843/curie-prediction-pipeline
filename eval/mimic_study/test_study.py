@@ -65,6 +65,7 @@ def test_naive_vs_governed_replay_differs_on_positive_stay() -> None:
     assert naive["naive_alert_count"] >= 1
     # Governed should not exceed naive alert count
     assert gov["governed_alert_count"] <= naive["naive_alert_count"]
+    assert gov["risk_scores"]
 
 
 def test_frozen_artifacts_regenerated_by_run(tmp_path: Path) -> None:

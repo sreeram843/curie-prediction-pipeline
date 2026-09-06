@@ -6,10 +6,12 @@ import csv
 import gzip
 from pathlib import Path
 
+import eval.mimic_study.cohort_flow as cohort_module
 from eval.mimic_study.cohort_flow import (
     _parse_ts,
     _split_for_intime,
     apply_cohort,
+    main,
 )
 from eval.mimic_study.protocol import load_protocol
 
@@ -127,3 +129,11 @@ def test_cohort_v2_assigns_anchor_year_group_splits(tmp_path: Path) -> None:
     assert by_id["s7"]["split_id"] == "test"
     assert out["protocol_id"] == "mimic-iv-governance-study.v2"
     assert out["splits"]["status"] == "frozen"
+
+
+def test_cohort_cli_accepts_protocol_version(tmp_path: Path, monkeypatch, capsys) -> None:
+    root = _make_root(tmp_path)
+    monkeypatch.setattr(cohort_module, "require_mimic_dir", lambda: root)
+
+    assert main(["--protocol-version", "v2", "--no-stays"]) == 0
+    assert '"protocol_id": "mimic-iv-governance-study.v2"' in capsys.readouterr().out

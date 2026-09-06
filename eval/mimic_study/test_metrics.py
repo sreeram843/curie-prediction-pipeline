@@ -4,6 +4,7 @@ from eval.mimic_study.metrics import (
     decision_curve,
     fixed_lead_time_discrimination,
     ranking_metrics,
+    summarize_cohort,
 )
 
 
@@ -42,3 +43,20 @@ def test_fixed_lead_time_discrimination_uses_scores_available_at_cutoff() -> Non
     result = fixed_lead_time_discrimination(rows, lead_hours=[2])
     assert result[0]["n_scored"] == 2
     assert result[0]["auroc"] == 1.0
+
+
+def test_explicit_unknown_label_is_not_counted_as_negative() -> None:
+    result = summarize_cohort(
+        [
+            {
+                "labels": {"sepsis3_onset": None, "sepsis3_label_observed": False},
+                "patient_days": 1,
+                "episode_count": 2,
+                "interruptive_alert_count": 2,
+                "interruptive_alert_times": [],
+            }
+        ]
+    )
+    assert result["unknown_label_stays"] == 1
+    assert result["labeled_positive"] == 0
+    assert result["false_episodes_label_negative"] == 0

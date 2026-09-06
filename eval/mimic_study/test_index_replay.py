@@ -16,6 +16,7 @@ import pytest
 pytest.importorskip("pyarrow")
 
 from eval.mimic_study.index_replay import (  # noqa: E402
+    indexed_study_rows,
     replay_indexed_stays,
     run_with_manifest,
 )
@@ -33,6 +34,13 @@ def mimic_index(tmp_path_factory: pytest.TempPathFactory) -> Path:
 
 
 class TestSameCodePath:
+    def test_indexed_study_rows_export_canonical_stays(self, mimic_index: Path) -> None:
+        exported = indexed_study_rows(index_dir=mimic_index, stay_ids=["10"])
+        assert exported["schema_version"] == "1.0.0"
+        assert exported["protocol_id"] == "mimic-iv-governance-study.v1"
+        assert exported["stays"][0]["stay_id"] == "10"
+        assert exported["stays"][0]["labs"]
+
     def test_single_bounded_full_identical(self, mimic_index: Path) -> None:
         single = replay_indexed_stays(index_dir=mimic_index, stay_ids=["10"])
         bounded = replay_indexed_stays(index_dir=mimic_index, limit=1)
