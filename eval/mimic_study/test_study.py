@@ -13,6 +13,7 @@ from eval.mimic_study.protocol import ProtocolError, assert_split_allowed_for_tu
 from eval.mimic_study.study import (
     main,
     run_study,
+    run_study_rows,
     select_operating_point,
 )
 from eval.mimic_study.study_replay import replay_stay_ablation
@@ -75,3 +76,22 @@ def test_frozen_artifacts_regenerated_by_run(tmp_path: Path) -> None:
     manifest = json.loads(man_path.read_text())
     assert manifest["content_hash"] == result["manifest"]["content_hash"]
     assert manifest["module"] == "python -m eval.mimic_study.study run"
+
+
+def test_v2_study_rows_uses_explicit_protocol_and_versioned_outputs(tmp_path: Path) -> None:
+    from eval.mimic_study.protocol import load_protocol
+
+    fixture = json.loads((FIXTURES_DIR / "demo_schema_stays.v1.json").read_text())
+    result = run_study_rows(
+        fixture["stays"],
+        fixture_meta=fixture,
+        protocol=load_protocol(version="v2"),
+        write_frozen=True,
+        frozen_dir=tmp_path,
+    )
+
+    assert result["report"]["protocol_id"] == "mimic-iv-governance-study.v2"
+    assert result["manifest"]["protocol_id"] == "mimic-iv-governance-study.v2"
+    assert result["manifest"]["operating_point_path"].endswith("operating_point.v2.json")
+    assert (tmp_path / "operating_point.v2.json").is_file()
+    assert (tmp_path / "study_manifest.v2.json").is_file()
