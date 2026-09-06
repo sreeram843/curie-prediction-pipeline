@@ -23,17 +23,17 @@ Each claim row maps one proposed paper sentence to:
 | ID | Proposed claim | Class | Dataset | Split | Metric | Run | Artifact | Hash | Status |
 |---|---|---|---|---|---|---|---|---|---|
 | GATE-0 | "Phase B correctness and Phase C infrastructure are integrated" | eng | — | — | — | — | — | — | **TRUE on 2026-09-05**; merged review baseline `90e4ded` |
-| C1 | Shared alert governance reduces interruptive alert volume vs threshold-only scoring while preserving in-window detection | analytical | MIMIC-IV 3.1 credentialed | test (temporal) | PE-1 governed sensitivity, PE-2 interruptive reduction ratio, stay bootstrap CIs | pending | `eval/mimic_study/frozen/` (new version) | pending | **Blocked** — splits inapplicable (date shift); labels and comparator run remain |
+| C1 | Shared alert governance reduces interruptive alert volume vs threshold-only scoring while preserving in-window detection | analytical | MIMIC-IV 3.1 credentialed | test (anchor-year-group) | PE-1 governed sensitivity, PE-2 interruptive reduction ratio, stay bootstrap CIs | pending | `eval/mimic_study/frozen/` (new version) | pending | **Blocked on external execution** — v2 split is frozen; labels and comparator run remain |
 | C2 | Episode arbitration yields one actionable episode instead of alert floods | eng | demo-schema fixtures | — | episode vs alert counts | `python -m eval.mimic_study.study run` | `eval/mimic_study/frozen/study_manifest.v1.json` | `e4998934…c798a73` (demo) | engineering done (demo schema only) |
 | C3 | Adding an indicator is a plugin/bundle task | eng | — | — | CURIE-010/011/013 gates | `make parity` | rule registry + plugin | — | engineering done |
 | C4 | Availability-time replay has no future leakage | eng | demo-schema fixtures | — | CURIE-015 leakage tests | `pytest -q eval/mimic_harness/` | `eval/mimic_harness/test_harness.py` | — | engineering done (demo schema) |
 | COH-1 | Cohort flow: 84,855 stays survive the frozen adult/first-stay/LOS≥4h/valid-time filters, with denominators at each step | analytical-audit | MIMIC-IV 3.1 credentialed | cohort-wide (no split) | counts per exclusion step | `python -m eval.mimic_study.cohort_flow` | `data/audit/mimic_cohort_flow.json` | `07e0f207…9aede` | audit-only, not frozen |
 | COH-2 | ESRD (5,567 stays), comfort-care (13,042 stays), OR-transfer (71 stays) handling is declared and counted | analytical-audit | MIMIC-IV 3.1 credentialed | cohort-wide | subgroup flags | same as COH-1 | same as COH-1 | same | audit-only, not frozen |
-| COH-3 | Temporal split assignment by ICU intime | analytical | MIMIC-IV 3.1 credentialed | dev/cal/test | — | — | — | — | **SUSPENDED** — v3.1 shifts dates independently per subject (deidentified years 2100–2200); frozen v1 calendar ranges are inapplicable; only `anchor_year_group` (3-year buckets) preserves approximate order; protocol amendment required |
+| COH-3 | Temporal split assignment by ICU intime | analytical | MIMIC-IV 3.1 credentialed | dev/cal/test | — | `eval/mimic_study/cohort_flow.py --protocol-version v2` | `eval/mimic_study/frozen/protocol.v2.json` | pending full-data run | **v1 calendar split suspended; v2 anchor_year_group protocol frozen** |
 | COM-1 | SOFA component observation rates, complete vs partial coverage, first-ICU-day missingness, event-time distribution, runtime/peak RSS | analytical-audit | MIMIC-IV 3.1 credentialed | cohort-wide | per-component rates | `python -m eval.mimic_study.completeness_audit` | `data/audit/mimic_completeness_audit.json` | pending (run in progress) | audit-only, not frozen |
 | COM-2 | Pressor unit distribution and known-vs-unknown dose rates | analytical-audit | MIMIC-IV 3.1 credentialed | cohort-wide | unit/dose counters | `audit_inputevents_pressors` | `data/audit/mimic_pressor_unit_audit.json` | `fcf703d5…113` | audit-only, not frozen |
 | COM-3 | Source-to-index row reconciliation (chartevents/labevents) | eng-audit | MIMIC-IV 3.1 credentialed | first-25 stays | row-identity match | `python -m eval.mimic_study.completeness_audit` | `data/audit/mimic_completeness_audit.json` | pending | audit-only, not frozen |
-| LAB-1 | MIMIC Sepsis-3 / KDIGO labels generated from pinned, versioned definitions | analytical | MIMIC-IV 3.1 credentialed | — | onset events | `eval/mimic_study/labels/` | `eval/mimic_study/labels/sources.json` | mimic-code pin `303d26c6…` | **Not implemented** — SQL sources pinned + sha256-verified; generation blocked on Phase C |
+| LAB-1 | MIMIC Sepsis-3 / KDIGO labels generated from pinned, versioned definitions | analytical | MIMIC-IV 3.1 credentialed | — | onset events | `scripts/materialize_mimic_labels.py` | `eval/mimic_study/labels/sources.json` + operator label artifact | source pin required | **Code implemented; blocked on external SQL exports** |
 | CON-1 | Component/stay/event-time/window concordance vs pinned reference implementation, disagreements classified (unit/timing/missingness/mapping/definition) | analytical | MIMIC-IV 3.1 credentialed | — | concordance summary | `eval/mimic_study/comparators/` | pending run | — | Blocked on LAB-1 + Phase C |
 | GOV-1 | Naive vs governed vs interruptive burden, watch vs page separation, lead time | analytical | MIMIC-IV 3.1 credentialed | test | PE-1/PE-2 + secondary endpoints | pending | pending | pending | Blocked (splits + labels) |
 | ROB-1 | Pre-specified robustness: urine grace windows, detection windows, partial-score policy, pressor unknown-dose handling, FiO2/PaO2 preference, SpO2 fallback, ESRD/comfort/OR variants, split stability, bootstrap seed 42 | analytical | MIMIC-IV 3.1 credentialed | test (pre-specified only) | effect direction + CIs | pending | pending | pending | Blocked; scaffolding in `eval/mimic_study/bootstrap.py` (seed 42, 1000 replicates) |
@@ -55,8 +55,8 @@ Each claim row maps one proposed paper sentence to:
   remain in `ingestion/adapters/mimic/vasopressors.py`, with unknown units and
   missing rates handled explicitly.
 - The eICU n=8000 result above is an audit measurement, not clinical validation and
-  not a frozen study result. MIMIC-IV labels, temporal protocol amendment, and
-  comparator runs remain outstanding.
+  not a frozen study result. MIMIC-IV labels and comparator runs remain
+  outstanding; protocol v2 now resolves the prior temporal-split blocker.
 - The baseline documentation's 53.1% eICU respiration figure is reproducible only
   with the pre-correction scorer. The current scorer uses Rice 2007 S/F→P/F
   imputation and fails closed above SpO₂ 97%, yielding 59.725%. These are not
@@ -65,13 +65,14 @@ Each claim row maps one proposed paper sentence to:
 ## Regeneration commands
 
 ```bash
-python -m eval.mimic_study.cohort_flow --json-out data/audit/mimic_cohort_flow.json
+python -m eval.mimic_study.cohort_flow --protocol-version v2 --json-out data/audit/mimic_cohort_flow.json
+python -m eval.mimic_study.index_replay export-rows --protocol-version v2 --index-dir data/index/mimic-iv --limit 0 --json-out data/audit/mimic_study_rows.v2.json
 python -m eval.mimic_study.completeness_audit --json-out data/audit/mimic_completeness_audit.json
 python -m eval.mimic_study.eicu_audit --json-out data/audit/eicu_portability_audit.json
 CURIE_EICU_DIR=/path/to/eicu-crd-v2.0 python -m eval.mimic_study.completeness_check --dataset eicu --limit 8000 --seed 42 --batch-size 200 --json-out data/audit/eicu_sofa_missingness_n8000.json
-python -m pytest -q                                  # focused post-merge checks: 164 passed
-python -m eval.parity.gate                           # PARITY_OK=true fixtures=34 mismatches=0
-make flink-test                                      # blocked: Docker daemon not running (OrbStack)
+python -m pytest -q                                  # repository checks
+python -m eval.parity.gate                           # PARITY_OK=true fixtures=43 mismatches=0
+make flink-test                                      # passed via Maven/Docker
 ```
 
 Artifact hashes are SHA-256 of the JSON files in `data/audit/`. All audit outputs

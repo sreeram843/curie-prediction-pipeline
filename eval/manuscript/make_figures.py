@@ -75,7 +75,6 @@ def figure3_detection_burden() -> None:
 
     sepsis_stays = comp["comparators"][0]["cohort"]["sepsis_stays"]  # 1142
     gov_tp = primary["governed_sensitivity"] * sepsis_stays
-    int_tp = primary["interruptive_sensitivity"] * sepsis_stays
 
     # Curie lanes (from committed ablation sidecar); NNA = emissions / in-window TP
     curie = [
@@ -157,9 +156,19 @@ def figure3_detection_burden() -> None:
     _lab(comps[0]["emis"], comps[0]["sens"] * 100, "SIRS ≥ 2\nNNA 213", 1.06, 2.4, GREY)
     _lab(comps[1]["emis"], comps[1]["sens"] * 100, "NEWS2 ≥ 5*\nNNA 163", 1.06, -3.0, GREY)
     _lab(comps[2]["emis"], comps[2]["sens"] * 100, "qSOFA ≥ 2*\nNNA 78", 1.07, 0, GREY)
-    _lab(curie[0]["emis"], curie[0]["sens"] * 100, f"Threshold-only SOFA\nNNA {curie[0]['nna']:.0f}", 1.05, 3.0, INK)
-    _lab(curie[1]["emis"], curie[1]["sens"] * 100, f"Governed SOFA\n(watch + page) · NNA {curie[1]['nna']:.0f}", 0.60, 3.4, BLUE, ha="right")
-    _lab(curie[2]["emis"], curie[2]["sens"] * 100, f"Interruptive lane\nNNA {curie[2]['nna']:.0f}", 1.07, 0, VERMILLION)
+    _lab(
+        curie[0]["emis"], curie[0]["sens"] * 100,
+        f"Threshold-only SOFA\nNNA {curie[0]['nna']:.0f}", 1.05, 3.0, INK,
+    )
+    _lab(
+        curie[1]["emis"], curie[1]["sens"] * 100,
+        f"Governed SOFA\n(watch + page) · NNA {curie[1]['nna']:.0f}",
+        0.60, 3.4, BLUE, ha="right",
+    )
+    _lab(
+        curie[2]["emis"], curie[2]["sens"] * 100,
+        f"Interruptive lane\nNNA {curie[2]['nna']:.0f}", 1.07, 0, VERMILLION,
+    )
 
     ax.set_xscale("log")
     ax.set_xlim(1.6e4, 5.2e5)
@@ -179,10 +188,23 @@ def figure3_detection_burden() -> None:
     from matplotlib.lines import Line2D
 
     handles = [
-        Line2D([0], [0], marker="o", color="w", markerfacecolor=BLUE, markeredgecolor=BLUE, markersize=9, label="Governed Curie lane"),
-        Line2D([0], [0], marker="o", color="w", markerfacecolor=VERMILLION, markeredgecolor=VERMILLION, markersize=9, label="Interruptive lane"),
-        Line2D([0], [0], marker="D", color="w", markerfacecolor="white", markeredgecolor=INK, markersize=8, label="Threshold-only SOFA"),
-        Line2D([0], [0], marker="s", color="w", markerfacecolor="white", markeredgecolor=GREY, markersize=8, label="Bedside comparator (ungoverned)"),
+        Line2D(
+            [0], [0], marker="o", color="w", markerfacecolor=BLUE,
+            markeredgecolor=BLUE, markersize=9, label="Governed Curie lane",
+        ),
+        Line2D(
+            [0], [0], marker="o", color="w", markerfacecolor=VERMILLION,
+            markeredgecolor=VERMILLION, markersize=9, label="Interruptive lane",
+        ),
+        Line2D(
+            [0], [0], marker="D", color="w", markerfacecolor="white",
+            markeredgecolor=INK, markersize=8, label="Threshold-only SOFA",
+        ),
+        Line2D(
+            [0], [0], marker="s", color="w", markerfacecolor="white",
+            markeredgecolor=GREY, markersize=8,
+            label="Bedside comparator (ungoverned)",
+        ),
     ]
     ax.legend(handles=handles, loc="lower right", frameon=False, fontsize=8.2, handletextpad=0.4)
 
@@ -192,7 +214,8 @@ def figure3_detection_burden() -> None:
     )
     fig.text(
         0.012, -0.02,
-        "*NEWS2 omits consciousness/AVPU; qSOFA omits GCS (absent in Challenge 2019). NNA = emissions per in-window true-positive stay. "
+        "*NEWS2 omits consciousness/AVPU; qSOFA omits GCS (absent in Challenge 2019). "
+        "NNA = emissions per in-window true-positive stay. "
         "Not a claim of clinical superiority.",
         fontsize=7.0, color=GREY,
     )
@@ -223,7 +246,10 @@ def figure4_timing_robustness() -> None:
     w = 0.38
 
     fig, ax = plt.subplots(figsize=(6.6, 4.0))
-    ax.bar(x - w / 2, naive, w, label="Naive (threshold-only)", color="#c9d6df", edgecolor="#8a99a4", linewidth=0.7)
+    ax.bar(
+        x - w / 2, naive, w, label="Naive (threshold-only)", color="#c9d6df",
+        edgecolor="#8a99a4", linewidth=0.7,
+    )
     ax.bar(x + w / 2, gov, w, label="Governed", color=BLUE, edgecolor="#005a8f", linewidth=0.7)
 
     for xi, (n, g) in enumerate(zip(naive, gov)):
@@ -249,7 +275,8 @@ def figure4_timing_robustness() -> None:
     )
     fig.text(
         0.012, -0.03,
-        "Secondary sensitivity analyses; naive and governed sensitivity are equal for the frozen winner in every definition. "
+        "Secondary sensitivity analyses; naive and governed sensitivity are equal "
+        "for the frozen winner in every definition. "
         "The 81.1% grace-6 h value is secondary, not the primary result.",
         fontsize=7.0, color=GREY,
     )

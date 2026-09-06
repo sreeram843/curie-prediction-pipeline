@@ -4,6 +4,10 @@
 
 **Goal:** Complete the repository-side infrastructure needed to run a reproducible MIMIC-IV/eICU Stage B study without fabricating external-data results.
 
+**Status:** Repository implementation complete and validated. Remaining work is
+operator execution with credentialed MIMIC/eICU data and externally exported,
+pinned labels; no clinical or publication result is implied by this plan.
+
 **Architecture:** Keep the frozen v1 demo study immutable. Add a v2 protocol that assigns MIMIC stays by `anchor_year_group`, then connect separately materialized, pinned label artifacts to the existing Parquet index and availability-time replay. Operating-point and run manifests will be generated only from supplied development/calibration/test outputs and will record hashes and protocol identity.
 
 **Tech Stack:** Python 3.11+, Pydantic/dataclasses already used by the repository, pytest, Ruff, JSON/CSV, optional PyArrow index, and external PostgreSQL/BigQuery execution supplied by the operator.

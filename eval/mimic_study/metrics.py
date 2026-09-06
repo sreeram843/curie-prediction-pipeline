@@ -101,6 +101,8 @@ def fixed_lead_time_discrimination(
     prepared: list[tuple[int, datetime | None, datetime | None, list[tuple[datetime, float]]]] = []
     for row in stay_rows:
         labels = row.get("labels") or {}
+        if labels.get("sepsis3_label_observed") is False:
+            continue
         onset = _parse_dt(labels.get("sepsis3_onset"))
         scores: list[tuple[datetime, float]] = []
         for item in row.get(score_field) or []:
@@ -194,6 +196,7 @@ def summarize_cohort(
     episodes = 0
     false_episodes = 0
     valid_interruptive_alerts = 0
+    unknown_label_stays = 0
     patient_days = 0.0
     missing_partial = 0
 
@@ -207,6 +210,9 @@ def summarize_cohort(
         episodes += int(row.get("episode_count") or 0)
         if row.get("completeness_partial"):
             missing_partial += 1
+        if labels.get("sepsis3_label_observed") is False and labels.get("sepsis3_onset") is None:
+            unknown_label_stays += 1
+            continue
 
         det_n = stay_detection(
             labels=labels,
@@ -281,6 +287,7 @@ def summarize_cohort(
     return {
         "stays": len(stay_rows),
         "labeled_positive": labeled,
+        "unknown_label_stays": unknown_label_stays,
         "naive_sensitivity": naive_sens,
         "governed_sensitivity": gov_sens,
         "interruptive_sensitivity": page_sens,

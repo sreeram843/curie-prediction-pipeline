@@ -92,6 +92,7 @@ def replay_stay_ablation(
     partial = False
     signal_count = 0
     aki_signal_count = 0
+    score_trajectory: list[dict[str, Any]] = []
 
     def _emit_signal(
         *,
@@ -167,6 +168,13 @@ def replay_stay_ablation(
                 rule_bundle_id="sepsis-sofa",
                 rule_version="0.3.0",
                 min_components_required=min_components,
+            )
+            score_trajectory.append(
+                {
+                    "time": clock.isoformat(),
+                    "score": float(sofa.total_score),
+                    "score_type": "ordinal_sofa",
+                }
             )
             tier = tier_for_score(sofa.total_score)
             evidence = list(sofa.evidence_ids or [])
@@ -247,4 +255,5 @@ def replay_stay_ablation(
         "aki_signal_count": aki_signal_count,
         "completeness_partial": partial,
         "pipelines": ["sofa-deterioration", "aki-kdigo-timeline"],
+        "score_trajectory": score_trajectory,
     }

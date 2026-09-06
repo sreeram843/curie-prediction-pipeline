@@ -268,11 +268,12 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="MIMIC cohort-flow audit (not frozen)")
     parser.add_argument("--json-out", type=Path, default=None)
     parser.add_argument("--no-stays", action="store_true", help="omit the per-stay list")
+    parser.add_argument("--protocol-version", choices=("v1", "v2"), default="v1")
     args = parser.parse_args(argv)
 
     root = require_mimic_dir()
     print(f"applying cohort on {root}", flush=True)
-    out = apply_cohort(root)
+    out = apply_cohort(root, protocol=load_protocol(version=args.protocol_version))
     if args.no_stays:
         out.pop("stays", None)
     text = json.dumps(out, indent=2)

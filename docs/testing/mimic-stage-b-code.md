@@ -15,6 +15,9 @@ patient data or Stage B performance estimates.
 - Indexed patient metadata retains `anchor_year_group` for protocol assignment.
 - `run-rows` executes the same locked selection/evaluation orchestration over
   canonical rows from either data source. v2 output paths are versioned.
+- `eval.mimic_study.index_replay export-rows` creates those canonical rows from
+  a validated indexed replay, so the v2 study path does not require a manual
+  data reshaping step.
 - Metrics expose fixed lead-time ranking/calibration primitives, false episode
   rate, interruptive precision, and decision-curve net benefit.
 
@@ -29,10 +32,10 @@ point, or test metrics are frozen by this code-only change.
 
 Verification completed on 2026-09-06:
 
-- `pytest -q`: 540 passed (5 existing dependency deprecation warnings).
+- `pytest -q`: 543 passed (5 existing dependency deprecation warnings).
 - `python -m eval.parity.gate`: `PARITY_OK=true`, 43 fixtures, 0 mismatches.
 - `make flink-test`: passed through Maven/Docker.
-- `ruff check eval/mimic_study scripts/materialize_mimic_labels.py`: passed.
+- `ruff check .`: passed.
 - `git diff --check`: passed.
 - The v2 CLI smoke test against the synthetic demo fixture reported
   `selection_used_test: false`.

@@ -447,6 +447,90 @@ def _load_mimic_patients_rows(index_dir: Path) -> list[dict[str, str]]:
     ]
 
 
+def indexed_study_rows(
+    *,
+    index_dir: Path,
+    stay_ids: list[str] | None = None,
+    limit: int | None = None,
+    apply_protocol_cohort: bool = False,
+    seed: int = 42,
+    labels_path: Path | None = None,
+    protocol: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Export canonical stays from the index for the locked study runner."""
+    meta = load_index_meta(index_dir)
+    proto = protocol or load_protocol()
+    selected = select_stay_ids(
+        index_dir,
+        stay_ids=stay_ids,
+        limit=limit,
+        apply_protocol_cohort=apply_protocol_cohort,
+        seed=seed,
+        protocol=proto,
+    )
+    stay_meta = {str(row["stay_id"]): row for row in load_stays(index_dir)}
+    missing = [sid for sid in selected if sid not in stay_meta]
+    if missing:
+        raise IndexError(f"stay ids missing from index: {missing[:10]}")
+
+    label_rows: dict[str, dict[str, Any]] = {}
+    label_info: dict[str, Any] = {"status": "not_supplied"}
+    if labels_path is not None:
+        from eval.mimic_study.labels.materialize import load_label_artifact
+
+        artifact = load_label_artifact(labels_path)
+        if artifact["protocol_id"] != proto["protocol_id"]:
+            raise IndexError(
+                f"label protocol {artifact['protocol_id']!r} does not match "
+                f"replay protocol {proto['protocol_id']!r}"
+            )
+        label_rows = {str(row["stay_id"]): row for row in artifact["stays"]}
+        label_info = {
+            "status": "attached",
+            "schema_version": artifact["schema_version"],
+            "protocol_id": artifact["protocol_id"],
+            "content_hash": artifact["content_hash"],
+            "stays": len(artifact["stays"]),
+        }
+
+    dataset = meta["config"]["dataset"]
+    patients_by_subject = {
+        str(row["subject_id"]): row for row in _load_mimic_patients_rows(index_dir)
+    } if dataset == "mimic" else {}
+    eicu_map = eicu_stays_from_index(index_dir, selected) if dataset == "eicu" else {}
+    stays: list[dict[str, Any]] = []
+    default_labels = {
+        "sepsis3_onset": None,
+        "aki_kdigo_stage_ge_1": None,
+        "sepsis3_label_observed": False,
+    }
+    for sid in selected:
+        if dataset == "mimic":
+            row = dict(stay_meta[sid])
+            if (proto.get("splits") or {}).get("scheme") == "anchor_year_group":
+                patient = patients_by_subject.get(str(row.get("subject_id"))) or {}
+                row["split_id"] = split_for_anchor_year_group(
+                    patient.get("anchor_year_group") or "", proto
+                )
+            stay = mimic_stay_from_index(index_dir, row)
+        else:
+            stay = dict(eicu_map[sid])
+        stay["labels"] = label_rows.get(
+            sid,
+            default_labels,
+        )
+        stays.append(stay)
+    return {
+        "schema_version": "1.0.0",
+        "protocol_id": proto["protocol_id"],
+        "dataset": meta["dataset"],
+        "index_hash": meta["index_hash"],
+        "selection": {"stay_ids": selected, "seed": seed if apply_protocol_cohort else None},
+        "labels": label_info,
+        "stays": stays,
+    }
+
+
 def replay_indexed_stays(
     *,
     index_dir: Path,
@@ -465,7 +549,7 @@ def replay_indexed_stays(
     meta = load_index_meta(index_dir)
     proto = protocol or load_protocol()
     label_rows: dict[str, dict[str, Any]] = {}
-    label_info: dict[str, Any] = {"status": "not_attached"}
+    label_info: dict[str, Any] = {"status": "not_supplied"}
     if labels_path is not None:
         # Keep the default replay import boundary: label code is loaded only
         # when an operator explicitly supplies a validated sidecar.
@@ -880,6 +964,17 @@ def main(argv: list[str] | None = None) -> int:
     p_run.add_argument("--labels", type=Path, default=None, help="validated label artifact JSON")
     p_run.add_argument("--protocol-version", default="v1", choices=("v1", "v2"))
 
+    p_export = sub.add_parser("export-rows", help="export canonical stays for study analysis")
+    p_export.add_argument("--dataset", choices=("mimic", "eicu"), default="mimic")
+    p_export.add_argument("--index-dir", type=Path, default=None)
+    p_export.add_argument("--limit", type=int, default=50, help="0 = all stays")
+    p_export.add_argument("--stay-ids", nargs="*", default=None)
+    p_export.add_argument("--protocol-cohort", action="store_true")
+    p_export.add_argument("--seed", type=int, default=42)
+    p_export.add_argument("--labels", type=Path, default=None)
+    p_export.add_argument("--protocol-version", default="v2", choices=("v1", "v2"))
+    p_export.add_argument("--json-out", type=Path, required=True)
+
     p_bench = sub.add_parser("benchmark", help="source scan vs indexed replay benchmark")
     p_bench.add_argument("--dataset", choices=("mimic", "eicu"), default="mimic")
     p_bench.add_argument("--source", type=Path, default=None)
@@ -921,6 +1016,23 @@ def main(argv: list[str] | None = None) -> int:
             args.json_out.write_text(
                 json.dumps({"report": report, "manifest": manifest}, indent=2, default=str)
             )
+        return 0
+
+    if args.cmd == "export-rows":
+        index_dir = args.index_dir or default_index_dir(args.dataset)
+        limit = None if args.limit == 0 else args.limit
+        exported = indexed_study_rows(
+            index_dir=index_dir,
+            stay_ids=args.stay_ids,
+            limit=limit,
+            apply_protocol_cohort=args.protocol_cohort,
+            seed=args.seed,
+            labels_path=args.labels,
+            protocol=load_protocol(version=args.protocol_version),
+        )
+        args.json_out.parent.mkdir(parents=True, exist_ok=True)
+        args.json_out.write_text(json.dumps(exported, indent=2, default=str) + "\n")
+        print(f"Wrote {args.json_out} ({len(exported['stays'])} stays)")
         return 0
 
     if args.cmd == "benchmark":
