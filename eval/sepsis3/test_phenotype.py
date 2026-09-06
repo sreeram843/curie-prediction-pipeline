@@ -1,7 +1,10 @@
 from datetime import UTC, datetime
 
-from eval.sepsis3.phenotype import InfectionEvent, Sepsis3Input, evaluate_sepsis3
-
+from eval.sepsis3.phenotype import (
+    InfectionEvent,
+    Sepsis3Input,
+    evaluate_sepsis3,
+)
 
 AS_OF = datetime(2024, 1, 1, 12, tzinfo=UTC)
 
@@ -57,11 +60,10 @@ def test_known_preexisting_dysfunction_without_acute_rise_is_not_sepsis() -> Non
         Sepsis3Input(
             as_of=AS_OF,
             current_sofa=2,
-            baseline_sofa=None,
+            baseline_sofa=2,
             infection_events=_infection(),
-            baseline_policy="assume_zero_if_no_known_dysfunction",
-            no_known_preexisting_dysfunction=False,
         )
     )
-    assert result.status == "insufficient_data"
+    assert result.status == "not_met"
+    assert "pre_existing_dysfunction_without_acute_rise" in result.criteria_failed
     assert result.met is False

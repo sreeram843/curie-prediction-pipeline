@@ -47,6 +47,11 @@ class Sepsis3Input:
     as_of: datetime
     current_sofa: int | None
     baseline_sofa: int | None
+    baseline_policy: Literal[
+        "require_explicit", "assume_zero_if_no_known_dysfunction"
+    ] = "require_explicit"
+    no_known_preexisting_dysfunction: bool = False
+    baseline_evidence_id: str | None = None
     infection_events: list[InfectionEvent] = field(default_factory=list)
     exclusion_flags: set[str] = field(default_factory=set)
     window_before_hours: int = DEFAULT_WINDOW_BEFORE_HOURS
@@ -64,6 +69,8 @@ class Sepsis3Result:
     missing_inputs: list[str] = field(default_factory=list)
     exclusions_applied: list[str] = field(default_factory=list)
     sofa_delta: int | None = None
+    baseline_assumed: bool = False
+    baseline_source: str | None = None
     infection_time: datetime | None = None
     infection_kind: str | None = None
     evidence_ids: list[str] = field(default_factory=list)
@@ -108,9 +115,27 @@ def evaluate_sepsis3(inp: Sepsis3Input) -> Sepsis3Result:
     if inp.current_sofa is None:
         out.status = "insufficient_data"
         out.missing_inputs.append("current_sofa")
-    if inp.baseline_sofa is None:
+
+    baseline_sofa = inp.baseline_sofa
+    if baseline_sofa is None and inp.baseline_policy == "assume_zero_if_no_known_dysfunction":
+        if inp.no_known_preexisting_dysfunction:
+            baseline_sofa = 0
+            out.baseline_assumed = True
+            out.baseline_source = (
+                inp.baseline_evidence_id or "policy:assume_zero_if_no_known_dysfunction"
+            )
+            out.criteria_met.append("baseline_assumed_zero")
+            if inp.baseline_evidence_id:
+                evidence.append(inp.baseline_evidence_id)
+        else:
+            out.status = "insufficient_data"
+            out.missing_inputs.append("baseline_sofa")
+    elif baseline_sofa is None:
         out.status = "insufficient_data"
         out.missing_inputs.append("baseline_sofa")
+    elif inp.baseline_evidence_id:
+        out.baseline_source = inp.baseline_evidence_id
+        evidence.append(inp.baseline_evidence_id)
 
     window_before = timedelta(hours=max(0, inp.window_before_hours))
     window_after = timedelta(hours=max(0, inp.window_after_hours))
@@ -134,15 +159,15 @@ def evaluate_sepsis3(inp: Sepsis3Input) -> Sepsis3Result:
         out.infection_kind = infection.kind
         evidence.append(infection.evidence_id)
 
-    if inp.current_sofa is not None and inp.baseline_sofa is not None:
-        delta = int(inp.current_sofa) - int(inp.baseline_sofa)
+    if inp.current_sofa is not None and baseline_sofa is not None:
+        delta = int(inp.current_sofa) - int(baseline_sofa)
         out.sofa_delta = delta
         if delta >= MIN_SOFA_DELTA:
             out.criteria_met.append("acute_sofa_rise_ge_2")
         else:
             out.criteria_failed.append("acute_sofa_rise_ge_2")
             # Explicit: chronic/high baseline without acute rise is not sepsis-3
-            if inp.baseline_sofa >= 2 and delta < MIN_SOFA_DELTA:
+            if baseline_sofa >= 2 and delta < MIN_SOFA_DELTA:
                 out.criteria_failed.append("pre_existing_dysfunction_without_acute_rise")
 
     out.evidence_ids = evidence
