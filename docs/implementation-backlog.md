@@ -959,12 +959,12 @@ manifest is frozen.
 
 The eICU, SYN-ICU, and MIMIC-FHIR adapters (added after Milestone 10 was last updated) route
 through the shared demo-schema harness (`eval.mimic_harness.replay`), not the direct MIMIC
-`extract.py` path. A completeness check at n=8000 real eICU-CRD v2.0 stays found SOFA respiration
-missing in 98.6% of stays — far worse than MIMIC-IV's own already-notable 54.4% on the same
-n=8000-stay scale — plus elevated CNS (24.4%), liver (34.9%), coagulation (9.0%), and renal (9.1%)
-missingness versus MIMIC's 0.3%/19.9%/0.2%/0.0%. CURIE-044 fixes the first root cause found;
-CURIE-044 and CURIE-046 through CURIE-050 cover the implemented extraction/cohort work; CURIE-045
-remains in progress pending the required n=8000 respiration remeasurement.
+`extract.py` path. The current audit measurement on 8,000 protocol-seeded eICU-CRD v2.0 stays
+finds respiration missing in 59.725% of stays; the historical 53.1% result used a pre-correction
+raw-S/F scorer. CNS (0.9%), liver (27.6%), coagulation (4.1%), and renal (1.8%) are the current
+eICU component rates. CURIE-044 and CURIE-046 through CURIE-050 cover the implemented
+extraction/cohort work; CURIE-045 remains in progress because its requested reduction against
+the historical scorer is not established under the corrected policy.
 
 ### CURIE-044 — Pair SpO2 with the latest FiO2 instead of requiring exact co-timing [P0 · DONE]
 
@@ -1016,7 +1016,9 @@ In practice eICU charts FiO2 as a ventilator/respiratory-therapy setting in
 
 - [x] Stays with any FiO2 signal materially exceeds the current 32% floor.
 - [ ] SOFA respiration missing rate drops further on the same protocol-filtered n=8000 sample,
-  with the full replay result reported.
+  with the full replay result reported. **Measured 59.725% (4,778/8,000) with the corrected
+  Rice S/F→P/F policy; the historical 53.1% baseline used raw S/F against P/F cutoffs and is
+  not comparable. Keep this item open for policy rework rather than claiming a regression.**
 - [x] New extraction has positive/negative/missing-arg fixtures independent of real PhysioNet data.
 
 **Preview only (credentialed eICU-CRD v2.0):**
@@ -1159,7 +1161,7 @@ urine/vaso wired (CURIE-046 parity).
 
 | Component | eICU (pre-fix file-order) | eICU protocol-8000 now | MIMIC protocol-8000 |
 | --- | ---: | ---: | ---: |
-| respiration | 98.6% | **53.1%** | **61.6%** |
+| respiration | 98.6% | **59.7%** | **61.6%** |
 | coagulation | 9.0% | **4.1%** | **0.1%** |
 | liver | 34.9% | **27.6%** | **12.4%** |
 | cardiovascular | 4.7% | **1.7%** | **0.1%** |
@@ -1181,8 +1183,11 @@ limit (CURIE-048). CNS/renal/CV closed as adapter bugs.
 - Harness: compose RESPIRATION from PaO2/SpO2 + FiO2; re-pair when FiO2 arrives after SpO2/PaO2
   (bidirectional 24h lookback). Still never assumes ambient FiO2 (C-SAFE-3).
 
-**Verified (protocol n=8000, seed=42):** eICU respiration missing **69.5% → 53.1%**.
-MIMIC respiration missing **73.0% → 61.6%** on the same protocol sample.
+**Historical baseline (protocol n=8000, seed=42):** eICU respiration missing **69.5% → 53.1%**
+under the pre-correction raw-S/F scorer. After the Rice S/F→P/F correction and fail-closed
+handling above SpO₂ 97%, the remeasurement is **59.725% (4,778/8,000)**. MIMIC respiration
+missing remains **61.6%** on the same protocol sample. These figures must not be compared as a
+single trend without naming the scoring policy.
 
 ### CURIE-051 — Typed vasopressor unit conversion + audits (plan B1) [P0 · DONE]
 
@@ -1224,10 +1229,11 @@ Use one branch/PR per task. The recommended order is:
 CURIE-036 through CURIE-040 can follow or run in parallel after the P0 reliability tasks. Keep
 CURIE-041 and CURIE-043 remain blocked until their stated access/evidence dependency is satisfied.
 
-Milestone 11 completeness extraction is implemented, but CURIE-045's protocol n=8000 respiration
-remeasure remains open. Re-quote completeness only from a regenerated table after that run. Liver
-remains a frequency limit (CURIE-048); eICU respiration after CURIE-050 is **53.1%** in the existing
-artifact and remains the highest missing component until the open remeasurement is complete.
+Milestone 11 completeness extraction is implemented, and the protocol n=8000 respiration
+remeasure is now recorded as an audit result. CURIE-045 remains open because the corrected
+scorer does not improve on the historical raw-S/F number. Re-quote completeness only from the
+current regenerated table and always name the scoring policy. Liver remains a frequency limit
+(CURIE-048); eICU respiration at **59.725%** remains the highest missing component.
 
 After every code task, run:
 

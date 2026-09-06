@@ -2,18 +2,18 @@
 
 Companion to the [plan](../../superpowers/plans/2026-09-05-mimic-eicu-paper-readiness.md)
 and the [claims ledger](./mimic-eicu-claims-ledger.md). Everything here is
-**audit-only**: the Phase B / Phase C integration gate has not passed, so no
+**audit-only**: the Phase B / Phase C integration gate has passed, but no
 frozen study numbers exist and none were created.
 
 ## Gate verdict
 
 | Gate | State on 2026-09-05 |
 |---|---|
-| Phase B correctness branch integrated | **No** — `codex/review-fixes` HEAD (`83e4110`) == `origin/main`; the review fixes (respiration resolver, eICU unknown-dose, harness urine/24h, etc.) exist only as uncommitted working-tree changes; B1 (`rateuom`) is audited + typed + tested but **not wired** into the scoring adapter |
-| Phase C infrastructure branch integrated | **No** — `eval/mimic_study/indexing.py` (Parquet index) is in-flight/uncommitted; no label-run or comparator-run exists; no Makefile-wired full-cohort replay |
+| Phase B correctness branch integrated | **Yes** — merged into review baseline `90e4ded`, including respiration resolution, eICU unknown-dose handling, availability-time replay, and state freshness |
+| Phase C infrastructure branch integrated | **Yes** — merged indexed replay and manifest scaffolding; label and comparator runs remain future work |
 
-Consequence: per the plan, only audit/test scaffolding was produced. **No final
-numbers were frozen.** The existing frozen artifacts (`protocol.v1.json`,
+Consequence: only audit/test scaffolding is reportable. **No final numbers were
+frozen.** The existing frozen artifacts (`protocol.v1.json`,
 `operating_point.v1.json`, `study_manifest.v1.json` — all demo-schema) were not
 touched.
 
@@ -34,26 +34,27 @@ Artifacts under gitignored `data/audit/`; all carry `"status": "AUDIT_ONLY_NOT_F
    order. Split assignment is **suspended pending a protocol amendment**.
 3. **Pressor unit audit** (`data/audit/mimic_pressor_unit_audit.json`, sha256
    `fcf703d5…113`): 519,878 mapped pressor rows; 519,642 `mcg/kg/min`, 2
-   `mg/kg/min` (silently misinterpreted by the current unwired adapter), 234 with
-   missing rate/unit.
+   `mg/kg/min`, 234 with missing rate/unit. The merged adapter now applies the
+   typed conversion policy and preserves unknown cases explicitly.
 4. **Completeness + reconciliation + sharded replay**
    (`data/audit/mimic_completeness_audit.json`, hash in ledger): streaming
    per-component observation rates, first-ICU-day coverage, event-time
    distribution, dose-known vs unknown, timestamp/valuenum parse failures,
    runtime/peak RSS, loader-vs-direct row reconciliation, and a seeded 8,000-stay
    sharded replay for complete/partial SOFA coverage.
-5. **eICU** (`data/audit/eicu_portability_audit.json`, sha256 `6741cef4…59959e`):
-   demo smoke only (50 stays; respiration missing in 38/50). Full-cohort eICU and
-   the legacy "n=8000" re-run are **blocked** (no credentialed eICU data); old
-   narrative numbers are marked unverified in the ledger.
+5. **eICU** (`data/audit/eicu_sofa_missingness_n8000.json`, sha256
+   `e2f303fff11c868b88f0e5f2ea171e0286220f62cc04dc07dc766207d900fe2a`):
+   credentialed protocol-seeded n=8000 audit remeasurement; current respiration
+   missingness is 59.725% (4,778/8,000). The earlier 53.1% figure is a baseline
+   raw-S/F result and is not comparable after the corrected S/F→P/F policy.
 
 ## Validation recorded
 
-- `pytest -q`: **394 passed** (incl. integration with local demo data).
+- Focused post-merge Python checks: **164 passed**; local Java/Flink Maven tests:
+  **60 passed**.
 - `python -m eval.parity.gate`: **PARITY_OK=true fixtures=34 mismatches=0**.
-- `ruff check .`: clean for all files in this workstream; two pre-existing /
-  in-flight exceptions: `eval/manuscript/make_figures.py` (unmodified since main)
-  and the concurrently-authored `eval/mimic_study/indexing.py`.
+- `ruff check .`: one pre-existing exception in
+  `eval/manuscript/make_figures.py`; changed workstream paths are clean.
 - `make flink-test` (Maven via Docker): **blocked** — Docker daemon not running
   (OrbStack); external-service failure, recorded not hidden.
 - `git diff --check`: clean. `make paper-tables`: rebuilds deterministically.

@@ -1,12 +1,12 @@
 # MIMIC / eICU claims-and-evidence ledger
 
-**Status:** scaffolding — no frozen study numbers exist yet.
-**Gate:** Phase B (correctness) and Phase C (infrastructure) are **not integrated** on
-`codex/review-fixes` as of 2026-09-05 (see
+**Status:** audit-only — no frozen study numbers exist yet.
+**Gate:** Phase B (correctness) and Phase C (infrastructure) are integrated on
+the review baseline as of 2026-09-05 (see
 [`docs/superpowers/plans/2026-09-05-mimic-eicu-paper-readiness.md`](../../superpowers/plans/2026-09-05-mimic-eicu-paper-readiness.md)).
-Until the gate passes, every number in this worktree is **audit-only** (written under
-gitignored `data/audit/`, labeled `AUDIT_ONLY_NOT_FROZEN`), and no frozen artifact is
-created or replaced.
+Even though the gate now passes, every number in this worktree remains **audit-only**
+(written under gitignored `data/audit/`, labeled `AUDIT_ONLY_NOT_FROZEN`), and no frozen
+artifact is created or replaced.
 
 ## How to read a row
 
@@ -22,8 +22,8 @@ Each claim row maps one proposed paper sentence to:
 
 | ID | Proposed claim | Class | Dataset | Split | Metric | Run | Artifact | Hash | Status |
 |---|---|---|---|---|---|---|---|---|---|
-| GATE-0 | "Phase B correctness and Phase C infrastructure are integrated" | eng | — | — | — | — | — | — | **FALSE on 2026-09-05** (see gate section below) |
-| C1 | Shared alert governance reduces interruptive alert volume vs threshold-only scoring while preserving in-window detection | analytical | MIMIC-IV 3.1 credentialed | test (temporal) | PE-1 governed sensitivity, PE-2 interruptive reduction ratio, stay bootstrap CIs | pending | `eval/mimic_study/frozen/` (new version) | pending | **Blocked** — splits inapplicable (date shift); B/C not integrated |
+| GATE-0 | "Phase B correctness and Phase C infrastructure are integrated" | eng | — | — | — | — | — | — | **TRUE on 2026-09-05**; merged review baseline `90e4ded` |
+| C1 | Shared alert governance reduces interruptive alert volume vs threshold-only scoring while preserving in-window detection | analytical | MIMIC-IV 3.1 credentialed | test (temporal) | PE-1 governed sensitivity, PE-2 interruptive reduction ratio, stay bootstrap CIs | pending | `eval/mimic_study/frozen/` (new version) | pending | **Blocked** — splits inapplicable (date shift); labels and comparator run remain |
 | C2 | Episode arbitration yields one actionable episode instead of alert floods | eng | demo-schema fixtures | — | episode vs alert counts | `python -m eval.mimic_study.study run` | `eval/mimic_study/frozen/study_manifest.v1.json` | `e4998934…c798a73` (demo) | engineering done (demo schema only) |
 | C3 | Adding an indicator is a plugin/bundle task | eng | — | — | CURIE-010/011/013 gates | `make parity` | rule registry + plugin | — | engineering done |
 | C4 | Availability-time replay has no future leakage | eng | demo-schema fixtures | — | CURIE-015 leakage tests | `pytest -q eval/mimic_harness/` | `eval/mimic_harness/test_harness.py` | — | engineering done (demo schema) |
@@ -38,7 +38,7 @@ Each claim row maps one proposed paper sentence to:
 | GOV-1 | Naive vs governed vs interruptive burden, watch vs page separation, lead time | analytical | MIMIC-IV 3.1 credentialed | test | PE-1/PE-2 + secondary endpoints | pending | pending | pending | Blocked (splits + labels) |
 | ROB-1 | Pre-specified robustness: urine grace windows, detection windows, partial-score policy, pressor unknown-dose handling, FiO2/PaO2 preference, SpO2 fallback, ESRD/comfort/OR variants, split stability, bootstrap seed 42 | analytical | MIMIC-IV 3.1 credentialed | test (pre-specified only) | effect direction + CIs | pending | pending | pending | Blocked; scaffolding in `eval/mimic_study/bootstrap.py` (seed 42, 1000 replicates) |
 | EICU-1 | eICU completeness/portability analysis | analytical-audit | eICU-CRD demo | demo smoke (50 stays) | component missing rates | `python -m eval.mimic_study.eicu_audit` | `data/audit/eicu_portability_audit.json` | `6741cef4…59959e` | audit-only, not frozen; explicitly not clinical validation |
-| EICU-2 | Legacy "n=8000" eICU completeness numbers (implementation-backlog Milestone 11) | analytical | eICU-CRD full | protocol-seeded n=8000 | component missing rates | `measure_eicu_sofa_missingness` | — | — | **UNVERIFIED** — cannot be re-run: credentialed eICU absent (`CURIE_EICU_DIR` unset). Old narrative values must not be reused |
+| EICU-2 | eICU completeness/portability on the protocol-seeded n=8000 sample | analytical-audit | eICU-CRD v2.0 | protocol-seeded n=8000, seed 42 | component missing rates | `CURIE_EICU_DIR=... python -m eval.mimic_study.completeness_check --dataset eicu --limit 8000 --seed 42 --batch-size 200` | `data/audit/eicu_sofa_missingness_n8000.json` | `e2f303fff11c868b88f0e5f2ea171e0286220f62cc04dc07dc766207d900fe2a` | **Re-measured, audit-only**; current corrected respiration rate 59.725% (4,778/8,000) |
 | NON-1 | Clinical SOFA accuracy / superiority to NEWS/qSOFA | prohibited | — | — | — | — | — | — | must not appear |
 | NON-2 | Improved outcomes / mortality prediction / treatment benefit | prohibited | — | — | — | — | — | — | must not appear |
 | NON-3 | Clinical validation on MIMIC or eICU | prohibited | — | — | — | — | — | — | must not appear; eICU is completeness/portability only |
@@ -48,17 +48,19 @@ Each claim row maps one proposed paper sentence to:
 
 ## Integration-gate evidence (2026-09-05)
 
-- `codex/review-fixes` HEAD `83e4110` == `origin/main` HEAD: the Phase B review fixes
-  exist only as **uncommitted working-tree changes**.
-- Phase B blocker B1 (MIMIC `rateuom`) is **not wired** into
-  `ingestion/adapters/mimic/extract.py`; the typed conversion policy +
-  audit exist in `ingestion/adapters/mimic/vasopressors.py` (tests pass), and the
-  read-only audit shows 519,642/519,878 mapped pressor rows are `mcg/kg/min`, 2 are
-  `mg/kg/min` (would be silently 1000× wrong under the current adapter), 234 have
-  missing rate/unit.
-- Phase C: `eval/mimic_study/indexing.py` (stay-partitioned Parquet index) is
-  in-flight/uncommitted; no frozen label run or comparator run exists; no
-  full-cohort indexed replay command is wired to the Makefile yet.
+- Review baseline `90e4ded` contains the merged Phase B correctness, Phase C indexed
+  replay, and literature-audit work. The repository worktree is clean.
+- Phase B blocker B1 (MIMIC `rateuom`) is wired into
+  `ingestion/adapters/mimic/extract.py`; the typed conversion policy and audit
+  remain in `ingestion/adapters/mimic/vasopressors.py`, with unknown units and
+  missing rates handled explicitly.
+- The eICU n=8000 result above is an audit measurement, not clinical validation and
+  not a frozen study result. MIMIC-IV labels, temporal protocol amendment, and
+  comparator runs remain outstanding.
+- The baseline documentation's 53.1% eICU respiration figure is reproducible only
+  with the pre-correction scorer. The current scorer uses Rice 2007 S/F→P/F
+  imputation and fails closed above SpO₂ 97%, yielding 59.725%. These are not
+  interchangeable estimates.
 
 ## Regeneration commands
 
@@ -66,7 +68,8 @@ Each claim row maps one proposed paper sentence to:
 python -m eval.mimic_study.cohort_flow --json-out data/audit/mimic_cohort_flow.json
 python -m eval.mimic_study.completeness_audit --json-out data/audit/mimic_completeness_audit.json
 python -m eval.mimic_study.eicu_audit --json-out data/audit/eicu_portability_audit.json
-python -m pytest -q                                  # 394 passed (2026-09-05)
+CURIE_EICU_DIR=/path/to/eicu-crd-v2.0 python -m eval.mimic_study.completeness_check --dataset eicu --limit 8000 --seed 42 --batch-size 200 --json-out data/audit/eicu_sofa_missingness_n8000.json
+python -m pytest -q                                  # focused post-merge checks: 164 passed
 python -m eval.parity.gate                           # PARITY_OK=true fixtures=34 mismatches=0
 make flink-test                                      # blocked: Docker daemon not running (OrbStack)
 ```
