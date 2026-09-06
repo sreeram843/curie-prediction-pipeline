@@ -85,6 +85,8 @@ def replay_stay_ablation(
 
     naive_times: list[str] = []
     naive_interruptive = 0
+    naive_sofa_count = 0
+    naive_aki_count = 0
     gov_times: list[str] = []
     page_times: list[str] = []
     gov_alert_count = 0
@@ -191,6 +193,7 @@ def replay_stay_ablation(
             if tier.value in {"watch", "urgent", "critical"}:
                 pos = sum(1 for c in sofa.components if c.points and c.points > 0)
                 naive_times.append(clock.isoformat())
+                naive_sofa_count += 1
                 if tier.value in {"urgent", "critical"}:
                     naive_interruptive += 1
                 alert = {
@@ -228,7 +231,15 @@ def replay_stay_ablation(
                     "positive_components": 1 if (aki.total_score or 0) > 0 else 0,
                 }
                 aki_signal_count += 1
-                # Naive AKI count is tracked separately from SOFA naive_times.
+                # AKI joins the same naive_times/naive_interruptive baseline as SOFA:
+                # governed_alert_count and page_alert_count already sum both
+                # indicators via _emit_signal, so the naive side must too, or the
+                # reduction ratio compares a governed (SOFA+AKI) total against a
+                # naive (SOFA-only) total.
+                naive_times.append(clock.isoformat())
+                naive_aki_count += 1
+                if aki_tier.value in {"urgent", "critical"}:
+                    naive_interruptive += 1
                 _emit_signal(alert=aki_alert, gov_state=aki_gov, clock=clock)
 
     episode_count = 0
@@ -247,6 +258,8 @@ def replay_stay_ablation(
         "naive_alert_count": len(naive_times),
         "naive_interruptive_count": naive_interruptive,
         "naive_alert_times": naive_times,
+        "naive_sofa_alert_count": naive_sofa_count,
+        "naive_aki_alert_count": naive_aki_count,
         "governed_alert_count": gov_alert_count,
         "governed_alert_times": gov_times,
         "interruptive_alert_count": page_alert_count,

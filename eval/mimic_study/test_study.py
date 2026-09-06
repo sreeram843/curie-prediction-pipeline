@@ -68,6 +68,63 @@ def test_naive_vs_governed_replay_differs_on_positive_stay() -> None:
     assert gov["score_trajectory"]
 
 
+def test_naive_count_includes_aki_like_governed_count_does() -> None:
+    """naive_alert_count and governed_alert_count must cover the same indicator
+    population. Regression for a bug where governed_alert_count summed SOFA +
+    AKI (via _emit_signal) but naive_alert_count only ever counted SOFA,
+    inflating the apparent alert-reduction ratio on any stay with AKI signals."""
+    stay = {
+        "stay_id": "mixed-1",
+        "subject_id": "s-mixed-1",
+        "hadm_id": "h-mixed-1",
+        "intime": "2019-01-01 00:00:00",
+        "outtime": "2019-01-03 00:00:00",
+        "labels": {"sepsis3_onset": None, "aki_kdigo_stage_ge_1": None},
+        "labs": [
+            # Baseline creatinine, then a 2x rise within the KDIGO window -> AKI stage.
+            {
+                "itemid": 50912,
+                "valuenum": 1.0,
+                "unit": "mg/dL",
+                "charttime": "2019-01-01 06:00:00",
+                "storetime": "2019-01-01 06:00:00",
+                "evidence_id": "lab/cr-baseline",
+            },
+            {
+                "itemid": 50912,
+                "valuenum": 2.0,
+                "unit": "mg/dL",
+                "charttime": "2019-01-01 18:00:00",
+                "storetime": "2019-01-01 18:00:00",
+                "evidence_id": "lab/cr-doubled",
+            },
+        ],
+        "charts": [
+            # Low MAP -> SOFA cardiovascular deterioration, independent of AKI.
+            {
+                "itemid": 220052,
+                "valuenum": 50,
+                "unit": "mmHg",
+                "charttime": "2019-01-01 07:00:00",
+                "storetime": "2019-01-01 07:00:00",
+                "evidence_id": "chart/map-low",
+            }
+        ],
+        "conditions": [],
+    }
+    result = replay_stay_ablation(stay, knobs=None)
+    # Sanity: both indicators actually fired, or this test proves nothing.
+    assert result["naive_sofa_alert_count"] > 0
+    assert result["naive_aki_alert_count"] > 0
+    # knobs=None is a pure passthrough in _emit_signal (no governance filtering),
+    # so with identical indicator coverage on both sides these must be exactly equal.
+    assert result["naive_alert_count"] == result["governed_alert_count"]
+    assert result["naive_alert_count"] == (
+        result["naive_sofa_alert_count"] + result["naive_aki_alert_count"]
+    )
+    assert result["score_trajectory"]
+
+
 def test_frozen_artifacts_regenerated_by_run(tmp_path: Path) -> None:
     result = run_study(write_frozen=True, frozen_dir=tmp_path)
     op_path = tmp_path / "operating_point.v1.json"
