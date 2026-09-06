@@ -16,14 +16,18 @@ from eval.mimic_study.labels.pins import (
     validate_pin,
     write_pin,
 )
+from eval.mimic_study.labels.materialize import build_label_artifact, write_label_artifact
 
 
 def _make_mimic_code_repo(tmp: Path) -> Path:
     repo = tmp / "mimic-code"
-    sql_dir = repo / "mimic-iv" / "concepts" / "sepsis"
-    sql_dir.mkdir(parents=True)
-    (sql_dir / "suspicion_of_infection.sql").write_text("-- soi\nSELECT 1;\n")
-    (sql_dir / "sepsis3.sql").write_text("-- sepsis3\nSELECT 2;\n")
+    sql_files = {
+        **SEPSIS3_SQL_FILES,
+    }
+    for index, rel in enumerate(sql_files.values(), start=1):
+        sql_path = repo / rel
+        sql_path.parent.mkdir(parents=True, exist_ok=True)
+        sql_path.write_text(f"-- {rel}\nSELECT {index};\n")
     subprocess.run(["git", "init", "-q"], cwd=repo, check=True)
     subprocess.run(["git", "config", "user.email", "t@t"], cwd=repo, check=True)
     subprocess.run(["git", "config", "user.name", "t"], cwd=repo, check=True)
@@ -83,3 +87,34 @@ def test_replay_never_imports_labels() -> None:
     from eval.mimic_study import index_replay  # noqa: F401
 
     assert not [n for n in sys.modules if n.startswith("eval.mimic_study.labels")]
+
+
+def test_materialize_labels_is_sorted_hashed_and_preserves_unknowns(tmp_path: Path) -> None:
+    repo = _make_mimic_code_repo(tmp_path)
+    pin = pin_from_repo(repo, sql_files=SEPSIS3_SQL_FILES)
+    artifact = build_label_artifact(
+        cohort_stay_ids=["s3", "s1", "s2"],
+        sepsis_rows=[
+            {"stay_id": "s1", "sepsis3": "1", "sofa_time": "2019-01-01 04:00:00"},
+            {"stay_id": "s1", "sepsis3": "1", "sofa_time": "2019-01-01 03:00:00"},
+            {"stay_id": "s2", "sepsis3": "0", "sofa_time": "2019-01-01 02:00:00"},
+        ],
+        kdigo_rows=[
+            {"stay_id": "s1", "kdigo_stage": "2", "event_time": "2019-01-01 05:00:00"},
+            {"stay_id": "s1", "kdigo_stage": "1", "event_time": "2019-01-01 02:00:00"},
+        ],
+        protocol_id="mimic-iv-governance-study.v2",
+        dataset_pin={"name": "mimic-iv", "version": "3.1", "extract_date": "2026-09-06"},
+        source_pin=pin,
+    )
+
+    assert [row["stay_id"] for row in artifact["stays"]] == ["s1", "s2", "s3"]
+    assert artifact["stays"][0]["sepsis3_onset"] == "2019-01-01T03:00:00"
+    assert artifact["stays"][0]["aki_kdigo_max_stage"] == 2
+    assert artifact["stays"][1]["sepsis3_onset"] is None
+    assert artifact["stays"][2]["sepsis3_onset"] is None
+    assert artifact["stays"][2]["aki_kdigo_stage_ge_1"] is None
+    assert len(artifact["content_hash"]) == 64
+
+    out = write_label_artifact(artifact, tmp_path / "labels.json")
+    assert out.is_file()
