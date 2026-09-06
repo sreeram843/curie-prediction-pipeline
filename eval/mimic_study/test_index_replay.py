@@ -20,6 +20,7 @@ from eval.mimic_study.index_replay import (  # noqa: E402
     run_with_manifest,
 )
 from eval.mimic_study.indexing import build_index, load_stay_events  # noqa: E402
+from eval.mimic_study.protocol import load_protocol  # noqa: E402
 from eval.mimic_study.test_indexing import make_mimic_source  # noqa: E402
 
 
@@ -204,3 +205,39 @@ class TestManifestIntegration:
         assert manifest["runtime"]["peak_rss_bytes"] > 0
         assert manifest["storage"]["index_bytes"] > 0
         assert manifest["cli"]["argv"]
+
+    def test_stage_b_labels_and_protocol_attach_to_replay(self, mimic_index: Path, tmp_path: Path) -> None:
+        from eval.mimic_study.labels.materialize import build_label_artifact, write_label_artifact
+
+        pin = {
+            "schema_version": "1.0.0",
+            "mimic_code": {"revision": "test", "resolved_commit": "abc", "files": {}},
+        }
+        artifact = build_label_artifact(
+            cohort_stay_ids=["10", "11", "12"],
+            sepsis_rows=[{"stay_id": "10", "sepsis3": "1", "sofa_time": "2020-01-01 12:00:00"}],
+            kdigo_rows=[],
+            protocol_id="mimic-iv-governance-study.v2",
+            dataset_pin={"name": "mimic-iv", "version": "3.1", "extract_date": "2026-09-06"},
+            source_pin=pin,
+        )
+        labels_path = write_label_artifact(artifact, tmp_path / "labels.json")
+
+        report = replay_indexed_stays(
+            index_dir=mimic_index,
+            stay_ids=["10"],
+            labels_path=labels_path,
+            protocol=load_protocol(version="v2"),
+        )
+        assert report["protocol_id"] == "mimic-iv-governance-study.v2"
+        assert report["labels"]["content_hash"] == artifact["content_hash"]
+        assert report["stays"][0]["labels"]["sepsis3_onset"] == "2020-01-01T12:00:00"
+
+        _, manifest = run_with_manifest(
+            index_dir=mimic_index,
+            stay_ids=["10"],
+            labels_path=labels_path,
+            protocol=load_protocol(version="v2"),
+        )
+        assert manifest["protocol_id"] == "mimic-iv-governance-study.v2"
+        assert manifest["labels"]["artifact"]["content_hash"] == artifact["content_hash"]
