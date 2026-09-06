@@ -31,6 +31,7 @@ public class AlertEvent implements Serializable {
   public String governance_path = "naive";
   public boolean suppressed = false;
   public String suppression_reason;
+  public boolean late_correction = false;
   /** interruptive | passive | none — set by governance (dual-lane). */
   public String routing;
   /** Why an interruptive page was deferred to watch (page_crossings, …). */

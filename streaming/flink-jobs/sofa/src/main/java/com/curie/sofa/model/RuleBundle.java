@@ -48,6 +48,8 @@ public class RuleBundle implements Serializable {
     public Tiering tiering = new Tiering();
     /** Dual-lane page gate (Challenge frozen operating point when enabled). */
     public PageGate page_gate = new PageGate();
+    /** suppress = fail closed; passive_correction = emit a passive audit alert. */
+    public String late_event_policy = "suppress";
   }
 
   @JsonIgnoreProperties(ignoreUnknown = true)

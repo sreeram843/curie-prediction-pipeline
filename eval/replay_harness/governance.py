@@ -58,6 +58,9 @@ class GovernanceConfig:
     quality_reject_ood: bool = False
     # When False, late/out-of-order event_times are accepted (ablation: drop_late_event_buffer).
     reject_late_out_of_order: bool = True
+    # ``suppress`` preserves the fail-closed default; ``passive_correction`` emits an
+    # audit-visible passive alert without mutating trajectory state.
+    late_event_policy: str = "suppress"
 
 
 @dataclass
@@ -174,6 +177,12 @@ def evaluate(alert: dict, state: PatientGovState, config: GovernanceConfig) -> D
         and state.last_processed_event_time is not None
         and event_time < state.last_processed_event_time
     ):
+        if config.late_event_policy == "passive_correction":
+            out["late_correction"] = True
+            out["suppressed"] = False
+            out["suppression_reason"] = None
+            out["governance_path"] = "governed"
+            return Decision(True, "late_correction", "passive", out)
         out["suppressed"] = True
         out["suppression_reason"] = "late_out_of_order"
         return Decision(False, "late_out_of_order", "none", out)

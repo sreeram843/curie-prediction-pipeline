@@ -82,6 +82,7 @@ public class GovernanceFilterFunction
       value.suppression_reason = decision.alert.suppressionReason;
       value.routing = decision.routing;
       value.page_deferred_reason = decision.alert.pageDeferredReason;
+      value.late_correction = decision.alert.lateCorrection;
       if (value.positive_components == null) {
         value.positive_components = view.positiveComponents;
       }
@@ -134,7 +135,7 @@ public class GovernanceFilterFunction
         g.page_gate != null ? g.page_gate.trajectory_persistence_minutes : 30;
     int pageDelta = g.page_gate != null ? g.page_gate.min_score_delta : 1;
     int pagePos = g.page_gate != null ? g.page_gate.min_positive_components : 0;
-    return GovernancePolicy.Config.fromBundleKnobs(
+    GovernancePolicy.Config config = GovernancePolicy.Config.fromBundleKnobs(
         persistence,
         crossings,
         baseline,
@@ -150,5 +151,7 @@ public class GovernanceFilterFunction
         pagePersist,
         pageDelta,
         pagePos);
+    config.lateEventPolicy = g.late_event_policy;
+    return config;
   }
 }

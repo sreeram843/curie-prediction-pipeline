@@ -50,6 +50,8 @@ public final class GovernancePolicy {
     public int qualityMaxDataAgeMinutes = 0;
     public boolean qualityRejectInvalid = true;
     public boolean qualityRejectContradictory = true;
+    /** suppress = fail closed; passive_correction = emit audit-visible passive alert. */
+    public String lateEventPolicy = "suppress";
 
     public static Config fromBundleKnobs(
         int persistenceMinutes,
@@ -154,6 +156,7 @@ public final class GovernancePolicy {
     public String encounterId;
     public String governancePath = "naive";
     public boolean suppressed;
+    public boolean lateCorrection;
     public String suppressionReason;
     public String pageDeferredReason;
     public Integer positiveComponents;
@@ -223,6 +226,13 @@ public final class GovernancePolicy {
     // Explicit late-data policy: do not mutate state for out-of-order arrivals.
     if (state.lastProcessedEventTimeMs != Long.MIN_VALUE
         && eventTimeMs < state.lastProcessedEventTimeMs) {
+      if ("passive_correction".equals(config.lateEventPolicy)) {
+        naive.lateCorrection = true;
+        naive.suppressed = false;
+        naive.suppressionReason = null;
+        naive.governancePath = "governed";
+        return new Decision(true, false, "late_correction", "passive", naive);
+      }
       naive.suppressed = true;
       naive.suppressionReason = "late_out_of_order";
       naive.governancePath = "governed";
