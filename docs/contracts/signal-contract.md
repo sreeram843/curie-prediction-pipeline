@@ -31,6 +31,15 @@ to render an unknown `signal_type`.
 | `components` | Uniform component breakdown |
 | `extensions` | Indicator-specific extras only |
 
+For streaming alerts, `event_time` is the leakage-safe evaluation/availability
+clock. Implementations that retain bedside occurrence time expose it as
+`clinical_event_time`; late passive corrections expose `late_correction` in
+the alert envelope and cannot mutate governance state.
+
+Sepsis-3 signals place baseline provenance in `extensions`, including
+`baseline_assumed` and `baseline_source` when the explicitly authorized
+zero-baseline policy is used.
+
 ## Adapters
 
 | Source | Adapter |

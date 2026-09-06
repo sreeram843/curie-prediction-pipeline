@@ -84,6 +84,27 @@ def test_unknown_ventilation_observation_is_not_scored() -> None:
     assert observation_to_input(resource) is None
 
 
+def test_blood_pressure_panel_rejects_invalid_component_unit() -> None:
+    resource = {
+        "resourceType": "Observation",
+        "id": "bp-bad-unit",
+        "status": "final",
+        "code": {"coding": [{"code": "85354-9"}]},
+        "component": [
+            {
+                "code": {"coding": [{"code": "8480-6"}]},
+                "valueQuantity": {"value": 120, "unit": "kPa"},
+            },
+            {
+                "code": {"coding": [{"code": "8462-4"}]},
+                "valueQuantity": {"value": 60, "unit": "mmHg"},
+            },
+        ],
+    }
+
+    assert observation_to_input(resource) is None
+
+
 class TestPartialUpdatesDoNotRefreshUnrelatedFields:
     def test_new_platelets_do_not_refresh_old_bilirubin(self) -> None:
         state = PatientState()

@@ -60,6 +60,7 @@ _VENT_CODE = "curie-mechanical-ventilation"
 # (mirrors ingestion.adapters.mimic.extract.build_sofa_inputs) — bounded by a
 # lookback window so a ratio is never built from a setting that may no longer hold.
 _FIO2_LOOKBACK = timedelta(hours=24)
+_VENTILATION_LOOKBACK = timedelta(hours=24)
 _URINE_LOINC = "9187-6"
 _VASO_CODE = "curie-vasopressor"
 _VASO_LOOKBACK = timedelta(hours=4)
@@ -220,12 +221,22 @@ def _set_respiration(state: StayReplayState, *, clock: datetime) -> None:
         lookback=_FIO2_LOOKBACK,
     )
     if resolved.source is not None:
+        ventilation_is_fresh = (
+            state.ventilation_observed_at is not None
+            and state.ventilation_observed_at <= clock
+            and clock - state.ventilation_observed_at <= _VENTILATION_LOOKBACK
+        )
+        evidence_ids = list(resolved.evidence_ids)
+        if ventilation_is_fresh and state.ventilation_evidence_id:
+            evidence_ids.append(state.ventilation_evidence_id)
         state.components[SofaComponentName.RESPIRATION] = SofaComponentInput(
             name=SofaComponentName.RESPIRATION,
             pao2_fio2=resolved.pao2_fio2,
             spo2_fio2=resolved.spo2_fio2,
-            mechanically_ventilated=state.mechanically_ventilated,
-            evidence_ids=list(resolved.evidence_ids),
+            mechanically_ventilated=(
+                state.mechanically_ventilated if ventilation_is_fresh else None
+            ),
+            evidence_ids=list(dict.fromkeys(evidence_ids)),
         )
         return
     # Incomplete without FiO2 — leave prior incomplete/missing; clear scoreable resp.

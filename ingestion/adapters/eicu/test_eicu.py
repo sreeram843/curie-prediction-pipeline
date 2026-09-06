@@ -139,7 +139,7 @@ def test_respiratory_charting_missing_arg_is_ok() -> None:
     assert converted["coverage"]["concepts"].get(c.FIO2, 0) == 0
 
 
-def test_respiratory_charting_ignores_non_fio2_labels() -> None:
+def test_respiratory_charting_ignores_unmapped_labels() -> None:
     converted = convert_eicu_rows(
         patients=[_patient()],
         labs=[],
@@ -153,13 +153,6 @@ def test_respiratory_charting_ignores_non_fio2_labels() -> None:
                 "respcharttypecat": "respFlowSettings",
                 "respchartvaluelabel": "Vent Rate",
                 "respchartvalue": "14",
-            },
-            {
-                "patientunitstayid": "1",
-                "respchartoffset": "30",
-                "respcharttypecat": "respFlowCareData",
-                "respchartvaluelabel": "RT Vent On/Off",
-                "respchartvalue": "Continued",
             },
         ],
     )

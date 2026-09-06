@@ -42,10 +42,10 @@
 - Apply feature values using clinical `event_time`; evaluate and emit alerts using the availability clock, retaining the clinical time in a `clinical_event_time` alert field.
 - Mirror the same distinction in the Python reference scorer: `PatientState.apply` receives clinical time and `compute_sofa_score` receives effective availability time.
 
-- [ ] Add a regression event with clinical time 09:00 and availability time 10:00 after a vital at 09:55; assert the lab is not DLQ'd and the emitted evaluation time is 10:00.
-- [ ] Add invalid-availability and missing-availability tests proving fallback behavior and fail-closed timestamp handling.
-- [ ] Run the targeted Python and Maven tests and confirm the existing event-time ordering tests remain green.
-- [ ] Commit the RED and GREEN checkpoints separately.
+- [x] Add a regression event with clinical time 09:00 and availability time 10:00 after a vital at 09:55; assert the lab is not DLQ'd and the emitted evaluation time is 10:00.
+- [x] Add invalid-availability and missing-availability tests proving fallback behavior and fail-closed timestamp handling.
+- [x] Run the targeted Python and Maven tests and confirm the existing event-time ordering tests remain green.
+- [x] Commit the RED and GREEN checkpoints separately.
 
 ### Task 2: Explicit Sepsis-3 baseline policy
 
@@ -60,10 +60,10 @@
 - When policy is `assume_zero_if_no_known_dysfunction` and the explicit no-dysfunction flag is true, evaluate with baseline 0 and record `baseline_assumed_zero` plus a provenance entry.
 - Otherwise preserve the current `insufficient_data` result for a missing baseline.
 
-- [ ] Test explicit baseline, missing baseline under strict policy, authorized zero baseline, and missing authorization.
-- [ ] Test that chronic dysfunction with no acute rise remains `not_met`.
-- [ ] Run phenotype and signal-contract tests.
-- [ ] Commit RED and GREEN checkpoints separately.
+- [x] Test explicit baseline, missing baseline under strict policy, authorized zero baseline, and missing authorization.
+- [x] Test that chronic dysfunction with no acute rise remains `not_met`.
+- [x] Run phenotype and signal-contract tests.
+- [x] Commit RED and GREEN checkpoints separately.
 
 ### Task 3: Late governance correction lane
 
@@ -81,10 +81,10 @@
 - For `suppress`, preserve the current `late_out_of_order` suppression and state immutability.
 - Add the rule-bundle governance field with default suppression and wire it through Java bundle parsing without changing existing frozen bundle files.
 
-- [ ] Test both policies, including assertions that the correction lane cannot produce an interruptive page and cannot alter subsequent trajectory decisions.
-- [ ] Add Python/Java parity fixtures for both policy values.
-- [ ] Run governance parity and Maven tests.
-- [ ] Commit RED and GREEN checkpoints separately.
+- [x] Test both policies, including assertions that the correction lane cannot produce an interruptive page and cannot alter subsequent trajectory decisions.
+- [x] Add matching Python/Java governance tests for both policy values; these configuration-only cases do not alter frozen scorer fixtures.
+- [x] Run governance parity and Maven tests.
+- [x] Commit RED and GREEN checkpoints separately.
 
 ### Task 4: Remaining evidence-backed adapter mappings
 
@@ -100,17 +100,24 @@
 - Parse eICU respiratory-charting support labels into explicit invasive-ventilation evidence only for unambiguous values such as invasive ventilation, ventilator, intubated, or ETT; map room air, nasal cannula, masks, and high-flow as non-invasive/false evidence, never as invasive ventilation.
 - Do not infer ventilation from FiO2 alone and do not invent site-specific Epic mappings.
 
-- [ ] Add positive, negative, malformed, and missing-component fixtures for the FHIR BP panel.
-- [ ] Add eICU ventilation-label tests and ensure unknown labels remain missing rather than false.
-- [ ] Run adapter tests, Python parity, and Maven tests.
-- [ ] Commit RED and GREEN checkpoints separately.
+- [x] Add positive, negative, malformed, and missing-component fixtures for the FHIR BP panel.
+- [x] Add eICU ventilation-label tests and ensure unknown labels remain missing rather than false.
+- [x] Run adapter tests, Python parity, and Maven tests.
+- [x] Commit RED and GREEN checkpoints separately.
 
 ### Final verification
 
-- [ ] Run `.venv/bin/pytest -q`.
-- [ ] Run `.venv/bin/ruff check .` and record any unrelated pre-existing finding.
-- [ ] Run `git diff --check`.
-- [ ] Run `python -m eval.parity.gate`.
-- [ ] Run `mvn -B -q test` in `streaming/flink-jobs` or `make flink-test`, recording Docker limitations.
-- [ ] Update the review-fixes TDD evidence and relevant contracts without changing frozen study artifacts.
-- [ ] Commit the final implementation and report remaining integration-only gaps.
+- [x] Run `.venv/bin/pytest -q` (`532 passed`, 5 dependency/framework deprecation warnings).
+- [x] Run `.venv/bin/ruff check .` and record any unrelated pre-existing finding; it reports only existing findings in `eval/manuscript/make_figures.py`, while changed files pass.
+- [x] Run `git diff --check`.
+- [x] Run `python -m eval.parity.gate` (`PARITY_OK=true fixtures=43 mismatches=0`).
+- [x] Run `mvn -B -q test` in `streaming/flink-jobs`; Docker wrapper remains an environment limitation.
+- [x] Update the review-fixes TDD evidence and relevant contracts without changing frozen study artifacts.
+- [x] Commit the final implementation and report remaining integration-only gaps.
+
+## Completion notes
+
+- RED/GREEN checkpoints were committed separately for each implementation area.
+- The remaining MIMIC-IV full-study execution and Epic Clarity/Caboodle mappings are integration
+  work: they require the external dataset/DUA and hospital-specific identifiers, so no synthetic
+  IDs or unsupported clinical claims were added here.

@@ -154,6 +154,31 @@ def test_sepsis3_projects_as_phenotype() -> None:
     assert "infection_culture" in sig.criteria_met
 
 
+def test_sepsis3_signal_preserves_assumed_baseline_provenance() -> None:
+    result = evaluate_sepsis3(
+        Sepsis3Input(
+            as_of=T0,
+            current_sofa=2,
+            baseline_sofa=None,
+            baseline_policy="assume_zero_if_no_known_dysfunction",
+            no_known_preexisting_dysfunction=True,
+            baseline_evidence_id="Assessment/no-known-dysfunction",
+            infection_events=[
+                InfectionEvent(event_time=T0, kind="culture", evidence_id="Procedure/bcx")
+            ],
+        )
+    )
+    sig = signal_from_sepsis3(
+        alert_id="alert-s3-baseline",
+        patient_id="Patient/s3",
+        result=result,
+        event_time=T0,
+    )
+
+    assert sig.extensions["baseline_assumed"] is True
+    assert sig.extensions["baseline_source"] == "Assessment/no-known-dysfunction"
+
+
 def test_unknown_signal_type_round_trips_without_special_casing() -> None:
     raw = {
         "alert_id": "alert-future-1",

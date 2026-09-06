@@ -17,10 +17,10 @@ Product rule bundle `sepsis-sofa` **v0.3.0** emits `sofa-deterioration`. Challen
 
 | Component | Typical inputs (FHIR Observation codes — LOINC preferred) | Notes |
 |---|---|---|
-| respiration | PaO2/FiO2 or SpO2/FiO2 proxy; ventilation flag | Points 3–4 require mechanical ventilation |
+| respiration | PaO2/FiO2 or Rice-imputed SpO2/FiO2 proxy; ventilation flag | Points 3–4 require mechanical ventilation; FiO2 must be documented or explicitly identified as room air |
 | coagulation | Platelets (10^9/L) | |
 | liver | Bilirubin (mg/dL) | |
-| cardiovascular | MAP (mmHg); vasopressor agent + dose (µg/kg/min) | Vincent ladder; unknown dose → 3 |
+| cardiovascular | MAP (mmHg), including a paired FHIR BP panel; vasopressor agent + dose (µg/kg/min) | Vincent ladder; unknown dose → 3 |
 | cns | GCS total | |
 | renal | Creatinine (mg/dL) and/or urine output (mL/day) | `max(Cr, UO)` |
 
@@ -42,7 +42,7 @@ Product rule bundle `sepsis-sofa` **v0.3.0** emits `sofa-deterioration`. Challen
 
 ## Alert payload (deterministic)
 
-Must include: `score`, `severity`/`tier`, `component_breakdown`, `missing_components`, `evidence_ids`, `rule_bundle_id`, `rule_version`, `patient_id`, `encounter_id`, `event_time`, `indicator` (`sofa-deterioration`).
+Must include: `score`, `severity`/`tier`, `component_breakdown`, `missing_components`, `evidence_ids`, `rule_bundle_id`, `rule_version`, `patient_id`, `encounter_id`, `event_time` (availability/evaluation clock), optional `clinical_event_time`, `indicator` (`sofa-deterioration`).
 
 Rule bundle: `sepsis-sofa` **v0.3.0** (thresholds in JSON `score.component_thresholds`).
 
@@ -54,6 +54,7 @@ Implemented in `eval/sepsis3/phenotype.py` with fixtures `eval/fixtures/golden/s
 - Acute organ dysfunction: `current_sofa - baseline_sofa ≥ 2`.
 - Pre-existing high baseline without acute rise → **not met**.
 - Missing SOFA or infection inputs → `insufficient_data` (never silently met).
+- Missing baseline remains `insufficient_data` by default. A zero baseline is permitted only with an explicit `assume_zero_if_no_known_dysfunction` policy and no-known-dysfunction evidence.
 - Exclusions: `comfort_care`, `already_on_sepsis_protocol`.
 
 Every evidence ID from the chosen infection event is preserved on the result.

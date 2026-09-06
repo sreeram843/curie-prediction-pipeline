@@ -189,6 +189,36 @@ class FhirSofaMapperTest {
   }
 
   @Test
+  void rejectsBloodPressurePanelWithInvalidComponentUnit() {
+    ObjectNode obs = mapper.createObjectNode();
+    obs.put("resourceType", "Observation");
+    obs.put("id", "bp-bad-unit");
+    obs.put("status", "final");
+    obs.putObject("code")
+        .putArray("coding")
+        .addObject()
+        .put("code", FhirSofaMapper.LOINC_BLOOD_PRESSURE_PANEL);
+    ObjectNode sbp = obs.putArray("component").addObject();
+    sbp.putObject("code")
+        .putArray("coding")
+        .addObject()
+        .put("code", FhirSofaMapper.LOINC_SYSTOLIC_BP);
+    sbp.putObject("valueQuantity").put("value", 120).put("unit", "kPa");
+    ObjectNode dbp = obs.withArray("component").addObject();
+    dbp.putObject("code")
+        .putArray("coding")
+        .addObject()
+        .put("code", FhirSofaMapper.LOINC_DIASTOLIC_BP);
+    dbp.putObject("valueQuantity").put("value", 60).put("unit", "mmHg");
+
+    ExtractResult result = FhirSofaMapper.extractValidated(obs);
+
+    assertTrue(result.inputs.isEmpty());
+    assertEquals(1, result.invalid.size());
+    assertEquals("invalid_blood_pressure_panel", result.invalid.get(0).reason);
+  }
+
+  @Test
   void mapsNorepinephrineRateWhenAlreadyWeightNormalized() {
     ObjectNode med = mapper.createObjectNode();
     med.put("resourceType", "MedicationAdministration");

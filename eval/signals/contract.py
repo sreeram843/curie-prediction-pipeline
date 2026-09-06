@@ -308,6 +308,8 @@ def signal_from_sepsis3(
             "phenotype_status": getattr(result, "status", None),
             "sofa_delta": getattr(result, "sofa_delta", None),
             "criteria_failed": list(getattr(result, "criteria_failed", None) or []),
+            "baseline_assumed": bool(getattr(result, "baseline_assumed", False)),
+            "baseline_source": getattr(result, "baseline_source", None),
         },
     )
 
