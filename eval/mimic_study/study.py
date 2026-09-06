@@ -62,13 +62,17 @@ def select_operating_point(
     stays: list[dict[str, Any]],
     *,
     candidates: dict[str, dict[str, Any]] | None = None,
+    protocol: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """OPS-1: tune candidates on development metrics context; select on calibration."""
-    assert_split_allowed_for_tuning("development", command="sweep")
-    assert_split_allowed_for_tuning("calibration", command="operating_point_selection")
+    proto = protocol or load_protocol()
+    assert_split_allowed_for_tuning("development", command="sweep", protocol=proto)
+    assert_split_allowed_for_tuning(
+        "calibration", command="operating_point_selection", protocol=proto
+    )
     # Explicitly refuse test
     try:
-        assert_command_allowed_on_split("test", "operating_point_selection")
+        assert_command_allowed_on_split("test", "operating_point_selection", protocol=proto)
         raise AssertionError("test must forbid operating_point_selection")
     except ProtocolError:
         pass
@@ -111,15 +115,17 @@ def select_operating_point(
     freeze = {
         "name": "mimic_demo_schema_operating_point",
         "schema_version": "1.0.0",
-        "study_version": STUDY_VERSION,
-        "protocol_id": load_protocol()["protocol_id"],
+        "study_version": (
+            STUDY_VERSION if proto["protocol_id"].endswith(".v1") else "0.2.0"
+        ),
+        "protocol_id": proto["protocol_id"],
         "candidate_id": winner["candidate_id"],
         "selected_at": datetime.now(UTC).isoformat(),
         "source_splits": ["development", "calibration"],
         "forbidden_selection_split": "test",
         "goals": {
-            "primary": load_protocol()["primary_endpoint"]["success_rule"],
-            "coprimary": load_protocol()["coprimary_endpoint"]["success_rule"],
+            "primary": proto["primary_endpoint"]["success_rule"],
+            "coprimary": proto["coprimary_endpoint"]["success_rule"],
         },
         "calibration": winner["calibration"],
         "knobs": winner["knobs"],
@@ -140,9 +146,11 @@ def run_ablations_on_test(
     stays: list[dict[str, Any]],
     *,
     primary_knobs: dict[str, Any],
+    protocol: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Execute each pre-specified ablation once on the locked test split."""
-    assert_command_allowed_on_split("test", "locked_ablation_eval")
+    proto = protocol or load_protocol()
+    assert_command_allowed_on_split("test", "locked_ablation_eval", protocol=proto)
     tables: dict[str, Any] = {}
     for ablation_id, knobs in ABLATION_KNOBS.items():
         use_knobs = primary_knobs if ablation_id == "full_governance" else knobs
@@ -156,8 +164,12 @@ def run_ablations_on_test(
 def run_primary_on_test(
     stays: list[dict[str, Any]],
     knobs: dict[str, Any],
+    *,
+    protocol: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    assert_command_allowed_on_split("test", "locked_primary_eval")
+    assert_command_allowed_on_split(
+        "test", "locked_primary_eval", protocol=protocol or load_protocol()
+    )
     return evaluate_knobs_on_split(stays, knobs, split_id="test")
 
 
@@ -167,16 +179,19 @@ def build_manifest(
     primary_test: dict[str, Any],
     ablations: dict[str, Any],
     fixture_meta: dict[str, Any],
+    protocol: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
+    proto = protocol or load_protocol()
+    suffix = "v2" if proto["protocol_id"].endswith(".v2") else "v1"
     body = {
         "manifest_version": "1.0.0",
-        "study_version": STUDY_VERSION,
-        "protocol_id": load_protocol()["protocol_id"],
-        "regenerate_command": "make mimic-study",
+        "study_version": STUDY_VERSION if suffix == "v1" else "0.2.0",
+        "protocol_id": proto["protocol_id"],
+        "regenerate_command": "make mimic-study" if suffix == "v1" else "make mimic-study-v2",
         "module": "python -m eval.mimic_study.study run",
         "fixture": "eval/fixtures/mimic_harness/demo_schema_stays.v1.json",
         "dataset_pin": fixture_meta.get("dataset_pin"),
-        "operating_point_path": "eval/mimic_study/frozen/operating_point.v1.json",
+        "operating_point_path": f"eval/mimic_study/frozen/operating_point.{suffix}.json",
         "selection_splits": ["development", "calibration"],
         "primary_eval_split": "test",
         "primary_eval_once": True,
@@ -198,16 +213,41 @@ def run_study(
     frozen_dir: Path | None = None,
 ) -> dict[str, Any]:
     stays, fixture_meta = _load_stays(fixtures_dir)
-    operating_point = select_operating_point(stays)
+    return run_study_rows(
+        stays,
+        fixture_meta=fixture_meta,
+        protocol=load_protocol(),
+        write_frozen=write_frozen,
+        frozen_dir=frozen_dir,
+    )
+
+
+def run_study_rows(
+    stays: list[dict[str, Any]],
+    *,
+    fixture_meta: dict[str, Any],
+    protocol: dict[str, Any] | None = None,
+    write_frozen: bool = True,
+    frozen_dir: Path | None = None,
+) -> dict[str, Any]:
+    """Run the locked study over supplied canonical stays.
+
+    Indexed replay and source adapters can feed this same orchestration once
+    they have reconstructed the canonical stay shape. Protocol v2 is explicit
+    so a caller cannot accidentally mix v1 artifacts with v2 labels.
+    """
+    proto = protocol or load_protocol()
+    suffix = "v2" if proto["protocol_id"].endswith(".v2") else "v1"
+    operating_point = select_operating_point(stays, protocol=proto)
     knobs = operating_point["knobs"]
-    primary = run_primary_on_test(stays, knobs)
-    ablations = run_ablations_on_test(stays, primary_knobs=knobs)
+    primary = run_primary_on_test(stays, knobs, protocol=proto)
+    ablations = run_ablations_on_test(stays, primary_knobs=knobs, protocol=proto)
     # Robustness: also report threshold-only on test for PE comparison
     naive = evaluate_knobs_on_split(stays, None, split_id="test")
 
     report = {
-        "study_version": STUDY_VERSION,
-        "protocol_id": load_protocol()["protocol_id"],
+        "study_version": STUDY_VERSION if suffix == "v1" else "0.2.0",
+        "protocol_id": proto["protocol_id"],
         "operating_point": {
             "candidate_id": operating_point["candidate_id"],
             "knobs": knobs,
@@ -230,15 +270,16 @@ def run_study(
         primary_test=primary,
         ablations=ablations,
         fixture_meta=fixture_meta,
+        protocol=proto,
     )
 
     if write_frozen:
         out_dir = frozen_dir or FROZEN_DIR
         out_dir.mkdir(parents=True, exist_ok=True)
-        (out_dir / "operating_point.v1.json").write_text(
+        (out_dir / f"operating_point.{suffix}.json").write_text(
             json.dumps(operating_point, indent=2) + "\n"
         )
-        (out_dir / "study_manifest.v1.json").write_text(
+        (out_dir / f"study_manifest.{suffix}.json").write_text(
             json.dumps(manifest, indent=2) + "\n"
         )
 
