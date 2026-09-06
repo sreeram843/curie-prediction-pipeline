@@ -1,0 +1,119 @@
+{
+  "schema_version": "1.0.0",
+  "protocol_id": "mimic-iv-governance-study.v2",
+  "status": "frozen",
+  "frozen_at": "2026-09-06",
+  "curie_task": "CURIE-014",
+  "description": "Stage B MIMIC-IV retrospective study protocol using de-identification anchor-year groups for temporal roles.",
+  "disclaimer": "Prototype engineering study design — not IRB-approved clinical research, not FDA evidence, not for patient care.",
+  "dataset": {
+    "name": "MIMIC-IV Clinical Database",
+    "target_version": "3.1",
+    "modules": ["hosp", "icu"],
+    "access": "PhysioNet credentialed download or cloud + signed DUA required for Stage B",
+    "pin_policy": "Record exact dataset version, extract date, and content hash of the derived cohort and label artifacts."
+  },
+  "mimic_code": {
+    "repo": "https://github.com/MIT-LCP/mimic-code",
+    "concepts_path": "mimic-iv/concepts_postgres",
+    "pin_policy": "Record the exact git commit SHA and file hashes before label generation."
+  },
+  "cohort": {
+    "unit": "icu_stay",
+    "inclusion": ["Adult ICU stay (anchor_age >= 18)", "First ICU stay per hospital admission", "Stay duration >= 4 hours"],
+    "exclusions_primary": ["Pediatric or unknown age", "ICU stay < 4 hours", "Missing or invalid intime/outtime"],
+    "bootstrap_unit": "icu_stay"
+  },
+  "labels": {
+    "primary_event": {
+      "name": "sepsis3_onset",
+      "definition": "Sepsis-3-aligned suspected infection plus acute SOFA rise >= 2 from the pinned mimic-code concepts.",
+      "onset_time": "Availability-time of the observation that first completes the phenotype"
+    },
+    "secondary_events": [
+      {"name": "aki_kdigo_stage_ge_1", "definition": "KDIGO stage >= 1 by creatinine and/or covered urine output"}
+    ]
+  },
+  "prediction_cadence": {
+    "mode": "event_driven_replay",
+    "description": "Replay canonical envelopes in availability-time order and score on each usable observation update."
+  },
+  "availability_time_policy": {
+    "order_key": "availability_time",
+    "fallback": "Only use the documented adapter fallback when availability_time is absent; record the fallback.",
+    "corrections": "Amended observations replace prior values only at their own availability_time",
+    "leakage_tests": "Fail closed if future information is introduced"
+  },
+  "splits": {
+    "scheme": "anchor_year_group",
+    "development": {
+      "split_id": "development",
+      "role": "tune",
+      "anchor_year_groups": ["2008 - 2010", "2011 - 2013"],
+      "allowed_commands": ["sweep", "ablation_design", "feature_debug"]
+    },
+    "calibration": {
+      "split_id": "calibration",
+      "role": "select",
+      "anchor_year_groups": ["2014 - 2016"],
+      "allowed_commands": ["operating_point_selection", "threshold_choice", "report_dev_metrics"]
+    },
+    "test": {
+      "split_id": "test",
+      "role": "evaluate_once",
+      "anchor_year_groups": ["2017 - 2019"],
+      "allowed_commands": ["locked_primary_eval", "locked_ablation_eval", "bootstrap_ci"],
+      "forbidden_commands": ["sweep", "tune", "grid_search", "threshold_search", "operating_point_selection"]
+    },
+    "notes": ["Anchor-year groups preserve the release's approximate temporal ordering while avoiding cross-patient calendar comparisons.", "The demo dataset remains plumbing-only and is not a Stage B result."]
+  },
+  "detection_timing": {
+    "primary_mode_id": "window_m12_p6",
+    "before_hours": 12,
+    "after_hours": 6,
+    "rule": "Any governed or naive alert with event_time in [onset - 12h, onset + 6h]"
+  },
+  "primary_endpoint": {
+    "id": "PE-1",
+    "name": "noninferior_governed_sensitivity",
+    "metric": "governed_sensitivity",
+    "definition": "Among labeled-positive stays, fraction with at least one true-positive alert in the primary detection window",
+    "comparator": "naive_sensitivity on the same stays and window",
+    "success_rule": "governed_sensitivity >= naive_sensitivity - 0.10 OR governed_sensitivity >= 0.70",
+    "noninferiority_margin_pp": 10,
+    "evaluated_on": "test",
+    "one_shot": true
+  },
+  "coprimary_endpoint": {
+    "id": "PE-2",
+    "name": "interruptive_burden_reduction",
+    "metric": "interruptive_reduction_ratio",
+    "definition": "interruptive_alert_count_governed / interruptive_alert_count_naive",
+    "success_rule": "interruptive_reduction_ratio <= 0.25",
+    "evaluated_on": "test",
+    "one_shot": true
+  },
+  "operating_point_selection": {
+    "id": "OPS-2",
+    "rule": "Tune governance knobs on development, select the candidate on calibration subject to PE-1, freeze the winner, then evaluate test once.",
+    "forbidden_on_test": true,
+    "freeze_artifact": "eval/mimic_study/frozen/operating_point.v2.json",
+    "selection_objective": "min interruptive_reduction_ratio subject to PE-1 on calibration",
+    "tie_breakers": ["lower interruptive_nna", "higher governed_sensitivity", "lexicographically smaller candidate_id"]
+  },
+  "secondary_endpoints": ["interruptive_nna", "mean_in_window_lead_hours", "episode_count_per_100_patient_days", "false_episode_rate_on_label_negative_stays"],
+  "ablations": {
+    "pre_specified": ["threshold_only_naive", "full_governance", "drop_persistence", "drop_crossings", "drop_baseline", "drop_refractory", "drop_context_suppression", "drop_page_gate", "drop_episode_arbitration", "drop_late_event_buffer"],
+    "rule": "Freeze ablation configurations before test evaluation and report all once."
+  },
+  "product_claims_evidence_map": [
+    {"claim_id": "C1", "claim": "Shared alert governance reduces interruptive alert volume versus threshold-only scoring while preserving detection of labeled deterioration.", "required_evidence": ["PE-1 on test", "PE-2 on test", "bootstrap stay-level confidence intervals"], "status": "pending_stage_b"},
+    {"claim_id": "C2", "claim": "Episode arbitration produces one actionable patient episode instead of independent alert floods.", "required_evidence": ["episode burden analysis", "concurrent-signal subgroup"], "status": "pending_stage_b"},
+    {"claim_id": "NON", "claim": "Clinical validation, FDA clearance, superiority, or patient-care readiness.", "required_evidence": ["out of scope"], "status": "non_claim"}
+  ],
+  "analysis_rules": {
+    "no_threshold_fishing_on_test": true,
+    "bootstrap": {"unit": "icu_stay", "n_replicates": 1000, "seed": 42, "interval": "percentile_95"},
+    "multiple_comparisons": "Primary and co-primary endpoints are pre-specified; secondaries and subgroups are descriptive."
+  }
+}

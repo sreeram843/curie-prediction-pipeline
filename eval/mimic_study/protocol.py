@@ -11,9 +11,10 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
-PROTOCOL_PATH = (
-    Path(__file__).resolve().parent / "frozen" / "protocol.v1.json"
-)
+PROTOCOL_V1_PATH = Path(__file__).resolve().parent / "frozen" / "protocol.v1.json"
+PROTOCOL_V2_PATH = Path(__file__).resolve().parent / "frozen" / "protocol.v2.json"
+# Keep the historical default stable. Stage B callers must opt into v2 explicitly.
+PROTOCOL_PATH = PROTOCOL_V1_PATH
 
 # Commands that mutate or select operating points — never allowed on test.
 TUNING_COMMANDS = frozenset(
@@ -45,16 +46,46 @@ class ProtocolError(ValueError):
     """Protocol violation (e.g. tuning on the locked test split)."""
 
 
-@lru_cache(maxsize=1)
-def load_protocol(path: str | None = None) -> dict[str, Any]:
+@lru_cache(maxsize=4)
+def load_protocol(
+    path: str | None = None,
+    version: str | None = None,
+) -> dict[str, Any]:
     """Load the frozen protocol JSON."""
-    target = Path(path) if path else PROTOCOL_PATH
+    if path and version:
+        raise ProtocolError("Specify either path or version, not both")
+    if path:
+        target = Path(path)
+    elif version is None or version.lower().lstrip("v") == "1":
+        target = PROTOCOL_V1_PATH
+    elif version.lower().lstrip("v") == "2":
+        target = PROTOCOL_V2_PATH
+    else:
+        raise ProtocolError(f"Unsupported protocol version: {version!r}")
     data = json.loads(target.read_text())
-    if data.get("protocol_id") != "mimic-iv-governance-study.v1":
+    protocol_id = str(data.get("protocol_id") or "")
+    if not protocol_id.startswith("mimic-iv-governance-study.v"):
         raise ProtocolError(f"Unexpected protocol_id in {target}")
     if data.get("status") != "frozen":
         raise ProtocolError(f"Protocol is not frozen: {data.get('status')!r}")
     return data
+
+
+def split_for_anchor_year_group(
+    anchor_year_group: str,
+    protocol: dict[str, Any] | None = None,
+) -> str:
+    """Resolve a MIMIC de-identification anchor bucket to a study split."""
+    proto = protocol or load_protocol(version="v2")
+    splits = proto.get("splits") or {}
+    if splits.get("scheme") != "anchor_year_group":
+        raise ProtocolError("Protocol does not define anchor_year_group splits")
+    value = (anchor_year_group or "").strip()
+    for split_id in ("development", "calibration", "test"):
+        block = splits.get(split_id) or {}
+        if value in {str(x).strip() for x in block.get("anchor_year_groups") or []}:
+            return split_id
+    return "outside_protocol"
 
 
 def normalize_split_id(split_id: str) -> str:

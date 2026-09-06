@@ -21,6 +21,7 @@ from typing import Any
 
 from ingestion.adapters.mimic.loader import iter_csv_gz
 from ingestion.adapters.mimic.paths import require_mimic_dir
+from eval.mimic_study.protocol import load_protocol, split_for_anchor_year_group
 
 MIN_AGE_YEARS = 18
 MIN_LOS_HOURS = 4.0
@@ -108,8 +109,13 @@ def load_esrd_and_comfort_flags(root: Path) -> tuple[set[str], set[str]]:
     return esrd, comfort
 
 
-def apply_cohort(root: Path) -> dict[str, Any]:
+def apply_cohort(
+    root: Path,
+    *,
+    protocol: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     """Return cohort flow counts plus the surviving stay rows (dicts)."""
+    proto = protocol or load_protocol()
     patients = list(iter_csv_gz(root / "hosp" / "patients.csv.gz"))
     admissions = list(iter_csv_gz(root / "hosp" / "admissions.csv.gz"))
     icustays = list(iter_csv_gz(root / "icu" / "icustays.csv.gz"))
@@ -174,6 +180,7 @@ def apply_cohort(root: Path) -> dict[str, Any]:
                 "intime": r.get("intime") or "",
                 "outtime": r.get("outtime") or "",
                 "anchor_year_group": anchor_group.get(sid, ""),
+                "split_id": "",
                 "first_careunit": r.get("first_careunit") or "",
                 "last_careunit": r.get("last_careunit") or "",
                 "esrd_on_dialysis": sid in esrd_sids,
@@ -183,14 +190,23 @@ def apply_cohort(root: Path) -> dict[str, Any]:
             }
         )
 
-    split_counts: Counter[str] = Counter({k: 0 for k in SPLIT_RANGES})
+    use_anchor_groups = (proto.get("splits") or {}).get("scheme") == "anchor_year_group"
+    split_counts: Counter[str] = Counter(
+        {k: 0 for k in ("development", "calibration", "test")}
+    )
     for r in kept:
-        split_counts[_split_for_intime(_parse_ts(r["intime"]))] += 1
+        split_id = (
+            split_for_anchor_year_group(r["anchor_year_group"], proto)
+            if use_anchor_groups
+            else _split_for_intime(_parse_ts(r["intime"]))
+        )
+        r["split_id"] = split_id
+        split_counts[split_id] += 1
 
     group_counts: Counter[str] = Counter(r["anchor_year_group"] for r in kept)
 
     return {
-        "protocol_id": "mimic-iv-governance-study.v1",
+        "protocol_id": proto["protocol_id"],
         "dataset": "mimic-iv-3.1",
         "status": "AUDIT_ONLY_NOT_FROZEN",
         "cohort_flow": {
@@ -226,12 +242,15 @@ def apply_cohort(root: Path) -> dict[str, Any]:
             },
         },
         "splits": {
-            "status": SPLIT_STATUS,
-            "finding": SPLIT_FINDING,
-            "frozen_ranges_inapplicable": dict(sorted(split_counts.items())),
+            "status": "frozen" if use_anchor_groups else SPLIT_STATUS,
+            "finding": None if use_anchor_groups else SPLIT_FINDING,
+            "split_counts": dict(sorted(split_counts.items())),
+            "frozen_ranges_inapplicable": (
+                {} if use_anchor_groups else dict(sorted(split_counts.items()))
+            ),
             "anchor_year_group_counts": dict(sorted(group_counts.items())),
         },
-        "split_ranges_frozen": SPLIT_RANGES,
+        "split_ranges_frozen": {} if use_anchor_groups else SPLIT_RANGES,
         "stays": kept,
     }
 
