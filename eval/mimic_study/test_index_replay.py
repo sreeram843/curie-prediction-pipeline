@@ -206,8 +206,13 @@ class TestManifestIntegration:
         assert manifest["storage"]["index_bytes"] > 0
         assert manifest["cli"]["argv"]
 
-    def test_stage_b_labels_and_protocol_attach_to_replay(self, mimic_index: Path, tmp_path: Path) -> None:
-        from eval.mimic_study.labels.materialize import build_label_artifact, write_label_artifact
+    def test_stage_b_labels_and_protocol_attach_to_replay(
+        self, mimic_index: Path, tmp_path: Path
+    ) -> None:
+        from eval.mimic_study.labels.materialize import (
+            build_label_artifact,
+            write_label_artifact,
+        )
 
         pin = {
             "schema_version": "1.0.0",

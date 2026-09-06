@@ -9,6 +9,7 @@ from pathlib import Path
 import pytest
 
 from eval.mimic_study.labels import LABELS_SCHEMA_VERSION, SEPSIS3_SQL_FILES
+from eval.mimic_study.labels.materialize import build_label_artifact, write_label_artifact
 from eval.mimic_study.labels.pins import (
     LabelPinError,
     load_pin,
@@ -16,7 +17,6 @@ from eval.mimic_study.labels.pins import (
     validate_pin,
     write_pin,
 )
-from eval.mimic_study.labels.materialize import build_label_artifact, write_label_artifact
 
 
 def _make_mimic_code_repo(tmp: Path) -> Path:

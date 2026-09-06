@@ -18,7 +18,9 @@ DEFAULT_PIN_PATH = Path(__file__).resolve().parent / "frozen" / "mimic_code_pin.
 # Well-known mimic-code SQL files used by the reference label definitions.
 # The pin records the exact revision + sha256 of every file actually used.
 SEPSIS3_SQL_FILES = {
-    "sepsis3_suspicion_of_infection": "mimic-iv/concepts_postgres/sepsis/suspicion_of_infection.sql",
+    "sepsis3_suspicion_of_infection": (
+        "mimic-iv/concepts_postgres/sepsis/suspicion_of_infection.sql"
+    ),
     "sepsis3": "mimic-iv/concepts_postgres/sepsis/sepsis3.sql",
     "kdigo_creatinine": "mimic-iv/concepts_postgres/organfailure/kdigo_creatinine.sql",
     "kdigo_stages": "mimic-iv/concepts_postgres/organfailure/kdigo_stages.sql",

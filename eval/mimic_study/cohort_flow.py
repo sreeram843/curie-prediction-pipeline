@@ -19,9 +19,9 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from eval.mimic_study.protocol import load_protocol, split_for_anchor_year_group
 from ingestion.adapters.mimic.loader import iter_csv_gz
 from ingestion.adapters.mimic.paths import require_mimic_dir
-from eval.mimic_study.protocol import load_protocol, split_for_anchor_year_group
 
 MIN_AGE_YEARS = 18
 MIN_LOS_HOURS = 4.0
