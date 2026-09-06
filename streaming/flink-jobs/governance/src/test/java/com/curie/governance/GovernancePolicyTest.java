@@ -52,6 +52,33 @@ class GovernancePolicyTest {
   }
 
   @Test
+  void passiveCorrectionEmitsLateAlertWithoutMutatingTrajectory() {
+    GovernancePolicy.Config config = new GovernancePolicy.Config();
+    config.baselineEnabled = false;
+    config.trajectoryPersistenceMs = 0;
+    config.minCrossings = 1;
+    config.refractoryMs = 0;
+    config.lateEventPolicy = "passive_correction";
+
+    GovernancePolicy.PatientGovState state = new GovernancePolicy.PatientGovState();
+    GovernancePolicy.Decision first =
+        GovernancePolicy.evaluate(alert(5, "urgent", "2024-01-01T01:00:00Z"), state, config);
+    assertTrue(first.emit);
+    int crossings = state.crossingsAboveThreshold;
+    long lastProcessed = state.lastProcessedEventTimeMs;
+
+    GovernancePolicy.Decision late =
+        GovernancePolicy.evaluate(alert(8, "critical", "2024-01-01T00:30:00Z"), state, config);
+    assertTrue(late.emit);
+    assertEquals("late_correction", late.reason);
+    assertEquals("passive", late.routing);
+    assertTrue(late.alert.lateCorrection);
+    assertFalse(late.alert.suppressed);
+    assertEquals(crossings, state.crossingsAboveThreshold);
+    assertEquals(lastProcessed, state.lastProcessedEventTimeMs);
+  }
+
+  @Test
   void contextSuppressionHoldsAlert() {
     GovernancePolicy.Config config = new GovernancePolicy.Config();
     config.baselineEnabled = false;

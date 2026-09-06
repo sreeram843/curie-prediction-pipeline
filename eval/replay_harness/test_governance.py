@@ -151,6 +151,47 @@ def test_late_out_of_order_does_not_mutate_or_emit() -> None:
     assert state.crossings_above_threshold == crossings
 
 
+def test_late_passive_correction_is_emitted_without_mutating_trajectory() -> None:
+    config = GovernanceConfig(
+        trajectory_persistence_minutes=0,
+        min_crossings=1,
+        baseline_enabled=False,
+        refractory_minutes=0,
+        page_gate_enabled=False,
+        late_event_policy="passive_correction",
+    )
+    state = PatientGovState()
+    first = evaluate(
+        {
+            "score": 5,
+            "tier": "urgent",
+            "event_time": "2024-01-01T01:00:00+00:00",
+            "patient_id": "Patient/1",
+        },
+        state,
+        config,
+    )
+    assert first.emit is True
+    before = (state.last_processed_event_time, state.crossings_above_threshold)
+
+    late = evaluate(
+        {
+            "score": 8,
+            "tier": "critical",
+            "event_time": "2024-01-01T00:30:00+00:00",
+            "patient_id": "Patient/1",
+        },
+        state,
+        config,
+    )
+    assert late.emit is True
+    assert late.reason == "late_correction"
+    assert late.routing == "passive"
+    assert late.alert["late_correction"] is True
+    assert late.alert["suppressed"] is False
+    assert (state.last_processed_event_time, state.crossings_above_threshold) == before
+
+
 def test_arrival_order_permutations_same_emitted_ids() -> None:
     """Ordered event-times yield a stable emit sequence; late arrivals are dropped."""
     config = GovernanceConfig(
