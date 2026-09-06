@@ -661,6 +661,7 @@ def _patients_schema() -> Any:
         [
             pa.field("subject_id", pa.string(), nullable=False),
             pa.field("anchor_age", pa.int64(), nullable=True),
+            pa.field("anchor_year_group", pa.string(), nullable=True),
             pa.field("extra_json", pa.string(), nullable=True),
         ]
     )
@@ -678,6 +679,7 @@ def _load_mimic_patients(source_root: Path) -> list[dict[str, Any]]:
             {
                 "subject_id": sid,
                 "anchor_age": int(age) if age is not None else None,
+                "anchor_year_group": (row.get("anchor_year_group") or "").strip() or None,
                 "extra_json": json.dumps(row, sort_keys=True, separators=(",", ":")),
             }
         )
@@ -931,6 +933,7 @@ def build_index(
                     {
                         "subject_id": r["subject_id"],
                         "anchor_age": r.get("anchor_age"),
+                        "anchor_year_group": r.get("anchor_year_group"),
                         "extra_json": r.get("extra_json"),
                     }
                     for r in patients_rows

@@ -30,6 +30,7 @@ from eval.mimic_study.indexing import (
     load_stays,
     sha256_hex,
 )
+from eval.mimic_study.protocol import load_protocol, split_for_anchor_year_group
 from ingestion.adapters.demo_schema import downsample_hourly
 from ingestion.adapters.mimic import item_map as im
 from ingestion.adapters.mimic.timeline import parse_mimic_ts
@@ -387,6 +388,7 @@ def select_stay_ids(
     limit: int | None = None,
     apply_protocol_cohort: bool = False,
     seed: int = 42,
+    protocol: dict[str, Any] | None = None,
 ) -> list[str]:
     """Resolve the stay list. ``limit=0``/None → all stays (full run)."""
     from ingestion.completeness import (
@@ -436,7 +438,11 @@ def _load_mimic_patients_rows(index_dir: Path) -> list[dict[str, str]]:
     if not path.is_file():
         return []
     return [
-        {"subject_id": str(r["subject_id"]), "anchor_age": str(r["anchor_age"])}
+        {
+            "subject_id": str(r["subject_id"]),
+            "anchor_age": str(r["anchor_age"]),
+            "anchor_year_group": str(r.get("anchor_year_group") or ""),
+        }
         for r in pq.read_table(path).to_pylist()
     ]
 
@@ -449,12 +455,36 @@ def replay_indexed_stays(
     apply_protocol_cohort: bool = False,
     seed: int = 42,
     score_every_event: bool = False,
+    labels_path: Path | None = None,
+    protocol: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Replay indexed stays through the leakage-safe harness.
 
     ``limit=0`` (or None) replays every stay — the full credentialed run.
     """
     meta = load_index_meta(index_dir)
+    proto = protocol or load_protocol()
+    label_rows: dict[str, dict[str, Any]] = {}
+    label_info: dict[str, Any] = {"status": "not_attached"}
+    if labels_path is not None:
+        # Keep the default replay import boundary: label code is loaded only
+        # when an operator explicitly supplies a validated sidecar.
+        from eval.mimic_study.labels.materialize import load_label_artifact
+
+        artifact = load_label_artifact(labels_path)
+        if artifact["protocol_id"] != proto["protocol_id"]:
+            raise IndexError(
+                f"label protocol {artifact['protocol_id']!r} does not match "
+                f"replay protocol {proto['protocol_id']!r}"
+            )
+        label_rows = {str(row["stay_id"]): row for row in artifact["stays"]}
+        label_info = {
+            "status": "attached",
+            "schema_version": artifact["schema_version"],
+            "protocol_id": artifact["protocol_id"],
+            "content_hash": artifact["content_hash"],
+            "stays": len(artifact["stays"]),
+        }
     dataset = meta["config"]["dataset"]
     selected = select_stay_ids(
         index_dir,
@@ -462,6 +492,7 @@ def replay_indexed_stays(
         limit=limit,
         apply_protocol_cohort=apply_protocol_cohort,
         seed=seed,
+        protocol=proto,
     )
     stays = {str(s["stay_id"]): s for s in load_stays(index_dir)}
     missing = [sid for sid in selected if sid not in stays]
@@ -475,14 +506,28 @@ def replay_indexed_stays(
         stay_map = eicu_stays_from_index(index_dir, selected)
     else:
         stay_map = {}
+    patients_by_subject = {
+        str(row["subject_id"]): row for row in _load_mimic_patients_rows(index_dir)
+    } if dataset == "mimic" else {}
     for sid in selected:
         events = load_stay_events(index_dir, sid)
         for event in events:
             family_counts[event["event_family"]] += 1
         if dataset == "mimic":
-            stay = mimic_stay_from_index(index_dir, stays[sid])
+            stay_meta = dict(stays[sid])
+            if (proto.get("splits") or {}).get("scheme") == "anchor_year_group":
+                patient = patients_by_subject.get(str(stay_meta.get("subject_id"))) or {}
+                stay_meta["split_id"] = split_for_anchor_year_group(
+                    patient.get("anchor_year_group") or "", proto
+                )
+            stay = mimic_stay_from_index(index_dir, stay_meta)
         else:
             stay = stay_map[sid]
+        if labels_path is not None:
+            stay["labels"] = label_rows.get(
+                sid,
+                {"sepsis3_onset": None, "aki_kdigo_stage_ge_1": None},
+            )
         result = replay_stay(stay, check_leakage=True, score_every_event=score_every_event)
         public = result_to_public_dict(result)
         results.append(public)
@@ -494,6 +539,8 @@ def replay_indexed_stays(
         "dataset_version": meta["dataset"]["version"],
         "index_dir": str(index_dir),
         "index_hash": meta["index_hash"],
+        "protocol_id": proto["protocol_id"],
+        "labels": label_info,
         "selection": {
             "mode": (
                 "stay_ids"
@@ -532,6 +579,8 @@ def build_and_write_manifest(
     peak_rss_bytes: int,
     cli_argv: list[str],
     manifest_out: Path | None = None,
+    labels_path: Path | None = None,
+    protocol: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Attach a reproducible run manifest to an indexed replay."""
     from eval.mimic_study.manifest import build_run_manifest
@@ -559,6 +608,8 @@ def build_and_write_manifest(
         peak_rss_bytes=peak_rss_bytes,
         storage_bytes=_index_storage_bytes(index_dir),
         cli_argv=cli_argv,
+        protocol_id=(protocol or load_protocol())["protocol_id"],
+        labels_path=labels_path,
     )
     out = manifest_out or (index_dir / "runs" / f"run-{manifest['run_id']}.json")
     out.parent.mkdir(parents=True, exist_ok=True)
@@ -577,6 +628,8 @@ def run_with_manifest(
     score_every_event: bool = False,
     manifest_out: Path | None = None,
     cli_argv: list[str] | None = None,
+    labels_path: Path | None = None,
+    protocol: dict[str, Any] | None = None,
 ) -> tuple[dict[str, Any], dict[str, Any]]:
     start = time.perf_counter()
     report = replay_indexed_stays(
@@ -586,6 +639,8 @@ def run_with_manifest(
         apply_protocol_cohort=apply_protocol_cohort,
         seed=seed,
         score_every_event=score_every_event,
+        labels_path=labels_path,
+        protocol=protocol,
     )
     runtime_s = time.perf_counter() - start
     peak_rss = int(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss)
@@ -599,6 +654,8 @@ def run_with_manifest(
         peak_rss_bytes=peak_rss,
         cli_argv=cli_argv or sys.argv,
         manifest_out=manifest_out,
+        labels_path=labels_path,
+        protocol=protocol,
     )
     return report, manifest
 
@@ -820,6 +877,8 @@ def main(argv: list[str] | None = None) -> int:
     p_run.add_argument("--score-every-event", action="store_true")
     p_run.add_argument("--manifest-out", type=Path, default=None)
     p_run.add_argument("--json-out", type=Path, default=None)
+    p_run.add_argument("--labels", type=Path, default=None, help="validated label artifact JSON")
+    p_run.add_argument("--protocol-version", default="v1", choices=("v1", "v2"))
 
     p_bench = sub.add_parser("benchmark", help="source scan vs indexed replay benchmark")
     p_bench.add_argument("--dataset", choices=("mimic", "eicu"), default="mimic")
@@ -834,6 +893,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.cmd == "run":
         index_dir = args.index_dir or default_index_dir(args.dataset)
         limit = None if args.limit == 0 else args.limit
+        protocol = load_protocol(version=args.protocol_version)
         report, manifest = run_with_manifest(
             index_dir=index_dir,
             stay_ids=args.stay_ids,
@@ -843,6 +903,8 @@ def main(argv: list[str] | None = None) -> int:
             score_every_event=args.score_every_event,
             manifest_out=args.manifest_out,
             cli_argv=sys.argv,
+            labels_path=args.labels,
+            protocol=protocol,
         )
         summary = {
             "dataset": report["dataset"],

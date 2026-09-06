@@ -110,8 +110,20 @@ def build_run_manifest(
     storage_bytes: int,
     cli_argv: list[str],
     protocol_id: str | None = None,
+    labels_path: Path | None = None,
 ) -> dict[str, Any]:
     protocol_id = protocol_id or load_protocol()["protocol_id"]
+    labels = _labels_pin_record()
+    if labels_path is not None:
+        from eval.mimic_study.labels.materialize import load_label_artifact
+
+        artifact = load_label_artifact(labels_path)
+        labels["artifact"] = {
+            "schema_version": artifact["schema_version"],
+            "protocol_id": artifact["protocol_id"],
+            "content_hash": artifact["content_hash"],
+            "stays": len(artifact["stays"]),
+        }
     body: dict[str, Any] = {
         "manifest_schema_version": MANIFEST_SCHEMA_VERSION,
         "built_at": datetime.now(UTC).isoformat(),
@@ -129,7 +141,7 @@ def build_run_manifest(
         "code": _code_revision(),
         "protocol_id": protocol_id,
         "rule_bundles": active_rule_bundles(),
-        "labels": _labels_pin_record(),
+        "labels": labels,
         "cohort": cohort,
         "counts": counts,
         "timestamp_failures": dict(sorted(timestamp_failures.items())),
