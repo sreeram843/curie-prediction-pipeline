@@ -74,6 +74,36 @@ def test_availability_orders_storetime_after_charttime() -> None:
     assert ordered[-1].is_discharge_diagnosis
 
 
+def test_chart_availability_orders_storetime_after_charttime() -> None:
+    """Chart events (MAP, GCS, SpO2, FiO2, ventilation, ...) must defer to a later
+    storetime the same way lab events already do — a value cannot be scoreable
+    before it was actually knowable, regardless of source table."""
+    stay = {
+        "stay_id": "u1",
+        "subject_id": "s1",
+        "hadm_id": "h1",
+        "intime": "2019-01-01 00:00:00",
+        "outtime": "2019-01-02 00:00:00",
+        "labels": {"sepsis3_onset": None, "aki_kdigo_stage_ge_1": None},
+        "labs": [],
+        "charts": [
+            {
+                "itemid": 220052,
+                "valuenum": 58,
+                "unit": "mmHg",
+                "charttime": "2019-01-01 13:00:00",
+                "storetime": "2019-01-01 16:00:00",
+                "evidence_id": "chart/map-late-store",
+            }
+        ],
+        "conditions": [],
+    }
+    events = events_from_demo_schema_stay(stay)
+    (event,) = events
+    assert event.event_time.hour == 13
+    assert event.availability_time.hour == 16
+
+
 def test_envelopes_carry_availability_time() -> None:
     data = json.loads(FIXTURE.read_text())
     events = events_from_demo_schema_stay(data["stays"][1])

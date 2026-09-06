@@ -150,6 +150,8 @@ def events_from_demo_schema_stay(stay: dict[str, Any]) -> list[MimicTimelineEven
         chart = parse_mimic_ts(raw.get("charttime"))
         if chart is None:
             continue
+        store = parse_mimic_ts(raw.get("storetime"))
+        avail = availability_for_lab(charttime=chart, storetime=store)
         eid = str(
             raw.get("evidence_id") or f"chart/{raw.get('itemid')}/{raw.get('charttime')}"
         )
@@ -163,7 +165,7 @@ def events_from_demo_schema_stay(stay: dict[str, Any]) -> list[MimicTimelineEven
                 valuenum=float(raw["valuenum"]) if raw.get("valuenum") is not None else None,
                 unit=raw.get("unit"),
                 event_time=chart,
-                availability_time=chart,
+                availability_time=avail,
                 evidence_id=eid,
                 code_system=raw.get("code_system", "http://loinc.org"),
                 code=raw.get("code"),
