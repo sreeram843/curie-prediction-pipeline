@@ -166,6 +166,70 @@ def test_respiratory_charting_ignores_non_fio2_labels() -> None:
     assert converted["coverage"]["concepts"].get(c.FIO2, 0) == 0
 
 
+def test_respiratory_charting_emits_explicit_invasive_ventilation() -> None:
+    converted = convert_eicu_rows(
+        patients=[_patient()],
+        labs=[],
+        vital_periodic=[
+            {
+                "patientunitstayid": "1",
+                "observationoffset": "31",
+                "sao2": "80",
+                "systemicmean": "55",
+            }
+        ],
+        vital_aperiodic=[],
+        nurse_charting=[],
+        respiratory_charting=[
+            {
+                "patientunitstayid": "1",
+                "respchartoffset": "30",
+                "respcharttypecat": "respFlowCareData",
+                "respchartvaluelabel": "Ventilator Mode",
+                "respchartvalue": "AC/VC",
+            },
+            {
+                "patientunitstayid": "1",
+                "respchartoffset": "30",
+                "respcharttypecat": "respFlowSettings",
+                "respchartvaluelabel": "FiO2",
+                "respchartvalue": "40",
+            },
+        ],
+    )
+
+    charts = converted["stays"][0]["charts"]
+    vent = [event for event in charts if event["code"] == c.MECHANICALLY_VENTILATED_CODE]
+    assert len(vent) == 1
+    assert vent[0]["valuenum"] == 1
+    assert converted["coverage"]["concepts"][c.MECHANICALLY_VENTILATED] == 1
+
+    result = replay_stay(converted["stays"][0])
+    assert not result.errors
+    assert result.snapshots[-1]["score"] >= 3
+
+
+def test_respiratory_charting_does_not_guess_ventilation_from_unknown_value() -> None:
+    converted = convert_eicu_rows(
+        patients=[_patient()],
+        labs=[],
+        vital_periodic=[],
+        vital_aperiodic=[],
+        nurse_charting=[],
+        respiratory_charting=[
+            {
+                "patientunitstayid": "1",
+                "respchartoffset": "30",
+                "respcharttypecat": "respFlowCareData",
+                "respchartvaluelabel": "Ventilator Mode",
+                "respchartvalue": "Not documented",
+            }
+        ],
+    )
+
+    assert converted["coverage"]["concepts"].get(c.MECHANICALLY_VENTILATED, 0) == 0
+
+
 def test_urine_only_scores_renal_without_creatinine() -> None:
     converted = convert_eicu_rows(
         patients=[_patient()],

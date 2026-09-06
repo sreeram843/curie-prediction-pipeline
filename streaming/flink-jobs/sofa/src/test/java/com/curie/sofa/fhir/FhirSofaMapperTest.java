@@ -132,6 +132,74 @@ class FhirSofaMapperTest {
   }
 
   @Test
+  void derivesMapFromBloodPressurePanelComponents() {
+    ObjectNode obs = mapper.createObjectNode();
+    obs.put("resourceType", "Observation");
+    obs.put("id", "bp-1");
+    obs.put("status", "final");
+    obs.putObject("code")
+        .putArray("coding")
+        .addObject()
+        .put("system", "http://loinc.org")
+        .put("code", FhirSofaMapper.LOINC_BLOOD_PRESSURE_PANEL);
+    obs.putArray("component")
+        .addObject()
+        .putObject("code")
+        .putArray("coding")
+        .addObject()
+        .put("code", FhirSofaMapper.LOINC_SYSTOLIC_BP);
+    obs.withArray("component")
+        .get(0)
+        .putObject("valueQuantity")
+        .put("value", 120)
+        .put("unit", "mmHg");
+    obs.withArray("component")
+        .addObject()
+        .putObject("code")
+        .putArray("coding")
+        .addObject()
+        .put("code", FhirSofaMapper.LOINC_DIASTOLIC_BP);
+    obs.withArray("component")
+        .get(1)
+        .putObject("valueQuantity")
+        .put("value", 60)
+        .put("unit", "mmHg");
+
+    ExtractResult result = FhirSofaMapper.extractValidated(obs);
+
+    assertEquals(1, result.inputs.size());
+    assertEquals(Component.CARDIOVASCULAR, result.inputs.get(0).name);
+    assertEquals(80.0, result.inputs.get(0).mapMmhg);
+    assertEquals("Observation/bp-1", result.inputs.get(0).evidenceIds.get(0));
+    assertTrue(result.invalid.isEmpty());
+  }
+
+  @Test
+  void rejectsBloodPressurePanelWithoutBothComponents() {
+    ObjectNode obs = mapper.createObjectNode();
+    obs.put("resourceType", "Observation");
+    obs.put("id", "bp-incomplete");
+    obs.put("status", "final");
+    obs.putObject("code")
+        .putArray("coding")
+        .addObject()
+        .put("code", FhirSofaMapper.LOINC_BLOOD_PRESSURE_PANEL);
+    obs.putArray("component")
+        .addObject()
+        .putObject("code")
+        .putArray("coding")
+        .addObject()
+        .put("code", FhirSofaMapper.LOINC_SYSTOLIC_BP);
+    obs.withArray("component").get(0).putObject("valueQuantity").put("value", 120).put("unit", "mmHg");
+
+    ExtractResult result = FhirSofaMapper.extractValidated(obs);
+
+    assertTrue(result.inputs.isEmpty());
+    assertEquals(1, result.invalid.size());
+    assertEquals("invalid_blood_pressure_panel", result.invalid.get(0).reason);
+  }
+
+  @Test
   void mapsNorepinephrineRateWhenAlreadyWeightNormalized() {
     ObjectNode med = mapper.createObjectNode();
     med.put("resourceType", "MedicationAdministration");

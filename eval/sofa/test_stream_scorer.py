@@ -15,6 +15,7 @@ from eval.sofa.stream_scorer import (
     VALUE_TTL,
     PatientState,
     effective_availability_time,
+    observation_to_input,
 )
 
 
@@ -43,6 +44,44 @@ def test_delayed_lab_is_scored_at_availability_clock() -> None:
     inputs = state.inputs(as_of=availability_time)
     renal = next(item for item in inputs if item.name == SofaComponentName.RENAL)
     assert renal.creatinine_mg_dl == 4.0
+
+
+def test_blood_pressure_panel_derives_map_from_same_observation() -> None:
+    resource = {
+        "resourceType": "Observation",
+        "id": "bp-1",
+        "status": "final",
+        "code": {"coding": [{"code": "85354-9", "display": "Blood pressure panel"}]},
+        "component": [
+            {
+                "code": {"coding": [{"code": "8480-6"}]},
+                "valueQuantity": {"value": 120, "unit": "mmHg"},
+            },
+            {
+                "code": {"coding": [{"code": "8462-4"}]},
+                "valueQuantity": {"value": 60, "unit": "mmHg"},
+            },
+        ],
+    }
+
+    result = observation_to_input(resource)
+
+    assert result is not None
+    assert result.name == SofaComponentName.CARDIOVASCULAR
+    assert result.map_mmhg == 80
+    assert result.evidence_ids == ["Observation/bp-1"]
+
+
+def test_unknown_ventilation_observation_is_not_scored() -> None:
+    resource = {
+        "resourceType": "Observation",
+        "id": "vent-unknown",
+        "status": "final",
+        "code": {"coding": [{"code": "44971-8"}]},
+        "valueString": "Unknown device",
+    }
+
+    assert observation_to_input(resource) is None
 
 
 class TestPartialUpdatesDoNotRefreshUnrelatedFields:
