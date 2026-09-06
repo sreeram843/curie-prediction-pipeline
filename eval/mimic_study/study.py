@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -48,12 +49,13 @@ def evaluate_knobs_on_split(
     knobs: dict[str, Any] | None,
     *,
     split_id: str,
+    protocol: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     rows = [
         replay_stay_ablation(stay, knobs=knobs)
         for stay in _stays_for_split(stays, split_id)
     ]
-    summary = summarize_cohort(rows)
+    summary = summarize_cohort(rows, protocol=protocol)
     summary["split_id"] = split_id
     return {"summary": summary, "stays": rows}
 
@@ -81,8 +83,8 @@ def select_operating_point(
     scored: list[dict[str, Any]] = []
     for cid, knobs in cand.items():
         # Development is allowed for sweep; we record it but select on calibration.
-        evaluate_knobs_on_split(stays, knobs, split_id="development")
-        cal = evaluate_knobs_on_split(stays, knobs, split_id="calibration")
+        evaluate_knobs_on_split(stays, knobs, split_id="development", protocol=proto)
+        cal = evaluate_knobs_on_split(stays, knobs, split_id="calibration", protocol=proto)
         summary = cal["summary"]
         scored.append(
             {
@@ -156,7 +158,7 @@ def run_ablations_on_test(
         use_knobs = primary_knobs if ablation_id == "full_governance" else knobs
         if ablation_id == "full_governance":
             use_knobs = primary_knobs
-        result = evaluate_knobs_on_split(stays, use_knobs, split_id="test")
+        result = evaluate_knobs_on_split(stays, use_knobs, split_id="test", protocol=proto)
         tables[ablation_id] = result["summary"]
     return tables
 
@@ -170,7 +172,7 @@ def run_primary_on_test(
     assert_command_allowed_on_split(
         "test", "locked_primary_eval", protocol=protocol or load_protocol()
     )
-    return evaluate_knobs_on_split(stays, knobs, split_id="test")
+    return evaluate_knobs_on_split(stays, knobs, split_id="test", protocol=protocol)
 
 
 def build_manifest(
@@ -211,12 +213,13 @@ def run_study(
     fixtures_dir: Path | None = None,
     write_frozen: bool = True,
     frozen_dir: Path | None = None,
+    protocol: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     stays, fixture_meta = _load_stays(fixtures_dir)
     return run_study_rows(
         stays,
         fixture_meta=fixture_meta,
-        protocol=load_protocol(),
+        protocol=protocol or load_protocol(),
         write_frozen=write_frozen,
         frozen_dir=frozen_dir,
     )
@@ -243,7 +246,7 @@ def run_study_rows(
     primary = run_primary_on_test(stays, knobs, protocol=proto)
     ablations = run_ablations_on_test(stays, primary_knobs=knobs, protocol=proto)
     # Robustness: also report threshold-only on test for PE comparison
-    naive = evaluate_knobs_on_split(stays, None, split_id="test")
+    naive = evaluate_knobs_on_split(stays, None, split_id="test", protocol=proto)
 
     report = {
         "study_version": STUDY_VERSION if suffix == "v1" else "0.2.0",
@@ -295,6 +298,14 @@ def main(argv: list[str] | None = None) -> int:
     p_run.add_argument("--fixtures-dir", type=Path, default=None)
     p_run.add_argument("--json-out", type=Path, default=None)
     p_run.add_argument("--no-write", action="store_true")
+    p_run.add_argument("--protocol-version", choices=("v1", "v2"), default="v1")
+
+    p_rows = sub.add_parser("run-rows", help="Run a protocol over supplied canonical stay rows")
+    p_rows.add_argument("--rows-json", type=Path, required=True)
+    p_rows.add_argument("--protocol-version", choices=("v1", "v2"), default="v2")
+    p_rows.add_argument("--frozen-dir", type=Path, default=None)
+    p_rows.add_argument("--json-out", type=Path, default=None)
+    p_rows.add_argument("--write-frozen", action="store_true")
 
     sub.add_parser("show-manifest", help="Print frozen study manifest")
     sub.add_parser(
@@ -319,10 +330,26 @@ def main(argv: list[str] | None = None) -> int:
         print("ERROR: test sweep was allowed")
         return 1
 
-    result = run_study(
-        fixtures_dir=args.fixtures_dir,
-        write_frozen=not args.no_write,
-    )
+    if args.cmd == "run-rows":
+        raw = json.loads(args.rows_json.read_text())
+        fixture_meta = raw if isinstance(raw, dict) else {"schema_version": "canonical-rows"}
+        stays = raw.get("stays") if isinstance(raw, dict) else raw
+        if not isinstance(stays, list):
+            print("ERROR: --rows-json must contain a list or an object with stays", file=sys.stderr)
+            return 2
+        result = run_study_rows(
+            stays,
+            fixture_meta=fixture_meta,
+            protocol=load_protocol(version=args.protocol_version),
+            write_frozen=args.write_frozen,
+            frozen_dir=args.frozen_dir,
+        )
+    else:
+        result = run_study(
+            fixtures_dir=args.fixtures_dir,
+            write_frozen=not args.no_write,
+            protocol=load_protocol(version=args.protocol_version),
+        )
     report = result["report"]
     if args.json_out:
         args.json_out.parent.mkdir(parents=True, exist_ok=True)

@@ -1,11 +1,18 @@
-# MIMIC-IV governance study protocol v1 (CURIE-014)
+# MIMIC-IV governance study protocol (CURIE-014)
 
 **Status:** Frozen 2026-08-12 — pre-registered before temporal holdout inspection  
 **Machine-readable:** [`eval/mimic_study/frozen/protocol.v1.json`](../../eval/mimic_study/frozen/protocol.v1.json)
+**Stage B amendment:** [`eval/mimic_study/frozen/protocol.v2.json`](../../eval/mimic_study/frozen/protocol.v2.json)
 **Guards:** `python -m eval.mimic_study.sweep show`  
 **Related:** [clinical-validation.md](./clinical-validation.md), [mimic-data-sources.md](./mimic-data-sources.md), [challenge-2019-eval.md](./challenge-2019-eval.md)
 
 > Prototype study design only. Not IRB-approved clinical research, not FDA evidence, not for patient care. Full MIMIC-IV requires PhysioNet credentialed access + DUA. Demo schema is for harness plumbing (CURIE-015), never the primary cohort.
+
+Protocol v1 remains the historical demo-schema reference. For the full MIMIC-IV
+Stage B study, use v2 explicitly. MIMIC-IV's per-subject date shifting makes
+calendar-year splits unsuitable; v2 assigns the temporal roles from
+`anchor_year_group`: `2008 - 2010` and `2011 - 2013` for development,
+`2014 - 2016` for calibration, and `2017 - 2019` for test.
 
 ---
 
@@ -56,7 +63,9 @@ Replay in **availability-time** order. Forbidden as features before availability
 
 ---
 
-## 6. Splits (temporal by ICU intime)
+## 6. Splits
+
+### v1 historical/demo split (temporal by ICU intime)
 
 | Split | Intime (planned) | Role | Allowed |
 |---|---|---|---|
@@ -67,6 +76,14 @@ Replay in **availability-time** order. Forbidden as features before availability
 If the pinned MIMIC calendar span differs, rescale ranges but keep the three roles.
 
 **Hard rule:** sweep, tune, grid/threshold search, and operating-point selection are **forbidden** on `test` (enforced in `eval.mimic_study.protocol`).
+
+### v2 Stage B split (MIMIC anchor-year groups)
+
+Use `load_protocol(version="v2")` or `make mimic-study-v2`. The v2 runner
+accepts externally produced canonical stay rows and writes no frozen output by
+default. To materialize labels from pinned SQL exports, use `make mimic-labels`.
+The label artifact is a provenance sidecar; it is not an input feature and does
+not place labels on the alert path.
 
 ```bash
 python -m eval.mimic_study.sweep sweep --split development   # ok (dry-run until harness)

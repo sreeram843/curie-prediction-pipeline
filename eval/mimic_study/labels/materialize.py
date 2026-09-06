@@ -9,9 +9,10 @@ places labels on the alert path.
 from __future__ import annotations
 
 import json
+from collections.abc import Iterable
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any
 
 from eval.mimic_study.indexing import canonical_json_bytes, sha256_hex
 from eval.mimic_study.labels import LABELS_SCHEMA_VERSION
@@ -92,7 +93,7 @@ def build_label_artifact(
         raise LabelMaterializationError(f"invalid source pin: {exc}") from exc
 
     rows = _base_rows(cohort_stay_ids)
-    sepsis_seen: set[str] = set()
+    sepsis_observed: set[str] = set()
     sepsis_times: dict[str, list[str]] = {}
     evidence: dict[str, list[str]] = {}
     for ordinal, raw in enumerate(sepsis_rows):
@@ -100,10 +101,10 @@ def build_label_artifact(
         stay_id = _stay_id(row)
         if stay_id not in rows:
             continue
+        sepsis_observed.add(stay_id)
         evidence.setdefault(stay_id, []).append(f"sepsis3:{ordinal}")
         if not _truthy(_first(row, ("sepsis3", "sepsis3_onset", "label"))):
             continue
-        sepsis_seen.add(stay_id)
         onset = _timestamp(
             _first(row, ("availability_time", "sofa_time", "onset_time", "event_time"))
         )
@@ -141,7 +142,7 @@ def build_label_artifact(
         row.update(
             {
                 "sepsis3_onset": sepsis_onsets[0] if sepsis_onsets else None,
-                "sepsis3_label_observed": stay_id in sepsis_seen,
+                "sepsis3_label_observed": stay_id in sepsis_observed,
                 "aki_kdigo_max_stage": max(stages) if stages else None,
                 "aki_kdigo_stage_ge_1": max(stages) >= 1 if stages else None,
                 "aki_kdigo_onset": kdigo_onsets[0] if kdigo_onsets else None,
@@ -157,7 +158,9 @@ def build_label_artifact(
         "source_pin": source_pin,
         "label_definitions": {
             "sepsis3_onset": "Earliest availability-time row marked sepsis3 by the pinned export.",
-            "aki_kdigo_stage_ge_1": "Maximum exported KDIGO stage >= 1; absent export remains unknown.",
+            "aki_kdigo_stage_ge_1": (
+                "Maximum exported KDIGO stage >= 1; absent export remains unknown."
+            ),
         },
         "stays": [rows[stay_id] for stay_id in sorted(rows)],
     }

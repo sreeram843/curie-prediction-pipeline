@@ -1,4 +1,4 @@
-.PHONY: help up up-full down logs topics test lint synthea rules flink-test api replay replay-aki mimic mimic-demo syn-icu mimic-study-protocol mimic-harness mimic-study mimic-index mimic-index-validate mimic-index-bench eicu-index eicu-index-validate eicu-index-bench manuscript manuscript-phi paper-tables investor-demo trusted-fact-bridge stewardship uncertainty-band challenge-2019 challenge-2019-sweep challenge-2019-robustness challenge-2019-paper-analyses open-eval parity
+.PHONY: help up up-full down logs topics test lint synthea rules flink-test api replay replay-aki mimic mimic-demo syn-icu mimic-study-protocol mimic-harness mimic-study mimic-study-v2 mimic-labels mimic-index mimic-index-validate mimic-index-bench eicu-index eicu-index-validate eicu-index-bench manuscript manuscript-phi paper-tables investor-demo trusted-fact-bridge stewardship uncertainty-band challenge-2019 challenge-2019-sweep challenge-2019-robustness challenge-2019-paper-analyses open-eval parity
 
 help:
 	@echo "Targets:"
@@ -22,6 +22,8 @@ help:
 	@echo "  mimic-study-protocol - show frozen MIMIC-IV study protocol (CURIE-014)"
 	@echo "  mimic-harness - leakage-safe demo-schema timeline harness (CURIE-015)"
 	@echo "  mimic-study - locked MIMIC ablation/robustness study (CURIE-016)"
+	@echo "  mimic-study-v2 - run v2 over supplied canonical rows (CURIE_MIMIC_STUDY_ROWS)"
+	@echo "  mimic-labels - materialize pinned SQL exports (SEPSIS3/KDIGO/COHORT CSV/JSON)"
 	@echo "  mimic-index - build stay-level Parquet index (CURIE_MIMIC_DIR; LIMIT=0 full; [study] extra)"
 	@echo "  mimic-index-validate - validate + source-reconcile the index"
 	@echo "  mimic-index-bench - bounded compressed-source vs index benchmark"
@@ -104,6 +106,25 @@ mimic-harness:
 
 mimic-study:
 	python -m eval.mimic_study.study run
+
+# Stage B v2: CURIE_MIMIC_STUDY_ROWS must be an operator-produced canonical
+# stay-row JSON. The default is a report-only run; no frozen artifact is written.
+mimic-study-v2:
+	python -m eval.mimic_study.study run-rows \
+		--rows-json "$${CURIE_MIMIC_STUDY_ROWS:?set CURIE_MIMIC_STUDY_ROWS to canonical stay rows}" \
+		$(if $(JSON_OUT),--json-out $(JSON_OUT),)
+
+# SQL exports are generated externally from the pinned mimic-code revision.
+mimic-labels:
+	python scripts/materialize_mimic_labels.py \
+		--sepsis3 "$${CURIE_MIMIC_SEPSIS3_EXPORT:?set CURIE_MIMIC_SEPSIS3_EXPORT}" \
+		--kdigo "$${CURIE_MIMIC_KDIGO_EXPORT:?set CURIE_MIMIC_KDIGO_EXPORT}" \
+		--cohort "$${CURIE_MIMIC_COHORT_EXPORT:?set CURIE_MIMIC_COHORT_EXPORT}" \
+		--source-pin "$${CURIE_MIMIC_LABEL_PIN:?set CURIE_MIMIC_LABEL_PIN}" \
+		--protocol-id "$${CURIE_MIMIC_PROTOCOL_ID:-mimic-iv-governance-study.v2}" \
+		--dataset-version "$${CURIE_MIMIC_DATASET_VERSION:-3.1}" \
+		--extract-date "$${CURIE_MIMIC_EXTRACT_DATE:?set CURIE_MIMIC_EXTRACT_DATE}" \
+		--out "$${CURIE_MIMIC_LABELS_OUT:?set CURIE_MIMIC_LABELS_OUT}"
 
 # Phase C study infrastructure: deterministic stay-level Parquet index.
 # LIMIT=0 builds the full index (default: bounded 200 stays). Requires the
