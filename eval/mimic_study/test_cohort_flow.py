@@ -11,6 +11,7 @@ from eval.mimic_study.cohort_flow import (
     _split_for_intime,
     apply_cohort,
 )
+from eval.mimic_study.protocol import load_protocol
 
 
 def _write(root: Path, rel: str, fields: list[str], rows: list[list[str]]) -> None:
@@ -116,3 +117,13 @@ def test_parse_ts_variants() -> None:
     assert _parse_ts("2015-01-01") is not None
     assert _parse_ts("") is None
     assert _parse_ts("garbage") is None
+
+
+def test_cohort_v2_assigns_anchor_year_group_splits(tmp_path: Path) -> None:
+    out = apply_cohort(_make_root(tmp_path), protocol=load_protocol(version="v2"))
+
+    by_id = {row["stay_id"]: row for row in out["stays"]}
+    assert by_id["s1"]["split_id"] == "calibration"
+    assert by_id["s7"]["split_id"] == "test"
+    assert out["protocol_id"] == "mimic-iv-governance-study.v2"
+    assert out["splits"]["status"] == "frozen"

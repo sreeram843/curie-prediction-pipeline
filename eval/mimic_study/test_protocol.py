@@ -18,6 +18,7 @@ from eval.mimic_study.protocol import (
     operating_point_selection_rule,
     primary_endpoint,
     protocol_summary,
+    split_for_anchor_year_group,
 )
 from eval.mimic_study.sweep import main, run_operating_point_selection, run_sweep
 
@@ -91,6 +92,21 @@ def test_protocol_summary_stable_keys() -> None:
     assert summary["protocol_id"] == raw["protocol_id"]
     assert "primary_success_rule" in summary
     assert "sweep" in summary["test_forbidden_commands"]
+
+
+def test_protocol_v2_uses_anchor_year_group_and_new_artifacts() -> None:
+    proto = load_protocol(version="v2")
+
+    assert proto["protocol_id"] == "mimic-iv-governance-study.v2"
+    assert proto["splits"]["scheme"] == "anchor_year_group"
+    assert split_for_anchor_year_group("2008 - 2010", proto) == "development"
+    assert split_for_anchor_year_group("2011 - 2013", proto) == "development"
+    assert split_for_anchor_year_group("2014 - 2016", proto) == "calibration"
+    assert split_for_anchor_year_group("2017 - 2019", proto) == "test"
+    assert split_for_anchor_year_group("2098 - 2100", proto) == "outside_protocol"
+    assert proto["operating_point_selection"]["freeze_artifact"].endswith(
+        "operating_point.v2.json"
+    )
 
 
 def test_docs_protocol_exists() -> None:
