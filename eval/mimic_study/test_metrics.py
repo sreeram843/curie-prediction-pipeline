@@ -19,6 +19,25 @@ def test_ranking_metrics_reports_auc_auprc_and_brier() -> None:
     assert result["brier"] == (0.01 + 0.01 + 0.64 + 0.09) / 4
 
 
+def test_ranking_metrics_auprc_is_invariant_to_tied_score_order() -> None:
+    forward = ranking_metrics([1, 0], [0.5, 0.5])
+    reversed_labels = ranking_metrics([0, 1], [0.5, 0.5])
+    assert forward["auprc"] == reversed_labels["auprc"] == 0.5
+
+
+def test_ranking_metrics_groups_ties_across_larger_cohort() -> None:
+    # One clear positive at 0.9, then a tied group of 4 at 0.5 (2 positives, 2 negatives).
+    result = ranking_metrics(
+        [1, 1, 0, 0, 1],
+        [0.9, 0.5, 0.5, 0.5, 0.5],
+    )
+    # Precision for the tied group uses cumulative TP/total after the whole group
+    # is included (3 TP / 5 total = 0.6), applied to each of its 2 positives —
+    # not the within-group fraction alone. Rank-1 positive contributes 1/1.
+    expected = (1.0 + 0.6 + 0.6) / 3
+    assert result["auprc"] == expected
+
+
 def test_decision_curve_returns_net_benefit() -> None:
     result = decision_curve([0, 1, 0, 1], [0.1, 0.9, 0.8, 0.7], thresholds=[0.5])
     assert result == [{"threshold": 0.5, "net_benefit": 0.25, "tp": 2, "fp": 1, "n": 4}]

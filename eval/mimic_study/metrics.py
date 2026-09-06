@@ -27,12 +27,25 @@ def ranking_metrics(labels: list[int | bool], scores: list[float]) -> dict[str, 
     positives = sum(binary)
     negatives = len(binary) - positives
     ordered = sorted(zip(scores, binary), key=lambda pair: pair[0], reverse=True)
+    # Tied scores are one threshold, not an arbitrary sub-ordering: grouping them
+    # keeps AUPRC invariant to how equal-score rows happen to be sorted (a score
+    # of [0.5, 0.5] with labels [1, 0] must equal [0, 1] — same threshold, same
+    # decision). Precision for a group is evaluated once the whole group is in.
     precision_sum = 0.0
+    rank = 0
     seen_positive = 0
-    for rank, (_, label) in enumerate(ordered, start=1):
-        if label:
-            seen_positive += 1
-            precision_sum += seen_positive / rank
+    i = 0
+    while i < len(ordered):
+        j = i
+        group_positives = 0
+        while j < len(ordered) and ordered[j][0] == ordered[i][0]:
+            group_positives += ordered[j][1]
+            j += 1
+        rank += j - i
+        seen_positive += group_positives
+        if group_positives:
+            precision_sum += group_positives * seen_positive / rank
+        i = j
     auprc = precision_sum / positives if positives else None
     auroc = None
     if positives and negatives:
