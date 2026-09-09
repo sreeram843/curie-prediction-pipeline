@@ -125,6 +125,86 @@ def test_naive_count_includes_aki_like_governed_count_does() -> None:
     assert result["score_trajectory"]
 
 
+def test_replay_stay_ablation_survives_insufficient_data_sofa() -> None:
+    """Regression: when fewer components are present than min_components_required,
+    compute_sofa_score returns completeness=insufficient_data and total_score=None
+    (eval/sofa/scoring.py). replay_stay_ablation crashed doing float(None) instead
+    of treating "nothing scoreable yet" as no score to log -- not a reassuring
+    zero. A single creatinine value gives exactly one present component (renal);
+    requiring 4 forces insufficient_data on every observation."""
+    from eval.mimic_study.ablations import FULL_GOVERNANCE_KNOBS
+
+    knobs = {**FULL_GOVERNANCE_KNOBS, "min_components_required": 4}
+    stay = {
+        "stay_id": "insuff-1",
+        "subject_id": "s-insuff-1",
+        "hadm_id": "h-insuff-1",
+        "intime": "2019-01-01 00:00:00",
+        "outtime": "2019-01-01 03:00:00",
+        "labels": {"sepsis3_onset": None, "aki_kdigo_stage_ge_1": None},
+        "labs": [
+            {
+                "itemid": 50912,
+                "valuenum": 1.2,
+                "unit": "mg/dL",
+                "charttime": "2019-01-01 01:00:00",
+                "storetime": "2019-01-01 01:00:00",
+                "evidence_id": "lab/cr-1",
+            }
+        ],
+        "charts": [],
+        "conditions": [],
+    }
+    result = replay_stay_ablation(stay, knobs=knobs)
+    assert result["completeness_partial"] is True
+    assert result["score_trajectory"] == []
+
+
+def test_run_rows_cli_consolidates_dataset_pin_from_export(tmp_path: Path) -> None:
+    """Regression: indexed_study_rows()/export-rows writes "dataset" (name/
+    version/extract_date) and "index_hash" as separate top-level keys, but
+    the manifest looks for a single "dataset_pin" key that never existed --
+    silently freezing dataset_pin: null. The run-rows CLI must consolidate
+    them so provenance survives the export -> run-rows handoff."""
+    rows_path = tmp_path / "rows.json"
+    rows_path.write_text(
+        json.dumps(
+            {
+                "schema_version": "1.0.0",
+                "protocol_id": "mimic-iv-governance-study.v2",
+                "dataset": {"name": "mimic-iv", "version": "3.1", "extract_date": "2024-10-03"},
+                "index_hash": "deadbeef",
+                "selection": {"stay_ids": []},
+                "labels": {"status": "not_supplied"},
+                "stays": [],
+            }
+        )
+    )
+    frozen_dir = tmp_path / "frozen"
+    assert (
+        main(
+            [
+                "run-rows",
+                "--rows-json",
+                str(rows_path),
+                "--protocol-version",
+                "v2",
+                "--write-frozen",
+                "--frozen-dir",
+                str(frozen_dir),
+            ]
+        )
+        == 0
+    )
+    manifest = json.loads((frozen_dir / "study_manifest.v2.json").read_text())
+    assert manifest["dataset_pin"] == {
+        "name": "mimic-iv",
+        "version": "3.1",
+        "extract_date": "2024-10-03",
+        "index_hash": "deadbeef",
+    }
+
+
 def test_frozen_artifacts_regenerated_by_run(tmp_path: Path) -> None:
     result = run_study(write_frozen=True, frozen_dir=tmp_path)
     op_path = tmp_path / "operating_point.v1.json"

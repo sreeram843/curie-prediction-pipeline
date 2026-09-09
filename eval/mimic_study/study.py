@@ -333,6 +333,18 @@ def main(argv: list[str] | None = None) -> int:
     if args.cmd == "run-rows":
         raw = json.loads(args.rows_json.read_text())
         fixture_meta = raw if isinstance(raw, dict) else {"schema_version": "canonical-rows"}
+        # indexed_study_rows()/export-rows exports "dataset" (name/version/extract_date)
+        # and "index_hash" separately; consolidate into the "dataset_pin" the manifest
+        # expects so provenance isn't silently dropped between export and run-rows.
+        if (
+            isinstance(fixture_meta, dict)
+            and "dataset_pin" not in fixture_meta
+            and isinstance(fixture_meta.get("dataset"), dict)
+        ):
+            fixture_meta = {
+                **fixture_meta,
+                "dataset_pin": {**fixture_meta["dataset"], "index_hash": fixture_meta.get("index_hash")},
+            }
         stays = raw.get("stays") if isinstance(raw, dict) else raw
         if not isinstance(stays, list):
             print("ERROR: --rows-json must contain a list or an object with stays", file=sys.stderr)
