@@ -1,0 +1,32 @@
+{
+  "schema_version": "1.0.0",
+  "pin_id": "icd_sepsis_codes.v1",
+  "pinned_at": "2026-09-09",
+  "role": "exploratory_independent_positive_set",
+  "not_primary_onset": true,
+  "description": "Explicit ICD-9/10 sepsis / severe sepsis / septic shock codes for a secondary fairness scorecard. Discharge diagnoses are never used as features or as primary PE-1 onset.",
+  "matching": {
+    "exact": [
+      "99591",
+      "99592",
+      "78552",
+      "R6520",
+      "R6521",
+      "O85"
+    ],
+    "prefixes": [
+      "038",
+      "A40",
+      "A41"
+    ]
+  },
+  "sources": [
+    "ICD-9-CM: 038.x (septicemia), 995.91 (sepsis), 995.92 (severe sepsis), 785.52 (septic shock)",
+    "ICD-10-CM: A40–A41 (sepsis), R65.20/R65.21 (severe sepsis ± septic shock), O85 (puerperal sepsis)"
+  ],
+  "notes": [
+    "Codes are normalized by stripping dots and uppercasing before match.",
+    "This set is intentionally narrower than infection+organ-failure composite criteria (e.g. Angus).",
+    "Do not replace sepsis3_onset primary labels with these codes."
+  ]
+}

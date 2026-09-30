@@ -1,0 +1,96 @@
+{
+  "name": "mimic_stage_b_operating_point",
+  "schema_version": "1.0.0",
+  "study_version": "0.2.0",
+  "protocol_id": "mimic-iv-governance-study.v2",
+  "candidate_id": "full_p90_gate",
+  "selected_at": "2026-09-07T21:54:32.485934+00:00",
+  "source_splits": [
+    "development",
+    "calibration"
+  ],
+  "forbidden_selection_split": "test",
+  "goals": {
+    "primary": "governed_sensitivity >= naive_sensitivity - 0.10 OR governed_sensitivity >= 0.70",
+    "coprimary": "interruptive_reduction_ratio <= 0.25"
+  },
+  "calibration": {
+    "stays": 16313,
+    "labeled_positive": 7426,
+    "unknown_label_stays": 0,
+    "naive_sensitivity": 0.9851871801777539,
+    "governed_sensitivity": 0.9850525181793698,
+    "interruptive_sensitivity": 0.7361971451656343,
+    "naive_alerts": 5015740,
+    "governed_alerts": 895579,
+    "interruptive_alerts": 253905,
+    "naive_interruptive_alerts": 3252446,
+    "interruptive_reduction_ratio": 0.07806586181599941,
+    "alerts_per_100_patient_days": 1579.601536247707,
+    "interruptive_per_100_patient_days": 447.8317692364091,
+    "episodes": 260537,
+    "false_episodes_label_negative": 6873,
+    "false_episode_rate_per_100_patient_days": 12.12243851031622,
+    "episode_per_100_patient_days": 459.52913751815174,
+    "interruptive_nna": 46.4432046826413,
+    "interruptive_precision": 0.07175518402552136,
+    "mean_in_window_lead_hours": 3.575276828434723,
+    "partial_completeness_stays": 16313,
+    "patient_days": 56696.513611111026,
+    "meets_pe1": true,
+    "meets_pe2": true,
+    "detection_window": {
+      "before_hours": 12.0,
+      "after_hours": 6.0
+    }
+  },
+  "knobs": {
+    "description": "full_governance baseline for MIMIC demo-schema study",
+    "trajectory_persistence_minutes": 0,
+    "min_crossings": 1,
+    "baseline_enabled": false,
+    "baseline_delta_threshold": 2,
+    "baseline_lookback_hours": 24,
+    "refractory_minutes": 90,
+    "min_components_required": 1,
+    "naive_threshold": 2,
+    "page_gate_enabled": true,
+    "page_min_crossings": 2,
+    "page_trajectory_persistence_minutes": 30,
+    "page_min_score_delta": 1,
+    "page_min_positive_components": 1,
+    "use_episode_arbitration": true,
+    "reject_late_out_of_order": true,
+    "suppression_flags": [
+      "comfort_care",
+      "already_on_sepsis_protocol",
+      "already_on_aki_protocol"
+    ]
+  },
+  "candidates_scored": [
+    {
+      "candidate_id": "full_p90_gate",
+      "meets_pe1": true,
+      "interruptive_reduction_ratio": 0.07806586181599941,
+      "governed_sensitivity": 0.9850525181793698
+    },
+    {
+      "candidate_id": "full_p60_gate",
+      "meets_pe1": true,
+      "interruptive_reduction_ratio": 0.1494505981037041,
+      "governed_sensitivity": 0.9850525181793698
+    },
+    {
+      "candidate_id": "full_no_gate",
+      "meets_pe1": true,
+      "interruptive_reduction_ratio": 0.16340655617341532,
+      "governed_sensitivity": 0.9850525181793698
+    },
+    {
+      "candidate_id": "strictish",
+      "meets_pe1": false,
+      "interruptive_reduction_ratio": 0.025153069412989486,
+      "governed_sensitivity": 0.5090223538917318
+    }
+  ]
+}

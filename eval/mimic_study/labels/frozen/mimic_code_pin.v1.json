@@ -1,0 +1,36 @@
+{
+  "schema_version": "1.0.0",
+  "pinned_at": "2026-09-06T21:34:22.764062+00:00",
+  "mimic_code": {
+    "repository": "https://github.com/MIT-LCP/mimic-code",
+    "revision": "HEAD",
+    "resolved_commit": "303d26c623dcc9c49cc0f204468d4acc2f063797",
+    "files": {
+      "mimic-iv/concepts_postgres/organfailure/kdigo_creatinine.sql": {
+        "sha256": "af06fde2a30eb33a0a697215ba61e3c755e19fb8035304f65e298ebc65ed4970",
+        "size": 1811
+      },
+      "mimic-iv/concepts_postgres/organfailure/kdigo_stages.sql": {
+        "sha256": "50a4f35d6b84edb5be68fc17d11715bff526222236bab4ee79f9fc7a1d2f44bb",
+        "size": 4697
+      },
+      "mimic-iv/concepts_postgres/organfailure/kdigo_uo.sql": {
+        "sha256": "5481a929883dce4b444330b98df419cf78ef3901903ad21c71e23eb2f09afd01",
+        "size": 3922
+      },
+      "mimic-iv/concepts_postgres/score/sofa.sql": {
+        "sha256": "d72274cd450c5ab0a8724bf135b543aed565bcc65d281f44afc071a08c9d35a3",
+        "size": 10918
+      },
+      "mimic-iv/concepts_postgres/sepsis/sepsis3.sql": {
+        "sha256": "060328fe73c6bd77c759ad92d0b1963529785e3ceffdd87e10e1a5188b6f7a19",
+        "size": 2718
+      },
+      "mimic-iv/concepts_postgres/sepsis/suspicion_of_infection.sql": {
+        "sha256": "2cb84ee40430de7ba9ad09d509ba7cf3ed518619c0fcce1d1dfd444957175cee",
+        "size": 6264
+      }
+    }
+  },
+  "note": "Reference label definitions (Sepsis-3 / KDIGO concepts). Labels are generated separately from feature replay and are not on the alert path."
+}
