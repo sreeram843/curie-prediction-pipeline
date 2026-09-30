@@ -50,6 +50,12 @@ paper/jamiaopen/*.fdb_latexmk
 paper/jamiaopen/*.fls
 paper/jamiaopen/*.synctex.gz
 paper/jamiaopen/*.pdf
+paper/jbhi/*.aux
+paper/jbhi/*.out
+paper/jbhi/*.fdb_latexmk
+paper/jbhi/*.fls
+paper/jbhi/*.log
+paper/jbhi/*.pdf
 
 # Local dataset archive / agent-tooling state (not project code)
 /data.zip

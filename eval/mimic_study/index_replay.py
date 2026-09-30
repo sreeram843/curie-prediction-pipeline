@@ -513,6 +513,8 @@ def indexed_study_rows(
                     patient.get("anchor_year_group") or "", proto
                 )
             stay = mimic_stay_from_index(index_dir, row)
+            if "split_id" in row:
+                stay["split_id"] = row["split_id"]
         else:
             stay = dict(eicu_map[sid])
         stay["labels"] = label_rows.get(
@@ -605,6 +607,8 @@ def replay_indexed_stays(
                     patient.get("anchor_year_group") or "", proto
                 )
             stay = mimic_stay_from_index(index_dir, stay_meta)
+            if "split_id" in stay_meta:
+                stay["split_id"] = stay_meta["split_id"]
         else:
             stay = stay_map[sid]
         if labels_path is not None:

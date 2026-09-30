@@ -84,6 +84,47 @@ def test_page_gate_downgrades_interruptive_to_watch() -> None:
     assert second.reason == "pass"
 
 
+def test_component_resolution_gap_minutes_overrides_blanket_gap() -> None:
+    """A component charted sparsely by nature (e.g. liver/bilirubin) shouldn't
+    lose its trajectory just because 90 minutes passed with no new reading --
+    but a component with no override still resets on the same 90-minute gap."""
+    base_alert = {
+        "score": 4,
+        "tier": "urgent",
+        "event_time": "2024-01-01T00:00:00+00:00",
+        "patient_id": "Patient/1",
+        "component_breakdown": {"liver": 3},
+    }
+    second_alert = {**base_alert, "event_time": "2024-01-01T01:30:00+00:00"}  # +90 min
+
+    # Blanket 60-minute gap, no override: 90-minute silence resets the streak.
+    blanket_config = GovernanceConfig(
+        trajectory_persistence_minutes=0,
+        min_crossings=2,
+        baseline_enabled=False,
+        refractory_minutes=0,
+        resolution_gap_minutes=60,
+    )
+    blanket_state = PatientGovState()
+    evaluate(base_alert, blanket_state, blanket_config)
+    evaluate(second_alert, blanket_state, blanket_config)
+    assert blanket_state.crossings_above_threshold == 1  # reset, started over
+
+    # Same 90-minute gap, but liver gets a 120-minute allowance: streak survives.
+    override_config = GovernanceConfig(
+        trajectory_persistence_minutes=0,
+        min_crossings=2,
+        baseline_enabled=False,
+        refractory_minutes=0,
+        resolution_gap_minutes=60,
+        component_resolution_gap_minutes={"liver": 120},
+    )
+    override_state = PatientGovState()
+    evaluate(base_alert, override_state, override_config)
+    evaluate(second_alert, override_state, override_config)
+    assert override_state.crossings_above_threshold == 2  # survived, confirmed
+
+
 def test_page_gate_requires_positive_components() -> None:
     config = GovernanceConfig(
         trajectory_persistence_minutes=0,

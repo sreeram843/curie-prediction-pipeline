@@ -33,6 +33,14 @@ class GovernanceConfig:
     baseline_lookback_hours: int = 24
     refractory_minutes: int = 120
     resolution_gap_minutes: int = 60
+    # Per-component override: a component whose evidence is sparsely charted by
+    # nature (e.g. liver/bilirubin, respiration/FiO2 -- see completeness study)
+    # can tolerate a longer silence before the trajectory resets, without loosening
+    # tolerance for continuously-monitored components (cardiovascular, renal, ...).
+    # Effective gap = max(resolution_gap_minutes, this map's value for any component
+    # currently positive on the alert). Empty/unset -> blanket resolution_gap_minutes
+    # only, unchanged from before.
+    component_resolution_gap_minutes: dict[str, int] = field(default_factory=dict)
     suppression_flags: set[str] = field(
         default_factory=lambda: {"comfort_care", "already_on_sepsis_protocol"}
     )
@@ -223,7 +231,19 @@ def evaluate(alert: dict, state: PatientGovState, config: GovernanceConfig) -> D
 
     if state.last_crossing_event_time is not None:
         gap_min = (event_time - state.last_crossing_event_time).total_seconds() / 60.0
-        if gap_min > config.resolution_gap_minutes:
+        effective_gap = config.resolution_gap_minutes
+        if config.component_resolution_gap_minutes:
+            active = component_points_from_alert(alert)
+            component_override = max(
+                (
+                    config.component_resolution_gap_minutes.get(name, 0)
+                    for name, pts in active.items()
+                    if pts and pts > 0
+                ),
+                default=0,
+            )
+            effective_gap = max(effective_gap, component_override)
+        if gap_min > effective_gap:
             state.reset_trajectory()
 
     # Unique event-time crossings only

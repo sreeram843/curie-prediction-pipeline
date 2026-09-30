@@ -343,7 +343,10 @@ def main(argv: list[str] | None = None) -> int:
         ):
             fixture_meta = {
                 **fixture_meta,
-                "dataset_pin": {**fixture_meta["dataset"], "index_hash": fixture_meta.get("index_hash")},
+                "dataset_pin": {
+                    **fixture_meta["dataset"],
+                    "index_hash": fixture_meta.get("index_hash"),
+                },
             }
         stays = raw.get("stays") if isinstance(raw, dict) else raw
         if not isinstance(stays, list):

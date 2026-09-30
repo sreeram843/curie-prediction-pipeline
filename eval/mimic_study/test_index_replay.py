@@ -22,13 +22,28 @@ from eval.mimic_study.index_replay import (  # noqa: E402
 )
 from eval.mimic_study.indexing import build_index, load_stay_events  # noqa: E402
 from eval.mimic_study.protocol import load_protocol  # noqa: E402
-from eval.mimic_study.test_indexing import make_mimic_source  # noqa: E402
+from eval.mimic_study.test_indexing import _write_gz, make_mimic_source  # noqa: E402
 
 
 @pytest.fixture(scope="module")
 def mimic_index(tmp_path_factory: pytest.TempPathFactory) -> Path:
     source = make_mimic_source(tmp_path_factory.mktemp("replay-src"))
     index_dir = tmp_path_factory.mktemp("replay-idx") / "idx"
+    build_index(source_root=source, index_dir=index_dir, dataset="mimic")
+    return index_dir
+
+
+@pytest.fixture(scope="module")
+def mimic_index_with_anchor_year_group(tmp_path_factory: pytest.TempPathFactory) -> Path:
+    """Same 3-stay/2-subject source as `mimic_index`, but patients carry an
+    anchor_year_group that matches protocol v2's development split."""
+    source = make_mimic_source(tmp_path_factory.mktemp("replay-src-ayg"))
+    _write_gz(
+        source / "hosp" / "patients.csv.gz",
+        ["subject_id", "gender", "anchor_age", "anchor_year_group"],
+        [[101, "F", 62, "2008 - 2010"], [102, "M", 40, "2008 - 2010"]],
+    )
+    index_dir = tmp_path_factory.mktemp("replay-idx-ayg") / "idx"
     build_index(source_root=source, index_dir=index_dir, dataset="mimic")
     return index_dir
 
@@ -40,6 +55,32 @@ class TestSameCodePath:
         assert exported["protocol_id"] == "mimic-iv-governance-study.v1"
         assert exported["stays"][0]["stay_id"] == "10"
         assert exported["stays"][0]["labs"]
+
+    def test_export_rows_carries_split_id_through(
+        self, mimic_index_with_anchor_year_group: Path
+    ) -> None:
+        """Regression: indexed_study_rows() computed split_id via
+        anchor_year_group but discarded it, because mimic_stay_from_index()
+        returns a fresh dict that doesn't carry the field forward. Every split
+        (dev/calibration/test) silently ended up with zero stays."""
+        proto = load_protocol(version="v2")
+        exported = indexed_study_rows(
+            index_dir=mimic_index_with_anchor_year_group,
+            stay_ids=["10"],
+            protocol=proto,
+        )
+        assert exported["stays"][0]["split_id"] == "development"
+
+    def test_replay_indexed_stays_carries_split_id_through(
+        self, mimic_index_with_anchor_year_group: Path
+    ) -> None:
+        proto = load_protocol(version="v2")
+        report = replay_indexed_stays(
+            index_dir=mimic_index_with_anchor_year_group,
+            stay_ids=["10"],
+            protocol=proto,
+        )
+        assert report["stays"][0]["split_id"] == "development"
 
     def test_single_bounded_full_identical(self, mimic_index: Path) -> None:
         single = replay_indexed_stays(index_dir=mimic_index, stay_ids=["10"])

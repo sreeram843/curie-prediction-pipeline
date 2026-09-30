@@ -171,16 +171,20 @@ def replay_stay_ablation(
                 rule_version="0.3.0",
                 min_components_required=min_components,
             )
-            score_trajectory.append(
-                {
-                    "time": clock.isoformat(),
-                    "score": float(sofa.total_score),
-                    "score_type": "ordinal_sofa",
-                }
-            )
+            if sofa.total_score is not None:
+                # None means insufficient_data (no component scoreable at all,
+                # not merely partial) -- there is no score to log at this
+                # observation, not a reassuring zero.
+                score_trajectory.append(
+                    {
+                        "time": clock.isoformat(),
+                        "score": float(sofa.total_score),
+                        "score_type": "ordinal_sofa",
+                    }
+                )
             tier = tier_for_score(sofa.total_score)
             evidence = list(sofa.evidence_ids or [])
-            if sofa.completeness.value == "partial":
+            if sofa.completeness.value in {"partial", "insufficient_data"}:
                 partial = True
             if check_leakage:
                 assert_snapshot_leakage_free(
@@ -206,6 +210,9 @@ def replay_stay_ablation(
                     "event_time": clock.isoformat(),
                     "evidence_ids": evidence,
                     "positive_components": pos,
+                    "component_breakdown": {
+                        c.name.value: c.points for c in sofa.components if not c.missing
+                    },
                 }
                 signal_count += 1
                 _emit_signal(alert=alert, gov_state=sofa_gov, clock=clock)
