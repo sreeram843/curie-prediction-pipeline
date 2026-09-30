@@ -132,6 +132,7 @@ mimic-publication-aggregates:
 
 jbhi-paper:
 	MPLCONFIGDIR=$${TMPDIR:-/tmp} python paper/jbhi/make_figures.py
+	MPLCONFIGDIR=$${TMPDIR:-/tmp} python paper/jbhi/make_graphical_abstract.py
 	cd paper/jbhi && latexmk -pdf -interaction=nonstopmode main.tex
 
 # SQL exports are generated externally from the pinned mimic-code revision.
