@@ -21,9 +21,9 @@
       "id": "boundary-delta-just-under-0.3",
       "events": [
         {"type": "creatinine", "event_time": "2024-07-01T00:00:00+00:00", "value": 1.0, "evidence_id": "Observation/cr-0"},
-        {"type": "creatinine", "event_time": "2024-07-01T24:00:00+00:00", "value": 1.29, "evidence_id": "Observation/cr-1"}
+        {"type": "creatinine", "event_time": "2024-07-02T00:00:00+00:00", "value": 1.29, "evidence_id": "Observation/cr-1"}
       ],
-      "as_of": "2024-07-01T24:00:00+00:00",
+      "as_of": "2024-07-02T00:00:00+00:00",
       "expect": {
         "stage": 0,
         "criteria_excludes": ["delta_cr_ge_0_3_within_48h"]
