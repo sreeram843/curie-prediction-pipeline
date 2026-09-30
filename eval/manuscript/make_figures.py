@@ -5,8 +5,8 @@ package design). Reads:
 
   - eval/challenge2019/frozen/comparators_setB_window_m12_p6.v1.json
   - eval/challenge2019/frozen/ablation_setB_window_m12_p6.v1.json
-  - eval/challenge2019/frozen/holdout_primary_window_m12_p6.v2.json
-  - eval/manuscript/generated/figure_specs.v2.json
+  - eval/challenge2019/frozen/holdout_primary_window_m12_p6.v3.json
+  - eval/manuscript/generated/figure_specs.v3.json
 
 Writes PNG (300 dpi) + PDF to eval/manuscript/generated/figures/.
 
@@ -76,7 +76,7 @@ def figure3_detection_burden() -> None:
     sepsis_stays = comp["comparators"][0]["cohort"]["sepsis_stays"]  # 1142
     gov_tp = primary["governed_sensitivity"] * sepsis_stays
 
-    # Curie lanes (from committed ablation sidecar); NNA = emissions / in-window TP
+    # Curie lanes; EPS = emissions per in-window detected positive stay.
     curie = [
         {
             "label": "Threshold-only SOFA",
@@ -153,21 +153,21 @@ def figure3_detection_burden() -> None:
             color=color, ha=ha, va="center", zorder=6,
         )
 
-    _lab(comps[0]["emis"], comps[0]["sens"] * 100, "SIRS ≥ 2\nNNA 213", 1.06, 2.4, GREY)
-    _lab(comps[1]["emis"], comps[1]["sens"] * 100, "NEWS2 ≥ 5*\nNNA 163", 1.06, -3.0, GREY)
-    _lab(comps[2]["emis"], comps[2]["sens"] * 100, "qSOFA ≥ 2*\nNNA 78", 1.07, 0, GREY)
+    _lab(comps[0]["emis"], comps[0]["sens"] * 100, "SIRS ≥ 2\nEPS 213", 1.06, 2.4, GREY)
+    _lab(comps[1]["emis"], comps[1]["sens"] * 100, "NEWS2 ≥ 5*\nEPS 163", 1.06, -3.0, GREY)
+    _lab(comps[2]["emis"], comps[2]["sens"] * 100, "qSOFA ≥ 2*\nEPS 78", 1.07, 0, GREY)
     _lab(
         curie[0]["emis"], curie[0]["sens"] * 100,
-        f"Threshold-only SOFA\nNNA {curie[0]['nna']:.0f}", 1.05, 3.0, INK,
+        f"Threshold-only SOFA\nEPS {curie[0]['nna']:.0f}", 1.05, 3.0, INK,
     )
     _lab(
         curie[1]["emis"], curie[1]["sens"] * 100,
-        f"Governed SOFA\n(watch + page) · NNA {curie[1]['nna']:.0f}",
+        f"Governed SOFA\n(watch + page) · EPS {curie[1]['nna']:.0f}",
         0.60, 3.4, BLUE, ha="right",
     )
     _lab(
         curie[2]["emis"], curie[2]["sens"] * 100,
-        f"Interruptive lane\nNNA {curie[2]['nna']:.0f}", 1.07, 0, VERMILLION,
+        f"Interruptive lane\nEPS {curie[2]['nna']:.0f}", 1.07, 0, VERMILLION,
     )
 
     ax.set_xscale("log")
@@ -215,7 +215,7 @@ def figure3_detection_burden() -> None:
     fig.text(
         0.012, -0.02,
         "*NEWS2 omits consciousness/AVPU; qSOFA omits GCS (absent in Challenge 2019). "
-        "NNA = emissions per in-window true-positive stay. "
+        "EPS = emissions per in-window detected positive stay. "
         "Not a claim of clinical superiority.",
         fontsize=7.0, color=GREY,
     )
@@ -224,8 +224,8 @@ def figure3_detection_burden() -> None:
 
 def figure4_timing_robustness() -> None:
     """Naive vs governed sensitivity across secondary timing definitions."""
-    specs = _load(GEN / "figure_specs.v2.json")
-    holdout = _load(FROZEN / "holdout_primary_window_m12_p6.v2.json")
+    specs = _load(GEN / "figure_specs.v3.json")
+    holdout = _load(FROZEN / "holdout_primary_window_m12_p6.v3.json")
     primary = holdout["detection"]["governed_sensitivity"] * 100
 
     rows = sorted(specs["robustness"]["rows"], key=lambda r: r["governed_sensitivity"])

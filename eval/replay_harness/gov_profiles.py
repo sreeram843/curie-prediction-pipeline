@@ -113,6 +113,11 @@ def apply_gov_knobs(
     cfg.baseline_delta_threshold = int(meta.get("baseline_delta_threshold", 2))
     cfg.baseline_lookback_hours = int(meta.get("baseline_lookback_hours", 24))
     cfg.refractory_minutes = int(meta["refractory_minutes"])
+    cfg.resolution_gap_minutes = int(meta.get("resolution_gap_minutes", 60))
+    if meta.get("component_resolution_gap_minutes"):
+        cfg.component_resolution_gap_minutes = {
+            str(k): int(v) for k, v in meta["component_resolution_gap_minutes"].items()
+        }
     cfg.page_gate_enabled = bool(meta.get("page_gate_enabled", False))
     cfg.page_min_crossings = int(meta.get("page_min_crossings", 2))
     cfg.page_trajectory_persistence_minutes = int(

@@ -36,6 +36,9 @@ def _metrics_card(report: dict[str, Any]) -> dict[str, Any]:
     boot_metrics = boot.get("metrics") or {}
     return {
         "stays_scored": report.get("stays_scored"),
+        "cohort": report.get("cohort"),
+        "alerts": report.get("alerts"),
+        "challenge_utility": report.get("challenge_utility"),
         "governed_sensitivity": det.get("governed_sensitivity"),
         "interruptive_sensitivity": det.get("interruptive_sensitivity"),
         "naive_sensitivity": det.get("naive_sensitivity"),
@@ -62,6 +65,76 @@ def _metrics_card(report: dict[str, Any]) -> dict[str, Any]:
         }
         if boot_metrics
         else None,
+    }
+
+
+def build_holdout_sidecar(report: dict[str, Any]) -> dict[str, Any]:
+    """Build the publication-complete v3 sidecar without changing study results."""
+    cohort = report.get("cohort") or {}
+    alerts = report.get("alerts") or {}
+    detection = report.get("detection") or {}
+    return {
+        "schema_version": "3.0.0",
+        "detection_mode_id": "window_m12_p6",
+        "cohort_name": "training_setB",
+        "n_stays": report.get("stays_scored"),
+        "operating_point": "eval/challenge2019/frozen/p1_setA_winner.json",
+        "rule_bundle": report.get("rule_bundle"),
+        "cohort": {
+            key: cohort.get(key)
+            for key in (
+                "sepsis_stays",
+                "non_sepsis_stays",
+                "stays_scored",
+                "patient_hours",
+                "patient_days",
+            )
+        },
+        "alerts": {
+            key: alerts.get(key)
+            for key in (
+                "naive_total",
+                "governed_total",
+                "watch_total",
+                "interruptive_total",
+                "alert_reduction_ratio",
+                "interruptive_reduction_ratio",
+                "governed_alerts_per_patient_day",
+                "interruptive_alerts_per_patient_day",
+            )
+        },
+        "detection": {
+            key: detection.get(key)
+            for key in (
+                "naive_tp",
+                "governed_tp",
+                "interruptive_tp",
+                "naive_sensitivity",
+                "governed_sensitivity",
+                "interruptive_sensitivity",
+                "naive_fp_non_sepsis",
+                "governed_fp_non_sepsis",
+                "interruptive_fp_non_sepsis",
+                "governed_ppv_stay",
+                "interruptive_ppv_stay",
+                "naive_nna",
+                "governed_nna",
+                "interruptive_nna",
+                "interruptive_nna_per_governed_tp",
+                "mean_lead_hours_governed_in_window",
+                "lead_hours_governed_in_window_p25",
+                "lead_hours_governed_in_window_p50",
+                "lead_hours_governed_in_window_p75",
+            )
+        },
+        "challenge_utility": report.get("challenge_utility"),
+        "bootstrap": report.get("bootstrap"),
+        "notes": [
+            "Locked setB evaluation; governance was not retuned.",
+            "Primary detection is any emission in [label_start-12h, label_start+6h].",
+            "NNA fields count emissions per detected positive stay, not episode-arbitrated pages.",
+            "Stay-level PPV uses any emission during the stay and is not onset-window PPV.",
+        ],
     }
 
 
@@ -219,32 +292,14 @@ def run_paper_analyses(
         "ablation": ablation,
         "miss_analysis": miss,
         "pareto": pareto,
-        "holdout_sidecar": {
-            "schema_version": "2.0.0",
-            "detection_mode_id": "window_m12_p6",
-            "cohort": "training_setB",
-            "n_stays": holdout_card["stays_scored"],
-            "operating_point": "eval/challenge2019/frozen/p1_setA_winner.json",
-            "detection": {
-                "governed_sensitivity": holdout_card["governed_sensitivity"],
-                "interruptive_sensitivity": holdout_card["interruptive_sensitivity"],
-                "interruptive_nna": holdout_card["interruptive_nna"],
-                "mean_lead_hours_in_window": holdout_card["mean_lead_hours_in_window"],
-            },
-            "bootstrap": holdout_card["bootstrap"],
-            "notes": [
-                "Primary detection window: any alert in [onset-12h, onset+6h].",
-                "Stay-level percentile bootstrap, seed 42.",
-                "Does not replace v1 point estimates; v2 adds intervals.",
-            ],
-        },
+        "holdout_sidecar": build_holdout_sidecar(holdout),
     }
 
 
 def write_frozen(report: dict[str, Any], *, frozen_dir: Path = FROZEN_DIR) -> None:
     frozen_dir.mkdir(parents=True, exist_ok=True)
     mapping = {
-        "holdout_primary_window_m12_p6.v2.json": report["holdout_sidecar"],
+        "holdout_primary_window_m12_p6.v3.json": report["holdout_sidecar"],
         "comparators_setB_window_m12_p6.v1.json": report["comparators"],
         "ablation_setB_window_m12_p6.v1.json": report["ablation"],
         "miss_analysis.v2.json": report["miss_analysis"],
@@ -253,7 +308,15 @@ def write_frozen(report: dict[str, Any], *, frozen_dir: Path = FROZEN_DIR) -> No
     for name, payload in mapping.items():
         if payload is None:
             continue
-        (frozen_dir / name).write_text(json.dumps(payload, indent=2) + "\n")
+        path = frozen_dir / name
+        rendered = json.dumps(payload, indent=2) + "\n"
+        if path.exists():
+            if path.read_text(encoding="utf-8") == rendered:
+                continue
+            raise FileExistsError(
+                f"Refusing to replace frozen artifact {path}; create a new artifact version"
+            )
+        path.write_text(rendered, encoding="utf-8")
 
 
 def main(argv: list[str] | None = None) -> int:

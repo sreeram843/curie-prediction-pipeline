@@ -1,0 +1,26 @@
+Clinical Translation Roadmap
+Governing Interruptions After Deterministic Deterioration Scoring
+
+1. Current stage (this manuscript)
+   Offline, retrospective evaluation of a versioned alert-governance policy after
+   deterministic partial-SOFA scoring on the public PhysioNet Challenge 2019
+   setA→setB split. Outcomes are alert-stream metrics (detection window,
+   interruptive burden, Challenge utility), not patient outcomes.
+
+2. Near-term next studies (no new model training)
+   - External retrospective replay on independent ICU cohorts (e.g., MIMIC-IV)
+     with protocol labels that are not SOFA-incorporated where possible.
+   - Clinician workflow simulation / silent-mode logging of passive vs
+     interruptive lane presentations without changing care.
+   - Prospective observational shadow-mode study measuring override rate,
+     time-to-acknowledgment, and false-page burden.
+
+3. Later translation gates (required before care-facing use)
+   - Prospective interventional evaluation with clinician and patient safety
+     endpoints, site-specific threshold calibration, and governance change control.
+   - Integration with local EHR interrupt policies, audit logging, and rollback.
+   - Regulatory and ethics review appropriate to the deployment jurisdiction.
+
+4. Explicit non-claims
+   This manuscript does not claim diagnosis, treatment benefit, external
+   validity, or readiness for patient care.

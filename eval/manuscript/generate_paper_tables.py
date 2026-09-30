@@ -26,7 +26,7 @@ ABLATION_NOTES = {
     "drop_persistence": "No change on hourly rows",
     "drop_crossings": "No change on hourly rows",
     "drop_refractory": "Watch volume = naive",
-    "drop_page_gate": "All emits interruptive",
+    "drop_page_gate": "Page gate disabled",
 }
 
 MISS_LABELS = {
@@ -98,47 +98,72 @@ def _write_csv(tables_dir: Path, name: str, header: list[str], rows: list[list[A
 
 
 def holdout_rows() -> tuple[str, list[list[Any]]]:
-    v1 = _load("holdout_primary_window_m12_p6.v1.json")
-    v2 = _load("holdout_primary_window_m12_p6.v2.json")
-    det = v1["detection"]
-    boot = v2.get("bootstrap") or {}
-    ablation = _load("ablation_setB_window_m12_p6.v1.json")
-    primary = next(v for v in ablation["variants"] if v["id"] == "primary_operating_point")
+    v3 = _load("holdout_primary_window_m12_p6.v3.json")
+    det = v3["detection"]
+    alerts = v3["alerts"]
+    utilities = v3["challenge_utility"]
+    boot = (v3.get("bootstrap") or {}).get("metrics") or {}
+
+    def ci(name: str) -> dict[str, Any] | None:
+        return boot.get(name)
+
     lines = [
         (
             r"Governed sensitivity (\%)",
             f"{100 * det['governed_sensitivity']:.1f}",
-            _ci_pct(boot.get("governed_sensitivity")),
+            _ci_pct(ci("detection.governed_sensitivity")),
             "Any governed emission in-window",
         ),
         (
             r"Interruptive sensitivity (\%)",
             f"{100 * det['interruptive_sensitivity']:.1f}",
-            _ci_pct(boot.get("interruptive_sensitivity")),
+            _ci_pct(ci("detection.interruptive_sensitivity")),
             "Interruptive emission in-window",
         ),
         (
-            "Interruptive NNA",
+            "Interruptive emissions / detected positive stay",
             f"{det['interruptive_nna']:.1f}",
-            _ci_num(boot.get("interruptive_nna")),
-            "Interruptive emissions / interruptive TP stay",
+            _ci_num(ci("detection.interruptive_nna")),
+            "Emission-based burden; not episode pages",
         ),
         (
             "Interruptive / naive emissions",
-            f"{primary['interruptive_reduction_ratio']:.3f}",
-            _ci_num(boot.get("interruptive_reduction_ratio"), 3),
+            f"{alerts['interruptive_reduction_ratio']:.3f}",
+            _ci_num(ci("alerts.interruptive_reduction_ratio"), 3),
             "Page-eligible vs threshold-only SOFA",
         ),
         (
+            "Interruptive alerts / patient-day",
+            f"{alerts['interruptive_alerts_per_patient_day']:.2f}",
+            "---",
+            "All setB patient-time",
+        ),
+        (
+            r"Interruptive stay-level PPV (\%)",
+            f"{100 * det['interruptive_ppv_stay']:.1f}",
+            _ci_pct(ci("detection.interruptive_ppv_stay")),
+            "Any emit during stay; not onset-window PPV",
+        ),
+        (
             "Mean in-window lead (h)",
-            f"{det['mean_lead_hours_in_window']:.2f}",
-            _ci_num(boot.get("mean_lead_hours_governed_in_window"), 2),
+            f"{det['mean_lead_hours_governed_in_window']:.2f}",
+            _ci_num(ci("detection.mean_lead_hours_governed_in_window"), 2),
             r"First governed emission to \texttt{label\_start}",
+        ),
+        (
+            "Challenge utility (N/G/I)",
+            (
+                f"{utilities['naive']['normalized_utility']:.3f} / "
+                f"{utilities['governed']['normalized_utility']:.3f} / "
+                f"{utilities['interruptive']['normalized_utility']:.3f}"
+            ),
+            "---",
+            "Emit-hour predictions; co-primary",
         ),
     ]
     tex_rows = [f"{a} & {b} & {c} & {d} \\\\" for a, b, c, d in lines]
     tex = _tabular(
-        "@{}lccc@{}",
+        r"@{}p{3.1cm}ccp{5.1cm}@{}",
         r"Metric & Result & 95\% CI & Interpretation",
         tex_rows,
     )
@@ -196,7 +221,7 @@ def comparator_rows() -> tuple[str, list[list[Any]]]:
         csv_rows.append([title, metrics.get("sensitivity"), metrics.get("emissions"), nna])
     tex = _tabular(
         "@{}lccc@{}",
-        r"Policy & Sensitivity (\%) & Emissions & NNA",
+        r"Policy & Sensitivity (\%) & Emissions & Emit./detected positive stay",
         tex_rows,
     )
     return tex, csv_rows
@@ -225,7 +250,7 @@ def ablation_rows() -> tuple[str, list[list[Any]]]:
         )
     tex = _tabular(
         "@{}lccccp{3.4cm}@{}",
-        r"Variant & Gov.\ sens.\ (\%) & Int.\ sens.\ (\%) & Int.\ reduction & Int.\ NNA & Note",
+        r"Variant & Gov.\ sens.\ (\%) & Int.\ sens.\ (\%) & Int.\ reduction & Int.\ EPS & Note",
         tex_rows,
     )
     return tex, csv_rows
@@ -299,6 +324,42 @@ def pareto_rows() -> tuple[str, list[list[Any]]]:
     return tex, csv_rows
 
 
+def selection_grid_rows() -> tuple[str, list[list[Any]]]:
+    """Render the complete original setA candidate grid for the supplement."""
+    report = _load("selection_grid_setA_grace6.v1.json")
+    tex_rows = []
+    csv_rows = []
+    for row in report["candidates"]:
+        knobs = row["knobs"]
+        selected = "yes" if row["selected"] else "no"
+        values = [
+            row["candidate_id"],
+            knobs["trajectory_persistence_minutes"],
+            knobs["refractory_minutes"],
+            "on" if knobs["baseline_enabled"] else "off",
+            "on" if knobs["page_gate_enabled"] else "off",
+            100 * row["governed_sensitivity"],
+            100 * row["interruptive_sensitivity"],
+            row["interruptive_reduction_ratio"],
+            selected,
+        ]
+        tex_rows.append(
+            f"{_tex_text(str(values[0]))} & {values[1]} & {values[2]} & {values[3]} & "
+            f"{values[4]} & {values[5]:.1f} & {values[6]:.1f} & {values[7]:.3f} & "
+            f"{values[8]} \\\\"
+        )
+        csv_rows.append(values)
+    tex = _tabular(
+        "@{}lrrrrrrrr@{}",
+        (
+            r"Candidate & Persist & Refrac & Base & Gate & Gov. sens. (\%) & "
+            r"Int. sens. (\%) & Int. ratio & Selected"
+        ),
+        tex_rows,
+    )
+    return tex, csv_rows
+
+
 def _copy_figures() -> None:
     if not FIGURE_SRC.is_dir():
         return
@@ -339,6 +400,22 @@ def write_all(*, tables_dir: Path | None = None) -> Path:
                 "governed_sensitivity",
                 "interruptive_reduction_ratio",
                 "interruptive_sensitivity",
+                "selected",
+            ],
+        ),
+        (
+            "selection_grid_tabular.tex",
+            "selection_grid.csv",
+            selection_grid_rows,
+            [
+                "candidate_id",
+                "persistence_minutes",
+                "refractory_minutes",
+                "baseline",
+                "page_gate",
+                "governed_sensitivity_pct",
+                "interruptive_sensitivity_pct",
+                "interruptive_reduction_ratio",
                 "selected",
             ],
         ),

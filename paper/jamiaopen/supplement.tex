@@ -1,0 +1,116 @@
+\documentclass[11pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern,microtype,booktabs,array,longtable,setspace,url,graphicx}
+\usepackage[margin=0.8in]{geometry}
+\usepackage[hidelinks]{hyperref}
+\doublespacing
+\title{Supplementary Material\\Governing Interruptions After Deterministic Deterioration Scoring}
+\author{Satya Venkata Ranga Janaki Sriram Mentey}
+\date{}
+
+\begin{document}
+\maketitle
+
+\section*{Supplementary methods}
+
+\subsection*{Frozen replay and version boundary}
+The manuscript reports the Challenge 2019 study frozen at Git commit
+\url{https://github.com/sreeram843/curie-prediction-pipeline/commit/1d8a1117151619e2d34822e365d17a00e30e5233}.
+The setB replay was repeated
+from that revision with the frozen winner and reproduced the published primary
+counts. Later scorer revisions are intentionally outside this study. The
+aggregate v3 holdout sidecar adds denominators, patient-time, stay-level PPV,
+lead-time quartiles, alert-count distributions, and normalized Challenge utility
+without replacing v1 or v2 frozen artifacts. Patient-level rows are not stored
+in the repository.
+
+\subsection*{Partial-SOFA mapping}
+At each hourly row, the replay retained the most recently observed value for
+each available variable within that stay; it did not use future rows. No maximum
+carry-forward age was imposed in the frozen revision. O2Sat was divided by
+FiO$_2$, with SaO2 used when O2Sat was absent. The resulting S/F-like ratio was
+compared directly with the numeric P/F bands; no validated S/F conversion was
+applied, so this is a nonstandard respiratory proxy. Because
+mechanical ventilation was unavailable, respiratory scores of 3 or 4 were not
+assigned. The cardiovascular component used MAP only. Renal scoring used
+creatinine only. GCS and urine-output windows were unavailable. At least two
+scoreable components were required, and threshold-only emission occurred at
+partial SOFA $\geq2$.
+
+\begin{table}[htbp]
+\centering\small
+\caption{Supplementary Table S1. Component mapping in the frozen Challenge
+replay. Values at a boundary enter the less severe band unless stated.}
+\begin{tabular}{@{}lll@{}}
+\toprule
+Component & Available input & Points \\
+\midrule
+Respiration & O2Sat/FiO$_2$ (SaO2 fallback) & $<300$: 2; $300$--$<400$: 1; $\geq400$: 0 \\
+Coagulation & Platelets ($10^9$/L) & $<20$: 4; $<50$: 3; $<100$: 2; $<150$: 1; else 0 \\
+Liver & Bilirubin (mg/dL) & $\geq12$: 4; $\geq6$: 3; $\geq2$: 2; $\geq1.2$: 1; else 0 \\
+Cardiovascular & MAP (mmHg) & $<70$: 1; otherwise 0 \\
+Renal & Creatinine (mg/dL) & $\geq5$: 4; $\geq3.5$: 3; $\geq2$: 2; $\geq1.2$: 1; else 0 \\
+CNS & GCS & Unavailable; missing \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection*{Selection procedure}
+The original 23-candidate setA sweep used the legacy grace-6 definition: first
+emission at or before \texttt{label\_start}+6 hours. It was not the later
+bounded $-12/+6$-hour primary-window definition. Passing required governed
+sensitivity at least naive sensitivity minus 0.10 or at least 0.70, plus an
+interruptive-to-naive emission ratio no greater than 0.25. Ranking prioritized
+passing both objectives, lower interruptive ratio, lower emission burden per
+detected positive stay, and higher governed sensitivity. The winner had 88.4\%
+governed sensitivity under the legacy grace-6 selection estimand. Recalculation
+under the later primary window yielded 87.6\%; these values answer different
+estimands and are not interchangeable.
+
+\begin{table}[htbp]
+\centering\scriptsize
+\setlength{\tabcolsep}{2.5pt}
+\caption{Supplementary Table S2. Complete 23-candidate setA selection grid under
+the legacy grace-6 estimand. Persist and Refrac are minutes; Base and Gate are
+baseline and page-gate states.}
+\resizebox{\textwidth}{!}{\input{../tables/selection_grid_tabular.tex}}
+\end{table}
+
+\subsection*{Timing sensitivity}
+The primary setB estimand required any alert in the bounded interval
+$[\texttt{label\_start}-12\,\mathrm{h},\texttt{label\_start}+6\,\mathrm{h}]$.
+The following secondary definitions were computed without changing the frozen
+governance configuration.
+
+\begin{table}[htbp]
+\centering\small
+\caption{Supplementary Table S3. Secondary setB timing definitions.}
+\input{../tables/robustness_tabular.tex}
+\end{table}
+
+\subsection*{Statistical definitions}
+Sensitivity was the proportion of label-positive stays with at least one
+qualifying emission in the selected window. Emissions per detected positive
+stay divided all emissions in a lane by positive stays detected by that lane;
+it is not a number of clinically adjudicated pages. Stay-level PPV divided
+positive stays detected in-window by all stays with any emission. For negative
+stays, an emission at any recorded hour counted in the denominator. Lead time
+was \texttt{label\_start} minus the first governed emission within the primary
+window. Confidence intervals used 1,000 stay-level percentile-bootstrap
+replicates with seed 42.
+
+Normalized Challenge utility used emit-hour predictions rather than latching a
+patient positive after the first emission. It is reported as an additional
+within-resource metric, not as a hidden-test leaderboard result and not as a
+clinical utility estimate.
+
+\section*{Supplementary reproducibility assets}
+The frozen operating point, resolved study bundle, content hash, timing policy,
+complete aggregate selection grid, holdout sidecars, comparator results,
+ablations, miss attribution, bootstrap intervals, and machine-readable tables
+are included in the repository. The public dataset is available at
+\url{https://doi.org/10.13026/v64v-d857}. Rebuild commands and pinned hashes are
+listed in \texttt{paper/REPRODUCIBILITY.md} and the manuscript manifest.
+
+\end{document}

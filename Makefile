@@ -1,4 +1,4 @@
-.PHONY: help up up-full down logs topics test lint synthea rules flink-test api replay replay-aki mimic mimic-demo syn-icu mimic-study-protocol mimic-harness mimic-study mimic-study-v2 mimic-labels mimic-index mimic-index-validate mimic-index-bench eicu-index eicu-index-validate eicu-index-bench manuscript manuscript-phi paper-tables investor-demo trusted-fact-bridge stewardship uncertainty-band challenge-2019 challenge-2019-sweep challenge-2019-robustness challenge-2019-paper-analyses open-eval parity
+.PHONY: help up up-full down logs topics test lint synthea rules flink-test api replay replay-aki mimic mimic-demo syn-icu mimic-study-protocol mimic-harness mimic-study mimic-study-v2 mimic-study-v2-full mimic-publication-aggregates jbhi-paper mimic-labels mimic-index mimic-index-validate mimic-index-bench eicu-index eicu-index-validate eicu-index-bench manuscript manuscript-phi paper-tables investor-demo trusted-fact-bridge stewardship uncertainty-band challenge-2019 challenge-2019-sweep challenge-2019-robustness challenge-2019-paper-analyses open-eval parity
 
 help:
 	@echo "Targets:"
@@ -113,6 +113,26 @@ mimic-study-v2:
 	python -m eval.mimic_study.study run-rows \
 		--rows-json "$${CURIE_MIMIC_STUDY_ROWS:?set CURIE_MIMIC_STUDY_ROWS to canonical stay rows}" \
 		$(if $(JSON_OUT),--json-out $(JSON_OUT),)
+
+# CURIE-041 full-cohort: stream index + labels (no multi-GB rows JSON).
+# Set CURIE_MIMIC_LABELS_OUT to the materialized label artifact.
+mimic-study-v2-full:
+	python scripts/run_curie_041_stage_b.py \
+		--index-dir "$${CURIE_MIMIC_INDEX_DIR:-data/index/mimic-iv}" \
+		--labels "$${CURIE_MIMIC_LABELS_OUT:?set CURIE_MIMIC_LABELS_OUT}" \
+		$(if $(WORKERS),--workers $(WORKERS),) \
+		$(if $(LIMIT_PER_SPLIT),--limit-per-split $(LIMIT_PER_SPLIT),) \
+		$(if $(WRITE_FROZEN),--write-frozen,)
+
+# JBHI aggregates: v2 cohort flow/characteristics from the index, completeness
+# audits by hash, and post hoc lead-time/ICD/subgroup results from the locked
+# test replay rows (scripts/run_mimic_fairness_scorecards.py --rows-out).
+mimic-publication-aggregates:
+	python -m eval.mimic_study.publication_aggregates
+
+jbhi-paper:
+	MPLCONFIGDIR=$${TMPDIR:-/tmp} python paper/jbhi/make_figures.py
+	cd paper/jbhi && latexmk -pdf -interaction=nonstopmode main.tex
 
 # SQL exports are generated externally from the pinned mimic-code revision.
 mimic-labels:

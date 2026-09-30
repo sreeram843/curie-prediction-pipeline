@@ -1,0 +1,9 @@
+Objectives: A deterioration-score threshold may produce repeated, poorly timed interruptions. We evaluated a frozen dual-lane governance policy for partial SOFA, compared it with threshold-only partial SOFA and hourly bedside scores, and attributed its effect to individual mechanisms.
+
+Materials and Methods: We selected governance on PhysioNet Challenge 2019 setA (n = 20,336), froze it, and evaluated setB (n = 20,000) once. Detection required an emission within [label_start − 12 h, +6 h]; burden counted interruptive emissions. Co-primary outcomes were detection/burden metrics and normalized Challenge utility. Confidence intervals used 1,000 stay-level bootstrap replicates.
+
+Results: Governed partial SOFA matched threshold-only sensitivity (79.5%, 95% CI 77.0–81.8). The interruptive lane emitted 13.2% as many alerts, detected 34.0% of positive stays, produced 106.1 emissions per detected positive stay (95% CI 96.2–116.6), and had 10.7% stay-level positive predictive value. Normalized utility was −0.111, −0.053, and 0.041 for threshold-only, governed, and interruptive outputs, respectively. Removing the 90-minute refractory interval doubled volume; disabling the page gate increased interruptive sensitivity to 44.6%.
+
+Discussion: A passive lane structurally preserved threshold-crossing detection while refractory and page-gate rules reduced interruptive emissions. Residual burden remained substantial.
+
+Conclusion: This single-resource, partial-score evaluation supports further governance research but does not establish diagnosis, clinical benefit, external validity, or readiness for patient care.

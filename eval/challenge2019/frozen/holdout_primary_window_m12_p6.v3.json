@@ -1,0 +1,246 @@
+{
+  "schema_version": "3.0.0",
+  "detection_mode_id": "window_m12_p6",
+  "cohort_name": "training_setB",
+  "n_stays": 20000,
+  "operating_point": "eval/challenge2019/frozen/p1_setA_winner.json",
+  "rule_bundle": {
+    "id": "sepsis-sofa-challenge2019-p1",
+    "version": "1.0.0",
+    "content_hash": "a3b8273a84752a6263e30da9762f3a5783b9a5af6c3d8234baabbb1dbdc3655b"
+  },
+  "cohort": {
+    "sepsis_stays": 1142,
+    "non_sepsis_stays": 18858,
+    "stays_scored": 20000,
+    "patient_hours": 761995,
+    "patient_days": 31749.791666666668
+  },
+  "alerts": {
+    "naive_total": 311797,
+    "governed_total": 159933,
+    "watch_total": 118775,
+    "interruptive_total": 41158,
+    "alert_reduction_ratio": 0.5129395087188139,
+    "interruptive_reduction_ratio": 0.1320025529431008,
+    "governed_alerts_per_patient_day": 5.037292895622675,
+    "interruptive_alerts_per_patient_day": 1.296323466689414
+  },
+  "detection": {
+    "naive_tp": 908,
+    "governed_tp": 908,
+    "interruptive_tp": 388,
+    "naive_sensitivity": 0.7950963222416813,
+    "governed_sensitivity": 0.7950963222416813,
+    "interruptive_sensitivity": 0.3397548161120841,
+    "naive_fp_non_sepsis": 9339,
+    "governed_fp_non_sepsis": 9339,
+    "interruptive_fp_non_sepsis": 3238,
+    "governed_ppv_stay": 0.08861130086854689,
+    "interruptive_ppv_stay": 0.10700496414782129,
+    "naive_nna": 343.3887665198238,
+    "governed_nna": 176.1376651982379,
+    "interruptive_nna": 106.07731958762886,
+    "interruptive_nna_per_governed_tp": 45.32819383259912,
+    "mean_lead_hours_governed_in_window": 5.97136563876652,
+    "lead_hours_governed_in_window_p25": -1.0,
+    "lead_hours_governed_in_window_p50": 11.0,
+    "lead_hours_governed_in_window_p75": 12.0
+  },
+  "challenge_utility": {
+    "naive": {
+      "unnormalized_observed": -12264.016666666688,
+      "unnormalized_best": 7875.444444444417,
+      "unnormalized_inaction": -10245.111111111146,
+      "normalized_utility": -0.11141521292577414
+    },
+    "governed": {
+      "unnormalized_observed": -11206.499999999998,
+      "unnormalized_best": 7875.444444444417,
+      "unnormalized_inaction": -10245.111111111146,
+      "normalized_utility": -0.053055155287118176
+    },
+    "interruptive": {
+      "unnormalized_observed": -9510.733333333385,
+      "unnormalized_best": 7875.444444444417,
+      "unnormalized_inaction": -10245.111111111146,
+      "normalized_utility": 0.04052733237268817
+    },
+    "note": "Normalized PhysioNet Challenge 2019 utility (physionetchallenges/evaluation-2019); positives = emit hours only (not latched)."
+  },
+  "bootstrap": {
+    "n_boot": 1000,
+    "seed": 42,
+    "alpha": 0.05,
+    "method": "percentile",
+    "unit": "stay",
+    "metrics": {
+      "detection.naive_sensitivity": {
+        "low": 0.769992973708069,
+        "high": 0.8183503213377757,
+        "mean": 0.795443973063421,
+        "n": 1000
+      },
+      "detection.governed_sensitivity": {
+        "low": 0.769992973708069,
+        "high": 0.8183503213377757,
+        "mean": 0.795443973063421,
+        "n": 1000
+      },
+      "detection.interruptive_sensitivity": {
+        "low": 0.3130650634428453,
+        "high": 0.3678844519966015,
+        "mean": 0.3399932480324284,
+        "n": 1000
+      },
+      "detection.governed_nna": {
+        "low": 166.39540422165004,
+        "high": 186.69047617730982,
+        "mean": 176.20342388482135,
+        "n": 1000
+      },
+      "detection.interruptive_nna": {
+        "low": 96.18248245955687,
+        "high": 116.60393966069141,
+        "mean": 106.20796131781319,
+        "n": 1000
+      },
+      "detection.interruptive_nna_per_governed_tp": {
+        "low": 42.45086103723404,
+        "high": 48.54475853945818,
+        "mean": 45.33922627512716,
+        "n": 1000
+      },
+      "detection.governed_ppv_stay": {
+        "low": 0.08348603082699518,
+        "high": 0.0940068339691617,
+        "mean": 0.08866247808746122,
+        "n": 1000
+      },
+      "detection.interruptive_ppv_stay": {
+        "low": 0.09709780718895303,
+        "high": 0.11722704895168161,
+        "mean": 0.107079579430481,
+        "n": 1000
+      },
+      "detection.mean_lead_hours_governed_in_window": {
+        "low": 5.535567370499772,
+        "high": 6.392730635284218,
+        "mean": 5.963246053373288,
+        "n": 1000
+      },
+      "detection.mean_lead_hours_governed": {
+        "low": 38.32012369012227,
+        "high": 46.26017316251803,
+        "mean": 42.4131982001948,
+        "n": 1000
+      },
+      "alerts.alert_reduction_ratio": {
+        "low": 0.5125398384644948,
+        "high": 0.5133463610865392,
+        "mean": 0.5129388678847846,
+        "n": 1000
+      },
+      "alerts.interruptive_reduction_ratio": {
+        "low": 0.1268437502420125,
+        "high": 0.136826884559816,
+        "mean": 0.13198370525162326,
+        "n": 1000
+      }
+    }
+  },
+  "notes": [
+    "Locked setB evaluation; governance was not retuned.",
+    "Primary detection is any emission in [label_start-12h, label_start+6h].",
+    "NNA fields count emissions per detected positive stay, not episode-arbitrated pages.",
+    "Stay-level PPV uses any emission during the stay and is not onset-window PPV."
+  ],
+  "alert_count_distribution_per_stay": {
+    "all": {
+      "n_stays": 20000,
+      "naive_alert_count": {
+        "median": 1.0,
+        "p25": 0.0,
+        "p75": 29.0,
+        "mean": 15.58985,
+        "max": 333,
+        "stays_with_at_least_one": 10305
+      },
+      "governed_alert_count": {
+        "median": 1.0,
+        "p25": 0.0,
+        "p75": 15.0,
+        "mean": 7.99665,
+        "max": 167,
+        "stays_with_at_least_one": 10305
+      },
+      "interruptive_alert_count": {
+        "median": 0.0,
+        "p25": 0.0,
+        "p75": 0.0,
+        "mean": 2.0579,
+        "max": 165,
+        "stays_with_at_least_one": 3717
+      }
+    },
+    "sepsis_positive": {
+      "n_stays": 1142,
+      "naive_alert_count": {
+        "median": 15.0,
+        "p25": 5.0,
+        "p75": 56.0,
+        "mean": 40.40542907180385,
+        "max": 331,
+        "stays_with_at_least_one": 966
+      },
+      "governed_alert_count": {
+        "median": 8.0,
+        "p25": 3.0,
+        "p75": 28.75,
+        "mean": 20.552539404553414,
+        "max": 166,
+        "stays_with_at_least_one": 966
+      },
+      "interruptive_alert_count": {
+        "median": 0.0,
+        "p25": 0.0,
+        "p75": 5.0,
+        "mean": 7.966725043782837,
+        "max": 165,
+        "stays_with_at_least_one": 479
+      }
+    },
+    "sepsis_negative": {
+      "n_stays": 18858,
+      "naive_alert_count": {
+        "median": 0.0,
+        "p25": 0.0,
+        "p75": 28.0,
+        "mean": 14.087071799766678,
+        "max": 333,
+        "stays_with_at_least_one": 9339
+      },
+      "governed_alert_count": {
+        "median": 0.0,
+        "p25": 0.0,
+        "p75": 14.0,
+        "mean": 7.236292289744406,
+        "max": 167,
+        "stays_with_at_least_one": 9339
+      },
+      "interruptive_alert_count": {
+        "median": 0.0,
+        "p25": 0.0,
+        "p75": 0.0,
+        "mean": 1.70007423904974,
+        "max": 155,
+        "stays_with_at_least_one": 3238
+      }
+    }
+  },
+  "reproduction": {
+    "git_sha": "1d8a1117151619e2d34822e365d17a00e30e5233",
+    "command": "python -m eval.challenge2019.runner --set training_setB --limit 0 --gov-config eval/challenge2019/frozen/p1_setA_winner.json --bootstrap 1000",
+    "note": "Replayed from the git revision pinned by reproducibility_manifest.v2.json; later scorer revisions are outside this frozen study."
+  }
+}

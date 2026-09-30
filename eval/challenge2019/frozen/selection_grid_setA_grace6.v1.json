@@ -1,0 +1,454 @@
+{
+  "schema_version": "1.0.0",
+  "selection_split": "training_setA",
+  "selection_detection_mode": "legacy_grace_6",
+  "n_stays": 20336,
+  "n_candidates": 23,
+  "winner_id": "grid_p0_r90_b0",
+  "source_sha256": "8eadb212618bea820a39e0c260a4b503ecde292b843538def5203a4fb9b9c721",
+  "source_note": "Aggregate-only extraction from the original setA sweep; no stay identifiers.",
+  "selection_objectives": {
+    "primary": "governed_sensitivity >= naive_sensitivity - 0.10 or >= 0.70",
+    "coprimary_burden": "interruptive_reduction_ratio <= 0.25",
+    "ranking": "pass primary, pass burden, lower burden ratio, lower legacy NNA, higher governed sensitivity"
+  },
+  "candidates": [
+    {
+      "candidate_id": "grid_p0_r90_b0",
+      "governed_sensitivity": 0.8843575418994414,
+      "interruptive_sensitivity": 0.376536312849162,
+      "interruptive_reduction_ratio": 0.12251536914246035,
+      "meets_primary": true,
+      "meets_coprimary": true,
+      "selected": true,
+      "knobs": {
+        "trajectory_persistence_minutes": 0,
+        "refractory_minutes": 90,
+        "baseline_enabled": false,
+        "page_gate_enabled": true,
+        "page_min_crossings": 2,
+        "page_trajectory_persistence_minutes": 30,
+        "page_min_score_delta": 1,
+        "page_min_positive_components": 2
+      }
+    },
+    {
+      "candidate_id": "grid_p0_r120_b0",
+      "governed_sensitivity": 0.8843575418994414,
+      "interruptive_sensitivity": 0.376536312849162,
+      "interruptive_reduction_ratio": 0.12251536914246035,
+      "meets_primary": true,
+      "meets_coprimary": true,
+      "selected": false,
+      "knobs": {
+        "trajectory_persistence_minutes": 0,
+        "refractory_minutes": 120,
+        "baseline_enabled": false,
+        "page_gate_enabled": true,
+        "page_min_crossings": 2,
+        "page_trajectory_persistence_minutes": 30,
+        "page_min_score_delta": 1,
+        "page_min_positive_components": 2
+      }
+    },
+    {
+      "candidate_id": "dual",
+      "governed_sensitivity": 0.8843575418994414,
+      "interruptive_sensitivity": 0.376536312849162,
+      "interruptive_reduction_ratio": 0.12251536914246035,
+      "meets_primary": true,
+      "meets_coprimary": true,
+      "selected": false,
+      "knobs": {
+        "trajectory_persistence_minutes": 0,
+        "refractory_minutes": 90,
+        "baseline_enabled": false,
+        "page_gate_enabled": true,
+        "page_min_crossings": 2,
+        "page_trajectory_persistence_minutes": 60,
+        "page_min_score_delta": 1,
+        "page_min_positive_components": 2
+      }
+    },
+    {
+      "candidate_id": "grid_p15_r90_b0",
+      "governed_sensitivity": 0.8608938547486034,
+      "interruptive_sensitivity": 0.38603351955307263,
+      "interruptive_reduction_ratio": 0.12293049637895834,
+      "meets_primary": true,
+      "meets_coprimary": true,
+      "selected": false,
+      "knobs": {
+        "trajectory_persistence_minutes": 15,
+        "refractory_minutes": 90,
+        "baseline_enabled": false,
+        "page_gate_enabled": true,
+        "page_min_crossings": 2,
+        "page_trajectory_persistence_minutes": 30,
+        "page_min_score_delta": 1,
+        "page_min_positive_components": 2
+      }
+    },
+    {
+      "candidate_id": "grid_p15_r120_b0",
+      "governed_sensitivity": 0.8608938547486034,
+      "interruptive_sensitivity": 0.38603351955307263,
+      "interruptive_reduction_ratio": 0.12293049637895834,
+      "meets_primary": true,
+      "meets_coprimary": true,
+      "selected": false,
+      "knobs": {
+        "trajectory_persistence_minutes": 15,
+        "refractory_minutes": 120,
+        "baseline_enabled": false,
+        "page_gate_enabled": true,
+        "page_min_crossings": 2,
+        "page_trajectory_persistence_minutes": 30,
+        "page_min_score_delta": 1,
+        "page_min_positive_components": 2
+      }
+    },
+    {
+      "candidate_id": "grid_p30_r90_b0",
+      "governed_sensitivity": 0.8608938547486034,
+      "interruptive_sensitivity": 0.38603351955307263,
+      "interruptive_reduction_ratio": 0.12293049637895834,
+      "meets_primary": true,
+      "meets_coprimary": true,
+      "selected": false,
+      "knobs": {
+        "trajectory_persistence_minutes": 30,
+        "refractory_minutes": 90,
+        "baseline_enabled": false,
+        "page_gate_enabled": true,
+        "page_min_crossings": 2,
+        "page_trajectory_persistence_minutes": 30,
+        "page_min_score_delta": 1,
+        "page_min_positive_components": 2
+      }
+    },
+    {
+      "candidate_id": "grid_p30_r120_b0",
+      "governed_sensitivity": 0.8608938547486034,
+      "interruptive_sensitivity": 0.38603351955307263,
+      "interruptive_reduction_ratio": 0.12293049637895834,
+      "meets_primary": true,
+      "meets_coprimary": true,
+      "selected": false,
+      "knobs": {
+        "trajectory_persistence_minutes": 30,
+        "refractory_minutes": 120,
+        "baseline_enabled": false,
+        "page_gate_enabled": true,
+        "page_min_crossings": 2,
+        "page_trajectory_persistence_minutes": 30,
+        "page_min_score_delta": 1,
+        "page_min_positive_components": 2
+      }
+    },
+    {
+      "candidate_id": "grid_p0_r60_b0",
+      "governed_sensitivity": 0.8843575418994414,
+      "interruptive_sensitivity": 0.40279329608938547,
+      "interruptive_reduction_ratio": 0.24544586552141867,
+      "meets_primary": true,
+      "meets_coprimary": true,
+      "selected": false,
+      "knobs": {
+        "trajectory_persistence_minutes": 0,
+        "refractory_minutes": 60,
+        "baseline_enabled": false,
+        "page_gate_enabled": true,
+        "page_min_crossings": 2,
+        "page_trajectory_persistence_minutes": 30,
+        "page_min_score_delta": 1,
+        "page_min_positive_components": 2
+      }
+    },
+    {
+      "candidate_id": "grid_p30_r60_b0",
+      "governed_sensitivity": 0.8608938547486034,
+      "interruptive_sensitivity": 0.40279329608938547,
+      "interruptive_reduction_ratio": 0.24544586552141867,
+      "meets_primary": true,
+      "meets_coprimary": true,
+      "selected": false,
+      "knobs": {
+        "trajectory_persistence_minutes": 30,
+        "refractory_minutes": 60,
+        "baseline_enabled": false,
+        "page_gate_enabled": true,
+        "page_min_crossings": 2,
+        "page_trajectory_persistence_minutes": 30,
+        "page_min_score_delta": 1,
+        "page_min_positive_components": 2
+      }
+    },
+    {
+      "candidate_id": "grid_p15_r60_b0",
+      "governed_sensitivity": 0.8608938547486034,
+      "interruptive_sensitivity": 0.40279329608938547,
+      "interruptive_reduction_ratio": 0.24544586552141867,
+      "meets_primary": true,
+      "meets_coprimary": true,
+      "selected": false,
+      "knobs": {
+        "trajectory_persistence_minutes": 15,
+        "refractory_minutes": 60,
+        "baseline_enabled": false,
+        "page_gate_enabled": true,
+        "page_min_crossings": 2,
+        "page_trajectory_persistence_minutes": 30,
+        "page_min_score_delta": 1,
+        "page_min_positive_components": 2
+      }
+    },
+    {
+      "candidate_id": "sensitive",
+      "governed_sensitivity": 0.8843575418994414,
+      "interruptive_sensitivity": 0.44078212290502794,
+      "interruptive_reduction_ratio": 0.1609146385185241,
+      "meets_primary": true,
+      "meets_coprimary": false,
+      "selected": false,
+      "knobs": {
+        "trajectory_persistence_minutes": 0,
+        "refractory_minutes": 120,
+        "baseline_enabled": false,
+        "page_gate_enabled": false,
+        "page_min_crossings": null,
+        "page_trajectory_persistence_minutes": null,
+        "page_min_score_delta": null,
+        "page_min_positive_components": null
+      }
+    },
+    {
+      "candidate_id": "accuracy",
+      "governed_sensitivity": 0.8843575418994414,
+      "interruptive_sensitivity": 0.44078212290502794,
+      "interruptive_reduction_ratio": 0.1609146385185241,
+      "meets_primary": true,
+      "meets_coprimary": false,
+      "selected": false,
+      "knobs": {
+        "trajectory_persistence_minutes": 0,
+        "refractory_minutes": 90,
+        "baseline_enabled": false,
+        "page_gate_enabled": false,
+        "page_min_crossings": null,
+        "page_trajectory_persistence_minutes": null,
+        "page_min_score_delta": null,
+        "page_min_positive_components": null
+      }
+    },
+    {
+      "candidate_id": "strict",
+      "governed_sensitivity": 0.16927374301675976,
+      "interruptive_sensitivity": 0.16927374301675976,
+      "interruptive_reduction_ratio": 0.02364048072361293,
+      "meets_primary": false,
+      "meets_coprimary": true,
+      "selected": false,
+      "knobs": {
+        "trajectory_persistence_minutes": 30,
+        "refractory_minutes": 120,
+        "baseline_enabled": true,
+        "page_gate_enabled": false,
+        "page_min_crossings": null,
+        "page_trajectory_persistence_minutes": null,
+        "page_min_score_delta": null,
+        "page_min_positive_components": null
+      }
+    },
+    {
+      "candidate_id": "grid_p15_r120_b1",
+      "governed_sensitivity": 0.2636871508379888,
+      "interruptive_sensitivity": 0.2620111731843575,
+      "interruptive_reduction_ratio": 0.04163726182074806,
+      "meets_primary": false,
+      "meets_coprimary": true,
+      "selected": false,
+      "knobs": {
+        "trajectory_persistence_minutes": 15,
+        "refractory_minutes": 120,
+        "baseline_enabled": true,
+        "page_gate_enabled": true,
+        "page_min_crossings": 2,
+        "page_trajectory_persistence_minutes": 30,
+        "page_min_score_delta": 1,
+        "page_min_positive_components": 2
+      }
+    },
+    {
+      "candidate_id": "grid_p15_r90_b1",
+      "governed_sensitivity": 0.2636871508379888,
+      "interruptive_sensitivity": 0.2620111731843575,
+      "interruptive_reduction_ratio": 0.04163726182074806,
+      "meets_primary": false,
+      "meets_coprimary": true,
+      "selected": false,
+      "knobs": {
+        "trajectory_persistence_minutes": 15,
+        "refractory_minutes": 90,
+        "baseline_enabled": true,
+        "page_gate_enabled": true,
+        "page_min_crossings": 2,
+        "page_trajectory_persistence_minutes": 30,
+        "page_min_score_delta": 1,
+        "page_min_positive_components": 2
+      }
+    },
+    {
+      "candidate_id": "grid_p30_r90_b1",
+      "governed_sensitivity": 0.2636871508379888,
+      "interruptive_sensitivity": 0.2620111731843575,
+      "interruptive_reduction_ratio": 0.04163726182074806,
+      "meets_primary": false,
+      "meets_coprimary": true,
+      "selected": false,
+      "knobs": {
+        "trajectory_persistence_minutes": 30,
+        "refractory_minutes": 90,
+        "baseline_enabled": true,
+        "page_gate_enabled": true,
+        "page_min_crossings": 2,
+        "page_trajectory_persistence_minutes": 30,
+        "page_min_score_delta": 1,
+        "page_min_positive_components": 2
+      }
+    },
+    {
+      "candidate_id": "grid_p30_r120_b1",
+      "governed_sensitivity": 0.2636871508379888,
+      "interruptive_sensitivity": 0.2620111731843575,
+      "interruptive_reduction_ratio": 0.04163726182074806,
+      "meets_primary": false,
+      "meets_coprimary": true,
+      "selected": false,
+      "knobs": {
+        "trajectory_persistence_minutes": 30,
+        "refractory_minutes": 120,
+        "baseline_enabled": true,
+        "page_gate_enabled": true,
+        "page_min_crossings": 2,
+        "page_trajectory_persistence_minutes": 30,
+        "page_min_score_delta": 1,
+        "page_min_positive_components": 2
+      }
+    },
+    {
+      "candidate_id": "grid_p0_r120_b1",
+      "governed_sensitivity": 0.2988826815642458,
+      "interruptive_sensitivity": 0.2966480446927374,
+      "interruptive_reduction_ratio": 0.04926428132040652,
+      "meets_primary": false,
+      "meets_coprimary": true,
+      "selected": false,
+      "knobs": {
+        "trajectory_persistence_minutes": 0,
+        "refractory_minutes": 120,
+        "baseline_enabled": true,
+        "page_gate_enabled": true,
+        "page_min_crossings": 2,
+        "page_trajectory_persistence_minutes": 30,
+        "page_min_score_delta": 1,
+        "page_min_positive_components": 2
+      }
+    },
+    {
+      "candidate_id": "grid_p0_r90_b1",
+      "governed_sensitivity": 0.2988826815642458,
+      "interruptive_sensitivity": 0.2966480446927374,
+      "interruptive_reduction_ratio": 0.04926428132040652,
+      "meets_primary": false,
+      "meets_coprimary": true,
+      "selected": false,
+      "knobs": {
+        "trajectory_persistence_minutes": 0,
+        "refractory_minutes": 90,
+        "baseline_enabled": true,
+        "page_gate_enabled": true,
+        "page_min_crossings": 2,
+        "page_trajectory_persistence_minutes": 30,
+        "page_min_score_delta": 1,
+        "page_min_positive_components": 2
+      }
+    },
+    {
+      "candidate_id": "balanced",
+      "governed_sensitivity": 0.2636871508379888,
+      "interruptive_sensitivity": 0.2620111731843575,
+      "interruptive_reduction_ratio": 0.07526822880303723,
+      "meets_primary": false,
+      "meets_coprimary": true,
+      "selected": false,
+      "knobs": {
+        "trajectory_persistence_minutes": 15,
+        "refractory_minutes": 60,
+        "baseline_enabled": true,
+        "page_gate_enabled": true,
+        "page_min_crossings": 2,
+        "page_trajectory_persistence_minutes": 30,
+        "page_min_score_delta": 1,
+        "page_min_positive_components": 2
+      }
+    },
+    {
+      "candidate_id": "grid_p15_r60_b1",
+      "governed_sensitivity": 0.2636871508379888,
+      "interruptive_sensitivity": 0.2620111731843575,
+      "interruptive_reduction_ratio": 0.07526822880303723,
+      "meets_primary": false,
+      "meets_coprimary": true,
+      "selected": false,
+      "knobs": {
+        "trajectory_persistence_minutes": 15,
+        "refractory_minutes": 60,
+        "baseline_enabled": true,
+        "page_gate_enabled": true,
+        "page_min_crossings": 2,
+        "page_trajectory_persistence_minutes": 30,
+        "page_min_score_delta": 1,
+        "page_min_positive_components": 2
+      }
+    },
+    {
+      "candidate_id": "grid_p30_r60_b1",
+      "governed_sensitivity": 0.2636871508379888,
+      "interruptive_sensitivity": 0.2620111731843575,
+      "interruptive_reduction_ratio": 0.07526822880303723,
+      "meets_primary": false,
+      "meets_coprimary": true,
+      "selected": false,
+      "knobs": {
+        "trajectory_persistence_minutes": 30,
+        "refractory_minutes": 60,
+        "baseline_enabled": true,
+        "page_gate_enabled": true,
+        "page_min_crossings": 2,
+        "page_trajectory_persistence_minutes": 30,
+        "page_min_score_delta": 1,
+        "page_min_positive_components": 2
+      }
+    },
+    {
+      "candidate_id": "grid_p0_r60_b1",
+      "governed_sensitivity": 0.2988826815642458,
+      "interruptive_sensitivity": 0.2966480446927374,
+      "interruptive_reduction_ratio": 0.08896365372350262,
+      "meets_primary": false,
+      "meets_coprimary": true,
+      "selected": false,
+      "knobs": {
+        "trajectory_persistence_minutes": 0,
+        "refractory_minutes": 60,
+        "baseline_enabled": true,
+        "page_gate_enabled": true,
+        "page_min_crossings": 2,
+        "page_trajectory_persistence_minutes": 30,
+        "page_min_score_delta": 1,
+        "page_min_positive_components": 2
+      }
+    }
+  ]
+}

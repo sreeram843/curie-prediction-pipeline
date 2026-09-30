@@ -18,7 +18,7 @@ from eval.manuscript.package import (
 def test_build_writes_manifest_without_phi(tmp_path: Path) -> None:
     result = build(write=True, frozen_out=tmp_path, generated_out=tmp_path)
     manifest = result["manifest"]
-    assert manifest["manifest_version"] == "2.0.0"
+    assert manifest["manifest_version"] == "3.0.0"
     assert manifest["curie_ticket"] == "CURIE-020"
     assert manifest["result_scope"]["dataset"] == "physionet-challenge-2019"
     assert manifest["result_scope"]["other_datasets_are_results"] is False
@@ -27,7 +27,7 @@ def test_build_writes_manifest_without_phi(tmp_path: Path) -> None:
     assert scan_for_phi(json.dumps(manifest)) == []
     assert (tmp_path / MANIFEST_FILENAME).is_file()
     assert (tmp_path / "tables.md").is_file()
-    assert (tmp_path / "figure_specs.v2.json").is_file()
+    assert (tmp_path / "figure_specs.v3.json").is_file()
     assert "MIMIC demo sensitivity" not in result["tables_md"]
 
 
@@ -48,10 +48,12 @@ def test_challenge_results_are_locked_to_allowed_numbers() -> None:
     assert results["setA"]["n_stays"] == 20336
     assert results["setA"]["interruptive_reduction_ratio"] == 0.12251536914246035
     assert results["setB"]["n_stays"] == 20000
-    assert results["setB"]["governed_sensitivity"] == 0.795
-    assert results["setB"]["interruptive_sensitivity"] == 0.34
-    assert results["setB"]["interruptive_nna"] == 106.1
-    assert results["setB"]["mean_lead_hours_in_window"] == 5.97
+    assert results["setB"]["governed_sensitivity"] == 0.7950963222416813
+    assert results["setB"]["interruptive_sensitivity"] == 0.3397548161120841
+    assert results["setB"]["interruptive_nna"] == 106.07731958762886
+    assert results["setB"]["mean_lead_hours_in_window"] == 5.97136563876652
+    assert results["setB"]["challenge_utility"]["interruptive"]["normalized_utility"] > 0
+    assert results["setB"]["cohort"]["patient_days"] == 31749.791666666668
 
 
 def test_robustness_is_sensitivity_analysis_only() -> None:

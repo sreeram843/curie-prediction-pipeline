@@ -16,9 +16,9 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-PACKAGE_VERSION = "2.0.0"
-MANIFEST_FILENAME = "reproducibility_manifest.v2.json"
-FIGURE_SPECS_FILENAME = "figure_specs.v2.json"
+PACKAGE_VERSION = "3.0.0"
+MANIFEST_FILENAME = "reproducibility_manifest.v3.json"
+FIGURE_SPECS_FILENAME = "figure_specs.v3.json"
 ROOT = Path(__file__).resolve().parents[2]
 FROZEN_OUT = Path(__file__).resolve().parent / "frozen"
 GENERATED_OUT = Path(__file__).resolve().parent / "generated"
@@ -30,6 +30,12 @@ RESULT_ARTIFACT_PATHS = {
     ),
     "challenge_holdout_primary_ci": (
         "eval/challenge2019/frozen/holdout_primary_window_m12_p6.v2.json"
+    ),
+    "challenge_holdout_primary_reporting": (
+        "eval/challenge2019/frozen/holdout_primary_window_m12_p6.v3.json"
+    ),
+    "challenge_selection_grid": (
+        "eval/challenge2019/frozen/selection_grid_setA_grace6.v1.json"
     ),
     "challenge_timing": "eval/challenge2019/frozen/timing_primary.v1.json",
     "challenge_robustness": "eval/challenge2019/frozen/robustness_summary.v1.json",
@@ -182,7 +188,7 @@ def cohort_flow() -> dict[str, Any]:
     set_a = selected.get("setA") or {}
     metrics = set_a.get("metrics") or {}
     cohort = metrics.get("cohort") or {}
-    holdout = load_json(RESULT_ARTIFACT_PATHS["challenge_holdout_primary"])
+    holdout = load_json(RESULT_ARTIFACT_PATHS["challenge_holdout_primary_reporting"])
     return {
         "dataset": "PhysioNet Challenge 2019 v1.0.0",
         "selection": {
@@ -194,7 +200,7 @@ def cohort_flow() -> dict[str, Any]:
         },
         "holdout": {
             "split": "training_setB",
-            "n_stays": holdout.get("n_stays"),
+            "n_stays": (holdout.get("cohort") or {}).get("stays_scored"),
             "role": "primary_holdout_quote_once",
         },
         "other_datasets": {
@@ -219,9 +225,8 @@ def challenge_results() -> dict[str, Any]:
     alerts = metrics.get("alerts") or {}
     detection = metrics.get("detection") or {}
 
-    holdout = load_json(RESULT_ARTIFACT_PATHS["challenge_holdout_primary"])
+    holdout = load_json(RESULT_ARTIFACT_PATHS["challenge_holdout_primary_reporting"])
     holdout_detection = holdout.get("detection") or {}
-    holdout_ci = load_json(RESULT_ARTIFACT_PATHS["challenge_holdout_primary_ci"])
     return {
         "setA": {
             "role": "selection",
@@ -240,7 +245,7 @@ def challenge_results() -> dict[str, Any]:
         },
         "setB": {
             "role": "primary_holdout",
-            "n_stays": holdout.get("n_stays"),
+            "n_stays": (holdout.get("cohort") or {}).get("stays_scored"),
             "detection_mode_id": holdout.get("detection_mode_id"),
             "governed_sensitivity": holdout_detection.get("governed_sensitivity"),
             "interruptive_sensitivity": holdout_detection.get(
@@ -248,9 +253,12 @@ def challenge_results() -> dict[str, Any]:
             ),
             "interruptive_nna": holdout_detection.get("interruptive_nna"),
             "mean_lead_hours_in_window": holdout_detection.get(
-                "mean_lead_hours_in_window"
+                "mean_lead_hours_governed_in_window"
             ),
-            "bootstrap": (holdout_ci.get("bootstrap") or {}),
+            "cohort": holdout.get("cohort") or {},
+            "alerts": holdout.get("alerts") or {},
+            "challenge_utility": holdout.get("challenge_utility") or {},
+            "bootstrap": (holdout.get("bootstrap") or {}),
             "unit_note": (
                 "Interruptive metrics are emissions, not episode-arbitrated or "
                 "clinician-delivered pages."
@@ -365,7 +373,7 @@ def failure_analysis() -> list[dict[str, str]]:
 
 def build_manifest() -> dict[str, Any]:
     body = {
-        "manifest_version": "2.0.0",
+        "manifest_version": "3.0.0",
         "package_version": PACKAGE_VERSION,
         "curie_ticket": "CURIE-020",
         "generated_at": datetime.now(UTC).isoformat(),
@@ -609,7 +617,16 @@ def build(
         generated_dir = generated_out or GENERATED_OUT
         frozen_dir.mkdir(parents=True, exist_ok=True)
         generated_dir.mkdir(parents=True, exist_ok=True)
-        (frozen_dir / MANIFEST_FILENAME).write_text(manifest_text, encoding="utf-8")
+        manifest_path = frozen_dir / MANIFEST_FILENAME
+        if manifest_path.exists():
+            prior = json.loads(manifest_path.read_text(encoding="utf-8"))
+            if prior.get("content_hash") != manifest.get("content_hash"):
+                raise FileExistsError(
+                    f"Refusing to replace frozen manifest {manifest_path}; "
+                    "create a new manifest version"
+                )
+        else:
+            manifest_path.write_text(manifest_text, encoding="utf-8")
         (generated_dir / "tables.md").write_text(tables_md, encoding="utf-8")
         (generated_dir / FIGURE_SPECS_FILENAME).write_text(
             figures_json,

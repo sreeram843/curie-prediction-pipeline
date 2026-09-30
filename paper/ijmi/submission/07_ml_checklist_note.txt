@@ -1,0 +1,18 @@
+IJMI Machine Learning checklist — applicability note
+
+This submission evaluates deterministic partial-SOFA scoring and rule-based
+alert governance. It does not train or report a predictive machine-learning
+model as the study intervention.
+
+- Optional LLM narrative components are outside the alert path and are excluded
+  from all reported metrics.
+- TRIPOD+AI / CONSORT-AI style prediction-model checklists are therefore not
+  applicable to the primary analysis.
+- Reproducibility is provided via frozen Challenge sidecars, rule-bundle
+  content hashes, and public code at:
+  https://github.com/sreeram843/curie-prediction-pipeline
+  (pinned commit cited in the manuscript).
+
+If the editorial office still requires the journal ML checklist form, the author
+will complete it with “not applicable — deterministic rules / governance
+evaluation” for prediction-model items.

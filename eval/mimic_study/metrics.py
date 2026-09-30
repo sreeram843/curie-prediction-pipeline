@@ -158,9 +158,18 @@ def in_detection_window(
     *,
     before_hours: float = 12.0,
     after_hours: float = 6.0,
+    min_lead_hours: float = 0.0,
 ) -> bool:
+    """Return True if ``alert_time`` falls in the detection window around onset.
+
+    Primary window: ``[onset - before_hours, onset + after_hours]``.
+    When ``min_lead_hours > 0``, only alerts at least that many hours *before*
+    onset count (upper bound becomes ``onset - min_lead_hours``), so near-onset
+    and post-onset alerts no longer inflate sensitivity.
+    """
     delta_h = (alert_time - onset).total_seconds() / 3600.0
-    return -before_hours <= delta_h <= after_hours
+    upper = -float(min_lead_hours) if float(min_lead_hours) > 0 else float(after_hours)
+    return -float(before_hours) <= delta_h <= upper
 
 
 def stay_detection(
@@ -169,6 +178,7 @@ def stay_detection(
     alert_times: list[datetime],
     before_hours: float = 12.0,
     after_hours: float = 6.0,
+    min_lead_hours: float = 0.0,
 ) -> dict[str, Any]:
     onset = _parse_dt(labels.get("sepsis3_onset"))
     labeled = onset is not None
@@ -178,7 +188,17 @@ def stay_detection(
             "detected": False,
             "lead_hours": None,
         }
-    hits = [t for t in alert_times if in_detection_window(t, onset, before_hours=before_hours, after_hours=after_hours)]  # noqa: E501
+    hits = [
+        t
+        for t in alert_times
+        if in_detection_window(
+            t,
+            onset,
+            before_hours=before_hours,
+            after_hours=after_hours,
+            min_lead_hours=min_lead_hours,
+        )
+    ]
     if not hits:
         return {"labeled_positive": True, "detected": False, "lead_hours": None}
     first = min(hits)
@@ -191,12 +211,14 @@ def summarize_cohort(
     *,
     before_hours: float | None = None,
     after_hours: float | None = None,
+    min_lead_hours: float = 0.0,
     protocol: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     proto = protocol or load_protocol()
     timing = proto.get("detection_timing") or {}
     before = float(before_hours if before_hours is not None else timing.get("before_hours", 12))
     after = float(after_hours if after_hours is not None else timing.get("after_hours", 6))
+    min_lead = float(min_lead_hours)
 
     labeled = 0
     detected_naive = 0
@@ -232,12 +254,14 @@ def summarize_cohort(
             alert_times=[_parse_dt(t) for t in row.get("naive_alert_times") or [] if _parse_dt(t)],
             before_hours=before,
             after_hours=after,
+            min_lead_hours=min_lead,
         )
         det_g = stay_detection(
             labels=labels,
             alert_times=[_parse_dt(t) for t in row.get("governed_alert_times") or [] if _parse_dt(t)],  # noqa: E501
             before_hours=before,
             after_hours=after,
+            min_lead_hours=min_lead,
         )
         det_p = stay_detection(
             labels=labels,
@@ -246,6 +270,7 @@ def summarize_cohort(
             ],
             before_hours=before,
             after_hours=after,
+            min_lead_hours=min_lead,
         )
         if labels.get("sepsis3_onset") is not None:
             valid_interruptive_alerts += sum(
@@ -254,6 +279,7 @@ def summarize_cohort(
                     _parse_dt(labels["sepsis3_onset"]),
                     before_hours=before,
                     after_hours=after,
+                    min_lead_hours=min_lead,
                 )
                 for alert_time in [
                     _parse_dt(t)
@@ -271,8 +297,6 @@ def summarize_cohort(
                 detected_page += 1
             if det_g["lead_hours"] is not None:
                 lead_gov.append(float(det_g["lead_hours"]))
-            if not det_n["labeled_positive"]:
-                pass
         else:
             if int(row.get("episode_count") or 0) > 0:
                 false_episodes += 1
@@ -336,5 +360,9 @@ def summarize_cohort(
         "patient_days": patient_days,
         "meets_pe1": pe1,
         "meets_pe2": pe2,
-        "detection_window": {"before_hours": before, "after_hours": after},
+        "detection_window": {
+            "before_hours": before,
+            "after_hours": after,
+            "min_lead_hours": min_lead,
+        },
     }

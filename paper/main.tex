@@ -1,522 +1,483 @@
 \documentclass[11pt]{article}
-
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
-\usepackage{textcomp}
-\usepackage{lmodern}
-\usepackage{microtype}
-\usepackage{graphicx}
-\usepackage{booktabs}
-\usepackage{array}
+\usepackage{textcomp,lmodern,microtype,graphicx,booktabs,array,amsmath,setspace,url,tikz,titling}
 \usepackage[margin=1in]{geometry}
-\usepackage{amsmath}
-\usepackage[numbers]{natbib}
-\usepackage{url}
-\usepackage{tikz}
+\usepackage[numbers,sort&compress]{natbib}
 \usepackage[hidelinks]{hyperref}
-
-\usetikzlibrary{arrows.meta,positioning}
+\usetikzlibrary{arrows.meta,calc,positioning}
+\setcitestyle{numbers,square,comma}
+% Compact title block so abstract + lay summary stay on page 1.
+\setlength{\droptitle}{-1.25em}
+\pretitle{\begin{center}\LARGE\bfseries}
+\posttitle{\par\end{center}\vspace{-0.85em}}
+\preauthor{\begin{center}\large}
+\postauthor{\par\end{center}\vspace{-0.6em}}
+\predate{}
+\postdate{}
 
 \title{Governing Interruptions After Deterministic Deterioration Scoring:\\
 A Retrospective Evaluation on PhysioNet Challenge 2019}
-\author{Satya Venkata Ranga Janaki Sriram Mentey \\
-\texttt{srirammentey@ieee.org} \\
-ORCID: 0009-0007-2681-006X}
-\date{\today}
+\author{Satya Venkata Ranga Janaki Sriram Mentey, M.S.\\
+Independent Researcher, Austin, Texas, USA\\
+\texttt{srirammentey@ieee.org}\\ORCID: 0009-0007-2681-006X}
+\date{}
 
 \begin{document}
+% Keep front matter compact; double-space only the article body.
+\singlespacing
 \maketitle
+\thispagestyle{empty}
+\noindent{\footnotesize\textbf{Correspondence:} Satya Venkata Ranga Janaki Sriram Mentey, M.S.\
+(Computer Science, University of Missouri--Kansas City),
+8601 Anderson Mill Rd, Apt~722, Austin, TX~78729, USA;
+\href{mailto:srirammentey@ieee.org}{srirammentey@ieee.org};
++1~(816)~605-8945.\\
+\textbf{Keywords:} clinical decision support; alert fatigue; sepsis;
+SOFA score; reproducibility.\\
+\textbf{Word count:} 1,723}
 
+{\footnotesize\setstretch{0.95}
 \begin{abstract}
-\noindent\textbf{Background and Significance:} Clinical deterioration scores and
-clinician interruptions are different design objects: a threshold can flag a
-concerning state yet still produce repeated or poorly timed interruptions.
-Governance applied after deterministic scoring may reduce interruptions without
-changing the score.
+\noindent\textbf{Objectives:} A deterioration-score threshold may produce
+repeated, poorly timed interruptions. We evaluated a frozen dual-lane governance
+policy for partial SOFA, compared it with threshold-only partial SOFA and hourly
+bedside scores, and attributed its effect to individual mechanisms.
 
-\noindent\textbf{Objectives:} To compare a frozen dual-lane governance policy on
-partial SOFA against threshold-only partial SOFA and against hourly SIRS, NEWS2,
-and partial qSOFA, and to attribute the effect to individual mechanisms on a
-locked Challenge 2019 holdout.
+\noindent\textbf{Materials and Methods:} We selected governance on PhysioNet
+Challenge 2019 setA ($n=20{,}336$), froze it, and evaluated setB ($n=20{,}000$)
+once. Detection required an emission within
+$[\texttt{label\_start}-12\,\mathrm{h},+6\,\mathrm{h}]$; burden counted
+interruptive emissions. Co-primary outcomes were detection/burden metrics and
+normalized Challenge utility. Confidence intervals used 1,000 stay-level
+bootstrap replicates.
 
-\noindent\textbf{Materials and Methods:} We replayed Challenge 2019 records
-through a deterministic partial-SOFA scorer, tuned governance on
-\texttt{training\_setA} ($n=20{,}336$), froze it, and evaluated
-\texttt{training\_setB} ($n=20{,}000$) once. Detection counted any governed
-emission within $[\texttt{label\_start}-12\,\mathrm{h},\,+6\,\mathrm{h}]$; burden
-counted interruptive emissions. We report stay-level bootstrap 95\% CIs
-(1{,}000 replicates, seed 42) and drop-one mechanism ablations without
-reselection.
+\noindent\textbf{Results:} Governed partial SOFA matched threshold-only
+sensitivity (79.5\%, 95\% CI 77.0--81.8). The interruptive lane emitted 13.2\%
+as many alerts, detected 34.0\% of positive stays, produced 106.1 emissions per
+detected positive stay (95\% CI 96.2--116.6), and had 10.7\% stay-level positive
+predictive value. Normalized utility was $-0.111$, $-0.053$, and $0.041$ for
+threshold-only, governed, and interruptive outputs, respectively. Removing the
+90-minute refractory interval doubled volume; disabling the page gate increased
+interruptive sensitivity to 44.6\%.
 
-\noindent\textbf{Results:} Frozen governed partial SOFA matched threshold-only
-sensitivity (79.5\%, 95\% CI 77.0--81.8) while the interruptive lane emitted
-13.2\% as many alerts (number needed to alert 106.1, 95\% CI 96.2--116.6).
-Incomplete NEWS2 ($\geq 5$) and SIRS ($\geq 2$) reached 76.0\% and 78.5\% but as
-ungoverned streams (NNA 163--213); partial qSOFA reached 24.9\%. Removing the
-90-minute refractory interval roughly doubled interruptive volume; removing the
-page gate raised interruptive sensitivity from 34.0\% to 44.6\%.
+\noindent\textbf{Discussion:} A passive lane structurally preserved
+threshold-crossing detection while refractory and page-gate rules reduced
+interruptive emissions. Residual burden remained substantial.
 
-\noindent\textbf{Discussion:} Governance shifted retrospective detection onto a
-passive lane and confined interruptions, but residual NNA remained high. Results
-reflect a proxy label and a partial score.
-
-\noindent\textbf{Conclusion:} Under a frozen setA-to-setB evaluation, governance
-reduced page-eligible emissions while retaining retrospective
-\texttt{SepsisLabel} detection; this does not establish diagnosis, clinical
-benefit, external validity, or superiority to NEWS or qSOFA.
+\noindent\textbf{Conclusion:} This single-resource, partial-score evaluation
+supports further governance research but does not establish diagnosis, clinical
+benefit, external validity, or readiness for patient care.
 \end{abstract}
 
+\vspace{-0.85em}
 \section*{Lay summary}
+Hospital early-warning systems may interrupt clinicians so often that important
+warnings compete with routine ones. We studied whether the decision to
+interrupt can be separated from the calculation of a patient's risk score.
+Using public intensive-care records, we chose the interruption rules on one
+part of the dataset, locked them, and tested them once on the other part. A
+passive notification lane identified the same proportion of labeled patients
+as the raw score, while a stricter urgent lane produced about one eighth as many
+notifications. A quiet period after each notification and a rule reserving
+urgent notifications for stronger trajectories produced most of this
+reduction. The urgent lane still generated 1.30 notifications per patient-day
+and detected only about one third of labeled patients, so it is not ready for
+clinical use. The dataset's label partly depends on the same organ-dysfunction
+concept as the score, and the available data support only an incomplete SOFA
+score. The findings therefore concern alert routing, not diagnosis, treatment
+benefit, or patient outcomes.
+}
 
-Hospital early-warning systems often alert clinicians so frequently that
-important warnings get lost among routine ones --- a problem called alert
-fatigue. We studied whether the \emph{decision to interrupt a clinician} can be
-treated as a separate, tunable step that runs after a patient's risk score is
-calculated, rather than alerting every time a score crosses a line. Using a
-public dataset of intensive-care records, we set the rules on one half of the
-data, locked them, and tested them once on the other half. The governed system
-flagged the same fraction of deteriorating patients as the raw score (about four
-in five) but reduced the number of urgent, interruptive alerts to roughly an
-eighth. Two rules did most of the work: a quiet period after each alert, and a
-gate that reserved urgent alerts for stronger trajectories. The urgent-alert
-count was still high, so this is a starting point, not a finished solution.
-Because the data use a proxy definition of illness and an incomplete score,
-these results describe alert behaviour only --- not a diagnosis, a clinical
-benefit, or readiness for patient care.
-
-\section{Introduction}
-\label{sec:intro}
-
-Electronic clinical decision support can generate many technically correct but
+\doublespacing
+\section{Background and Significance}
+\label{sec:background}
+Electronic clinical decision support can generate technically correct but
 operationally weak interruptions. Repeated exposure can reduce responsiveness,
-and many interruptive alerts are closed quickly, suggesting that interruption
-cost depends on relevance and workflow fit rather than alert count alone
-\citep{embi2012,elias2019}. Sepsis-alert trials have also produced mixed
-clinical results, reinforcing that a score's discrimination does not by itself
-determine the value of the alerting workflow \citep{downing2019}.
+and interruption cost depends on relevance and workflow fit rather than alert
+count alone.\citep{embi2012,elias2019} Randomized sepsis-alert evaluations have
+also produced mixed clinical results, showing that model discrimination does
+not by itself determine the value of an alerting workflow.\citep{downing2019}
 
-Most retrospective deterioration studies treat a positive model or rule output
-as the alert. We instead treat scoring and interruption as separate stages. A
-deterministic scorer first produces a complete, auditable signal. A shared
-governance layer then determines whether the signal should be suppressed, shown
-passively, or emitted through an interruptive lane. The governance policy can
-use repeated crossings, temporal persistence, baseline-relative change,
-refractory windows, and a page gate without changing the underlying clinical
-score.
+Retrospective deterioration studies commonly treat each positive score as an
+alert. This collapses scoring, routing, and clinician interruption into one
+event. We instead separate them. A deterministic scorer produces an auditable
+signal; a shared governance layer then suppresses repetition or routes the
+signal to a passive watch or interruptive lane. An optional language model may
+explain an already-fired alert but cannot create, suppress, escalate, or alter
+the score.
 
 We evaluated this separation using the PhysioNet/Computing in Cardiology
-Challenge 2019, which provides hourly ICU records and an onset-aligned
-\texttt{SepsisLabel} \citep{reyna2020ccm,reyna2019physionet}. The study asks
-one narrow question: can a frozen governance policy reduce page-eligible
-emissions relative to threshold-only partial SOFA while retaining retrospective
-label detection?
+Challenge 2019 public resource, which provides hourly intensive-care records
+and an onset-aligned \texttt{SepsisLabel}.\citep{reyna2020ccm,reyna2019physionet}
+Because the label incorporates a SOFA change, detection by a SOFA-derived score
+is not an independent diagnostic validation. The estimand is the change in
+retrospective alert-stream behavior caused by governance after the same score.
 
-The supported claim is deliberately limited: shared governance reduces
-interruptive emissions versus threshold-only partial SOFA while retaining
-retrospective Challenge \texttt{SepsisLabel} detection under a frozen
-setA-to-setB evaluation. We do not evaluate diagnosis, treatment, mortality,
-clinician adoption, MIMIC-IV performance, prospective deployment, or
-regulatory readiness.
+\section{Objectives}
+The primary objective was to determine whether a policy selected on setA and
+frozen before setB replay reduced page-eligible emissions while retaining
+threshold-only partial-SOFA detection. Secondary objectives were to quantify
+Challenge utility, compare the operating point with hourly SIRS, incomplete
+NEWS2, and partial qSOFA, and identify which governance mechanisms produced the
+observed changes.
 
-\section{System}
-\label{sec:system}
-
-\subsection{Separation of scoring, governance, and narrative}
-
-The Curie prototype projects clinical events onto a canonical envelope,
-transports them through Kafka, and applies versioned deterministic rules in
-Apache Flink. The scoring output includes the score, severity, evidence
-identifiers, missing components, rule version, and rule-content hash. Shared
-governance operates on this deterministic output and assigns passive or
-interruptive routing. An optional language-model component may generate a
-post-alert narrative, but it cannot create, suppress, escalate, or change an
-alert.
+\section{Materials and Methods}
+\label{sec:methods}
+\subsection{System boundary}
+The Curie research prototype projects clinical events onto a canonical
+envelope, transports them through Kafka, and applies versioned deterministic
+rules in Apache Flink. Each score includes evidence identifiers, missing
+components, rule version, and rule-content hash. The retrospective harness used
+the same scoring and governance semantics but did not simulate delivery,
+acknowledgement, or treatment (Figure~\ref{fig:system}).
 
 \begin{figure}[htbp]
 \centering
-\begin{tikzpicture}[
-  font=\small\sffamily,
-  box/.style={draw, rounded corners=2pt, align=center, inner sep=6pt, minimum height=1.05cm},
-  arr/.style={-{Latex}, thick}
-]
+\resizebox{\textwidth}{!}{\begin{tikzpicture}[font=\small\sffamily,
+box/.style={draw,rounded corners=2pt,align=center,inner sep=5pt,minimum height=1.05cm,minimum width=2.15cm},
+arr/.style={-{Latex},thick}]
 \node[box] (a) {Hourly clinical\\events};
-\node[box, right=0.55cm of a] (b) {Event\\envelope};
-\node[box, right=0.55cm of b] (c) {Deterministic\\partial SOFA};
-\node[box, above=0.7cm of c] (r) {Versioned\\rule bundle};
-\node[box, right=0.55cm of c] (g) {Shared alert\\governance};
-\node[box, right=0.45cm of g, yshift=0.7cm] (w) {Passive watch};
-\node[box, right=0.45cm of g, yshift=-0.7cm] (p) {Interruptive};
-\node[box, right=0.55cm of p] (l) {Optional LLM\\narrative};
-\draw[arr] (a) -- (b);
-\draw[arr] (b) -- (c);
-\draw[arr] (r) -- (c);
-\draw[arr] (c) -- (g);
-\draw[arr] (g) |- (w);
-\draw[arr] (g) |- (p);
-\draw[arr, dashed] (p) -- node[above, font=\scriptsize] {post-alert only} (l);
-\end{tikzpicture}
-\caption{System boundary used in the retrospective replay. The harness executes
-scoring and governance semantics directly. It does not simulate clinician
-delivery, acknowledgement, or treatment.}
+\node[box,right=0.45cm of a] (b) {Event\\envelope};
+\node[box,right=0.45cm of b] (c) {Deterministic\\partial SOFA};
+\node[box,above=0.55cm of c] (r) {Versioned\\rule bundle};
+\node[box,right=0.45cm of c] (g) {Shared alert\\governance};
+\node[box,above right=0.55cm and 0.85cm of g] (w) {Passive\\watch};
+\node[box,below right=0.55cm and 0.85cm of g] (p) {Interruptive\\page};
+\node[box,right=1.35cm of p] (l) {Optional LLM\\narrative};
+\draw[arr] (a)--(b); \draw[arr] (b)--(c); \draw[arr] (r)--(c); \draw[arr] (c)--(g);
+\draw[thick] (g.east)--++(0.28,0) coordinate (fork);
+\draw[arr] (fork)|-(w.west); \draw[arr] (fork)|-(p.west);
+\draw[arr,dashed] (p.east)--(l.west);
+\node[font=\scriptsize\sffamily,anchor=north] at ($(p.east)!0.5!(l.west)+(0,-0.12)$) {post-alert only};
+\end{tikzpicture}}
+\caption{System boundary. The language-model component is outside the alert
+path. The evaluation ends at an offline routing decision.}
 \label{fig:system}
+
+\noindent\textit{Alt text.} Left-to-right system diagram. Hourly clinical events
+flow into an event envelope and then a deterministic partial-SOFA scorer
+supplied by a versioned rule bundle. The score flows to shared alert
+governance, which branches upward to a passive watch lane and downward to an
+interruptive page lane. A dashed arrow from the page lane reaches an optional
+language-model narrative labeled post-alert only, emphasizing that the
+language model is outside the alert path.
 \end{figure}
 
-\subsection{Governance policy}
+\subsection{Dataset and split}
+We used PhysioNet Challenge 2019 version 1.0.0 under CC BY 4.0. SetA contained
+20,336 stays and setB 20,000 stays.\citep{reyna2020ccm,reyna2019physionet} SetA
+was used for selection and setB as a locked retrospective holdout. SetB was not
+used to tune or reselect the policy. This was neither an official Challenge
+submission nor evaluation on the hidden Challenge test set, and setB is not an
+external hospital cohort.
 
-The policy family contains five separable mechanisms: (1)~crossings, requiring
-repeated qualifying score crossings before selected actions; (2)~persistence,
-requiring a qualifying state to persist for a configured duration;
-(3)~baseline delta, requiring meaningful change from a recent patient baseline
-when enabled; (4)~a refractory interval that suppresses repeated emissions; and
-(5)~a page gate that reserves the interruptive lane for stronger trajectories
-while preserving a passive watch lane.
+\subsection{Partial SOFA and threshold-only output}
+SOFA summarizes dysfunction in six organ systems.\citep{vincent1996sofa}
+Challenge records permitted an incomplete proxy reconstruction from oxygenation,
+mean arterial pressure, platelets, bilirubin, and creatinine. GCS, urine-output
+windows, vasopressor doses, and reliable ventilation status were unavailable.
+Values were carried forward causally within each stay in the frozen replay;
+future rows were never used. The respiratory proxy divided O2Sat (or SaO2 when
+O2Sat was absent) by FiO$_2$ and applied the numeric P/F bands; this is not a
+standard SOFA respiratory component or a validated S/F conversion. Other
+available components used conventional SOFA cut points (Supplementary
+Table~S1), missing components were explicit, and
+at least two components were required. The threshold-only lane emitted at each
+hour with partial SOFA $\geq2$. Thus neither a missing component nor an
+unavailable organ system was assigned a reassuring zero.
 
-The setA-selected configuration used one crossing and no persistence
-requirement for the governed watch path, disabled baseline gating, and used a
-90-minute refractory interval. Its interruptive page gate required two
-crossings, 30 minutes of page-level persistence, a score increase of at least
-one point, and at least two positive components.
+\subsection{Governance and operating-point freeze}
+The governed watch path required one qualifying crossing and no persistence or
+baseline-delta gate. A 90-minute refractory interval suppressed repeated
+emissions. The interruptive page gate additionally required two crossings,
+30 minutes at page-level severity, a component-score increase of at least one,
+and at least two positive components. Challenge rows are hourly, so the 30-minute
+and two-crossing settings may be observationally redundant.
 
-\section{Methods}
-\label{sec:methods}
+The original setA sweep evaluated 23 candidates under a legacy grace-6
+detection definition. A candidate passed the sensitivity objective if governed
+sensitivity was at least naive sensitivity minus 0.10 or at least 0.70, and
+passed the burden objective if its interruptive-to-naive emission ratio was at
+most 0.25. Candidates were ranked by passing both objectives, lower burden
+ratio, lower emissions per detected positive stay, and higher governed
+sensitivity. The selected candidate, \texttt{grid\_p0\_r90\_b0}, and complete
+selection grid appear in Supplementary Table~S2. The configuration and resolved
+rule bundle were frozen before setB evaluation.
 
-\subsection{Dataset and study design}
+\subsection{Comparators}
+We independently scored hourly SIRS $\geq2$ using temperature, heart rate,
+respiratory rate, and white-cell count;\citep{bone1992} NEWS2 $\geq5$ with the
+unavailable consciousness/AVPU item assigned zero;\citep{rcp2017news2} and
+partial qSOFA $\geq2$ using respiratory rate $\geq22$ and systolic blood pressure
+$\leq100$, omitting GCS.\citep{seymour2016sepsis3} These threshold-only streams
+had no refractory or page gate. The comparison is descriptive because missing
+items disadvantage NEWS2 and qSOFA and none received matched governance.
 
-We used PhysioNet Challenge 2019 version 1.0.0. The public resource contains
-two training partitions: setA with 20{,}336 stays and setB with 20{,}000 stays
-\citep{reyna2020ccm}. Files are licensed under Creative Commons Attribution
-4.0 International. We used setA to select and freeze the operating point. We
-treated setB as a locked retrospective holdout and did not tune or reselect
-policy parameters on it.
+\subsection{Outcomes and statistical analysis}
+For positive stays, \texttt{SepsisLabel} starts approximately six hours before
+the Challenge clinical-onset definition.\citep{reyna2020ccm} We call the first
+positive hour \texttt{label\_start}, not bedside onset. Primary-window detection
+required at least one emission in
+$[\texttt{label\_start}-12\,\mathrm{h},\texttt{label\_start}+6\,\mathrm{h}]$.
+Detection used any governed emission; burden used interruptive emissions.
 
-This is not an official Challenge submission or an evaluation against the
-hidden Challenge test set. \texttt{training\_setB} is a holdout within the
-same public challenge resource, not an external hospital validation cohort.
+We report sensitivity, total emissions, interruptive-to-naive emission ratio,
+emissions per detected positive stay, alerts per patient-day, and stay-level
+positive predictive value (PPV), defined as labeled positive stays detected in
+the window divided by all stays with any emission. The PPV denominator is not
+restricted to a matched onset window in negative stays. Lead time is from the
+first in-window governed emission to \texttt{label\_start}; negative values are
+after label start. Confidence intervals are percentile intervals from 1,000
+stay-level bootstrap replicates (seed 42).
 
-\subsection{Partial SOFA mapping}
-
-SOFA was designed to summarize organ dysfunction across respiratory,
-coagulation, liver, cardiovascular, central nervous system, and renal
-components \citep{vincent1996sofa}. Challenge records support only a partial
-reconstruction. The replay used available oxygenation, mean arterial pressure,
-platelet, bilirubin, and creatinine fields with causal forward filling. The
-dataset does not provide Glasgow Coma Scale, urine-output windows,
-vasopressor-dose ladders, or a reliable mechanical-ventilation flag. We
-therefore refer to the result as \textbf{partial SOFA}, not complete SOFA and
-not a sepsis diagnosis. Missing inputs were not imputed to reassuring values.
-The scorer recorded missing components and required at least two scoreable
-components under the frozen study bundle.
-
-\subsection{Comparators and output lanes}
-
-At each hourly update, the same partial-SOFA result fed two paths:
-threshold-only partial SOFA (emit whenever the score crossed the configured
-alert threshold) and governed partial SOFA (apply the frozen trajectory,
-crossing, refractory, and page-gate policy). Governed output was divided into
-any governed emission (passive watch plus interruptive; used for detection)
-and interruptive emission (urgent or critical page-eligible output; used for
-burden and interruptive NNA). ``Interruptive emission'' is an offline routing
-decision. It is not an episode-arbitrated page and was not delivered to a
-clinician.
-
-Independently of Curie governance, we scored three hourly threshold-only
-bedside comparators on the same stays and the same primary window: SIRS
-$\geq 2$ using temperature, heart rate, respiratory rate, and white-cell count
-\citep{bone1992}; NEWS2 $\geq 5$ (Royal College of Physicians medium trigger)
-with consciousness/AVPU scored 0 because it is absent in Challenge 2019
-\citep{rcp2017news2}; and partial qSOFA $\geq 2$ using respiratory rate
-$\geq 22$ and systolic blood pressure $\leq 100$, with the GCS limb omitted
-\citep{seymour2016sepsis3}. These comparators have no refractory window or
-page gate. They are not a claim of superiority to NEWS or qSOFA in clinical
-practice.
-
-\subsection{Operating-point selection and freeze}
-
-Governance candidates were evaluated on setA. The selected candidate,
-\texttt{grid\_p0\_r90\_b0}, was written to the frozen operating-point sidecar
-and bound to the resolved study rule bundle. The bundle content hash was
-frozen before setB evaluation. The selected setA point had governed
-sensitivity of 88.4\% and an interruptive-emission ratio of 0.123 relative to
-threshold-only emissions. Named governance profiles plus that frozen winner
-are reported as a sparse frontier; that table is not a reconstruction of the
-original 23-candidate setA grid.
-
-\subsection{Labels, timing, and outcomes}
-
-For sepsis-positive Challenge records, \texttt{SepsisLabel} becomes positive
-at approximately six hours before the Challenge clinical-onset definition
-\citep{reyna2020ccm}. We call the first positive label hour
-\texttt{label\_start}; we do not call it bedside clinical onset. The primary
-timing policy was frozen as \texttt{window\_m12\_p6}: a stay was detected if
-any qualifying emission occurred in $[\texttt{label\_start}-12\,\mathrm{h},
-\texttt{label\_start}+6\,\mathrm{h}]$. Mean lead time was calculated from the
-first governed emission within that bounded window to \texttt{label\_start}.
-Grace-0\,h, grace-6\,h, grace-12\,h, early-only, and $\pm 12$\,h definitions
-were secondary sensitivity analyses.
-
-Primary holdout metrics were governed sensitivity, interruptive sensitivity,
-interruptive NNA (interruptive emissions per interruptive true-positive stay),
-and bounded mean lead time. Primary-window 95\% confidence intervals were
-stay-level percentile bootstrap intervals (1{,}000 replicates, seed 42). SetB
-ablation dropped one frozen mechanism at a time and re-scored setB without
-changing the selected winner. Governed false negatives under the primary
-window were attributed from replay rows; the committed miss table contains
-aggregates only.
-
-\subsection{Engineering checks and other adapters}
-
-Golden fixtures test scorer behavior. Shared fixtures check Python reference
-behavior against the Java/Flink implementation. These artifacts are appendix
-methods evidence, not an additional results cohort. MIMIC-IV demo, eICU demo,
-MIMIC-IV FHIR demo, SYN-ICU, and Synthea adapters exercise the same
-adapter-to-harness path. We report no sensitivity, burden, calibration, or
-clinical-effect estimate from those sources.
+Normalized PhysioNet Challenge utility was co-primary and used the official
+hourly weighting implementation. Positive predictions were emission hours only,
+not latched states; consequently this is neither a leaderboard score nor a
+utility estimate for delivered clinical pages. Drop-one ablations modified one
+frozen mechanism at a time without reselection. Alternative timing definitions
+were secondary analyses (Supplementary Table~S3).
 
 \section{Results}
 \label{sec:results}
+\subsection{Selection and holdout cohorts}
+SetA contained 1,790 label-positive stays. Under the original legacy grace-6
+selection estimand, the winner had 88.4\% governed sensitivity, 37.7\%
+interruptive sensitivity, and a 0.123 interruptive-emission ratio. Applying the
+later primary-window definition to the same winner yielded 87.6\% governed and
+32.5\% interruptive sensitivity (Supplementary Table~S2); the distinction
+prevents post hoc substitution of estimands.
 
-All numeric tables below are generated from frozen sidecars
-(\texttt{make paper-tables}). Do not hand-copy metrics.
-
-\subsection{Selection split}
-
-SetA contained 20{,}336 stays, including 1{,}790 with a positive
-\texttt{SepsisLabel}. Under the frozen operating point, threshold-only scoring
-emitted 529{,}958 alerts and the interruptive governed lane emitted 64{,}928
-alerts (interruptive ratio 0.123). Governed sensitivity was 88.4\%;
-interruptive sensitivity was 37.7\%. These are setA selection results. They
-are not substituted for the setB primary holdout metrics.
-
-\subsection{Primary setB holdout}
-
-Table~\ref{tab:holdout} reports the frozen setB result under
-\texttt{window\_m12\_p6}. The difference between governed and interruptive
-sensitivity reflects the intended dual-lane policy: a passive watch can
-preserve detection without turning every detection into an interruptive
-emission. NNA remains high, indicating that emission reduction alone did not
-produce a clinically efficient page stream.
+SetB contained 1,142 positive and 18,858 negative stays and 31,749.8
+patient-days. Threshold-only, governed, and interruptive outputs comprised
+311,797, 159,933, and 41,158 emissions, respectively. Primary results are in
+Table~\ref{tab:holdout}.
 
 \begin{table}[htbp]
-\centering
-\footnotesize
-\caption{Primary setB holdout results (20{,}000 stays;
-\texttt{window\_m12\_p6}). Stay-level percentile bootstrap, 1{,}000
-replicates, seed 42. Point estimates match the v1 sidecar.}
-\label{tab:holdout}
-\input{tables/holdout_tabular.tex}
+\centering\footnotesize
+\caption{Primary setB holdout results under the prespecified $-12/+6$-hour
+window. CI, confidence interval; PPV, positive predictive value; N/G/I,
+threshold-only naive/governed/interruptive.}
+\label{tab:holdout}\input{tables/holdout_tabular.tex}
 \end{table}
 
-\subsection{Timing-definition robustness}
+Governed and threshold-only sensitivity were both 79.5\% (908/1,142), a result
+expected from a watch path that required one crossing and had no persistence or
+baseline gate. Interruptive sensitivity was 34.0\% (388/1,142). The interruptive
+lane emitted 13.2\% as many alerts as threshold-only scoring and 1.30 alerts per
+patient-day, but still required 106.1 emissions per detected positive stay.
+Among negative stays, 3,238/18,858 (17.2\%) had at least one interruptive
+emission; their mean was 1.70 emissions per stay and median was 0 (IQR 0--0).
+Stay-level interruptive PPV was 10.7\% (95\% CI 9.7--11.7).
 
-Secondary timing definitions changed absolute sensitivity but produced equal
-naive and governed sensitivity for the frozen configuration in each documented
-analysis (Table~\ref{tab:robustness}; Figure~\ref{fig:timing}). The 81.1\%
-grace-6\,h result is a secondary legacy analysis and must not replace the
-primary 79.5\% result.
+Normalized Challenge utility was $-0.111$ for threshold-only emissions,
+$-0.053$ for any governed emission, and $0.041$ for the interruptive lane. Thus
+the most selective stream improved this retrospective utility relative to
+inaction, while the other two remained below it.
+
+Mean first-emission lead was 5.97 hours (95\% CI 5.54--6.39), but the distribution
+was asymmetric: the 25th percentile was $-1$ hour, median 11 hours, and 75th
+percentile 12 hours. A mean alone obscures that at least one quarter of detected
+positive stays first emitted after \texttt{label\_start}.
+
+\subsection{Comparators and ablations}
+Incomplete NEWS2 and SIRS had 76.0\% and 78.5\% sensitivity but generated
+ungoverned hourly streams requiring 163--213 emissions per detected positive
+stay (Table~\ref{tab:comparators}; Figure~\ref{fig:burden}). Partial qSOFA was
+quieter but detected 24.9\%. These results do not establish clinical superiority
+because the scores were incomplete and their routing policies were unmatched.
 
 \begin{table}[htbp]
-\centering
-\footnotesize
-\caption{Secondary setB sensitivity analyses. These modes are not the primary
-\texttt{window\_m12\_p6} result.}
-\label{tab:robustness}
-\input{tables/robustness_tabular.tex}
-\end{table}
-
-\subsection{Bedside comparators}
-
-Table~\ref{tab:comparators} and Figure~\ref{fig:burden} place threshold-only
-SIRS, incomplete NEWS2, and partial qSOFA on the same primary window as Curie
-lanes. NNA is emissions per in-window true-positive stay for that lane. NEWS2
-omits consciousness; qSOFA omits GCS.
-
-\begin{table}[htbp]
-\centering
-\footnotesize
-\caption{SetB threshold-only comparators vs Curie lanes
-(\texttt{window\_m12\_p6}). Not a clinical superiority claim.}
-\label{tab:comparators}
-\input{tables/comparators_tabular.tex}
+\centering\footnotesize
+\caption{SetB threshold-only comparators and Curie lanes under the primary
+window. Missing NEWS2 consciousness and qSOFA GCS components limit comparison.}
+\label{tab:comparators}\input{tables/comparators_tabular.tex}
 \end{table}
 
 \begin{figure}[htbp]
 \centering
 \includegraphics[width=0.92\textwidth]{figures/figure3_detection_burden.pdf}
-\caption{SetB detection versus interruption burden under
-\texttt{window\_m12\_p6}. NEWS2 omits consciousness/AVPU; qSOFA omits GCS.
-NNA is emissions per in-window true-positive stay.}
+\caption{SetB sensitivity versus emission burden. Markers represent unmatched
+threshold-only comparator streams and Curie output lanes.}
 \label{fig:burden}
+
+\noindent\textit{Alt text.} Scatter plot of setB sensitivity against emissions
+per detected positive stay for hourly SIRS, incomplete NEWS2, partial qSOFA,
+threshold-only partial SOFA, any governed partial-SOFA emission, and the
+interruptive governed lane. The interruptive lane has lower burden and lower
+sensitivity than any governed emission; comparator points are descriptive
+because missing score components and routing policies are unmatched.
 \end{figure}
 
-\subsection{SetB ablation of the frozen winner}
-
-Table~\ref{tab:ablation} reports drop-one mechanism evaluations on setB. The
-operating point is not reselected. \texttt{drop\_baseline} is a null ablation
-(winner already has baseline off). On hourly Challenge spacing, zeroing page
-persistence (30\,min) or page crossings ($2\rightarrow 1$) did not change setB
-metrics; the 90-minute refractory interval and the page-gate routing decision
-did.
+Removing the refractory interval increased governed volume to threshold-only
+volume. Disabling the page gate increased interruptive sensitivity from 34.0\%
+to 44.6\% and its emission ratio from 0.132 to 0.457
+(Table~\ref{tab:ablation}). Disabling baseline had no effect because it was
+already off. Zeroing page persistence or reducing page crossings had no effect
+on hourly rows.
 
 \begin{table}[htbp]
-\centering
-\footnotesize
-\setlength{\tabcolsep}{4pt}
-\caption{SetB ablation of the frozen winner (\texttt{window\_m12\_p6}). Knobs
-are not reselected.}
-\label{tab:ablation}
-\input{tables/ablation_tabular.tex}
+\centering\footnotesize\setlength{\tabcolsep}{4pt}
+\caption{Drop-one setB ablation of the frozen winner. No variant was reselected.}
+\label{tab:ablation}\input{tables/ablation_tabular.tex}
 \end{table}
 
-\subsection{Miss attribution}
-
-Of 1{,}142 label-positive setB stays, 234 were governed false negatives under
-the primary window (Table~\ref{tab:miss}; aggregates only). No in-window
-misses were attributed to refractory on the frozen winner: if naive SOFA fired
-in-window, a governed emit existed (possibly outside the window).
+Of 1,142 positive setB stays, 234 were governed false negatives in the primary
+window. All were attributed to never crossing the partial-SOFA threshold in the
+window rather than governance suppression (Table~\ref{tab:miss}). This finding
+is structural for the selected watch path, not evidence that governance can
+generally preserve detection.
 
 \begin{table}[htbp]
-\centering
-\footnotesize
-\caption{Governed false negatives on setB under \texttt{window\_m12\_p6}
-($n=234$). No stay identifiers.}
-\label{tab:miss}
-\input{tables/miss_tabular.tex}
+\centering\footnotesize
+\caption{Aggregate attribution of governed false negatives on setB. No stay
+identifiers are included.}
+\label{tab:miss}\input{tables/miss_tabular.tex}
 \end{table}
 
-Named profiles plus the frozen winner on setA are in
-Table~\ref{tab:pareto}. That figure is not a reconstruction of the original
-23-candidate grid.
-
-\begin{table}[htbp]
-\centering
-\footnotesize
-\caption{Named governance profiles plus frozen winner on setA under
-\texttt{window\_m12\_p6}.}
-\label{tab:pareto}
-\input{tables/pareto_tabular.tex}
-\end{table}
+Alternative timing definitions changed absolute sensitivity but preserved
+equal threshold-only and governed sensitivity for this configuration
+(Supplementary Table~S3; Figure~\ref{fig:timing}). The 81.1\% grace-6 setB
+result is secondary and does not replace the 79.5\% primary-window estimate.
 
 \begin{figure}[htbp]
 \centering
 \includegraphics[width=0.92\textwidth]{figures/figure4_timing_robustness.pdf}
-\caption{Naive versus governed sensitivity across secondary timing
-definitions on setB. The dashed line is the primary
-\texttt{window\_m12\_p6} governed sensitivity (79.5\%).}
+\caption{Threshold-only and governed setB sensitivity under secondary timing
+definitions. The dashed line marks primary governed sensitivity (79.5\%).}
 \label{fig:timing}
+
+\noindent\textit{Alt text.} Grouped comparison of threshold-only and governed
+sensitivity across secondary timing definitions on setB. The paired values are
+equal for every displayed definition. A dashed horizontal reference marks the
+79.5 percent governed sensitivity under the primary minus-12 to plus-6-hour
+window.
 \end{figure}
 
 \section{Discussion}
 \label{sec:discussion}
+The frozen policy reduced page-eligible emissions to 13.2\% of threshold-only
+partial-SOFA volume. The refractory interval reduced repeated watch emissions,
+and the page gate traded interruptive sensitivity for lower burden. Challenge
+utility moved from negative for threshold-only and all governed emissions to
+slightly positive for the interruptive stream. These findings support studying
+alert routing as a versioned intervention distinct from the score.
 
-This study evaluates the alert policy rather than proposing a new predictive
-model. On the setB primary window, incomplete NEWS2 and SIRS approached
-governed partial-SOFA sensitivity (76.0\% and 78.5\% vs 79.5\%) but as
-ungoverned hourly streams with NNA 163--213. Partial qSOFA was specific and
-quiet (24.9\% sensitivity, 22{,}068 emissions) because the GCS limb is
-missing. Frozen governance matched naive SOFA detection at 79.5\% while the
-interruptive lane retained 13.2\% of naive SOFA volume. Ablation shows that
-the 90-minute refractory interval is what keeps watch volume below naive SOFA,
-and that the page gate---not page persist or page crossings on hourly
-rows---is what holds interruptive sensitivity at 34.0\% rather than 44.6\%.
+Equal threshold-only and governed sensitivity is not an independent performance
+gain. With one required watch crossing, no persistence, no baseline gate, and
+no usable suppression flags in this dataset, any threshold crossing produced a
+governed watch unless refractory timing moved it outside the analysis window.
+The equality therefore mainly verifies that this routing configuration
+preserved crossings. The empirical trade-off lies in the interruptive page gate.
 
-The result supports dual-lane design: retrospective detection can be
-represented passively while a more selective policy controls interruption. It
-does not show that the interruptive lane is already optimal. An interruptive
-NNA of 106.1 is a substantial residual burden and should be treated as a
-design target. The comparison to SIRS/NEWS2/qSOFA is a Challenge-2019
-detection/burden plane, not evidence that Curie outperforms those scores in
-clinical practice.
+Residual burden remained substantial: 1.30 interruptive emissions per
+patient-day, 106 emissions per detected positive stay, and at least one
+interruptive emission in 17.2\% of negative stays. Emission counts may overstate
+or understate real interruption cost because replay had no episode arbitration,
+delivery failures, acknowledgements, escalation, or clinician response. A
+usable policy would need workflow-specific grouping and prospective burden
+measurement.
 
-Threshold-only comparisons often collapse model output, user-interface
-behavior, and clinician workflow into one binary alert. The present design
-makes those layers explicit. Persistence, crossings, refractory windows, and
-page gating can be studied as versioned policy parameters while the clinical
-score remains unchanged.
-
-The next evidence step is not to treat unlabeled demo datasets as external
-validation. A separate study should execute a pre-specified MIMIC-IV protocol
-using availability-time replay, a full or explicitly partial SOFA
-reconstruction, Sepsis-3-aligned labels, and subgroup analysis. A later silent
-prospective study would be required to measure delivered alert burden,
-clinician response, workflow fit, safety, and patient outcomes.
+The label-score relationship further limits interpretation. Challenge
+\texttt{SepsisLabel} uses suspected infection and an acute SOFA increase, so a
+SOFA-derived detector benefits from incorporation.\citep{reyna2020ccm} This
+does not invalidate the within-score governance comparison, but it prevents
+treating sensitivity as diagnostic validation. Comparator results are also
+descriptive because NEWS2 and qSOFA were incomplete and ungoverned.
 
 \section{Limitations}
-\label{sec:limitations}
+First, this was one public resource with a competition proxy label; setB is not
+external validation. Second, partial SOFA omitted major organ-system inputs,
+used a nonstandard S/F respiratory proxy with P/F numeric bands, and used
+causal carry-forward, which may not match bedside availability or
+documentation latency. Third, the 23-candidate search and selection objectives
+were specified within setA but were not registered prospectively. Fourth,
+bootstrap intervals quantify resampling uncertainty within setB, not site or
+temporal transportability. Fifth, outputs were offline emissions rather than
+delivered clinical interruptions. We did not assess calibration, subgroups,
+fairness, clinician response, treatment, or patient outcomes.
 
-First, Challenge \texttt{SepsisLabel} is an onset-aligned proxy derived for a
-prediction competition. It is not prospective bedside adjudication, and it
-begins approximately six hours before the Challenge clinical-onset definition.
-Reported lead time is therefore relative to \texttt{label\_start}, not proof
-of six hours of actionable clinical warning.
+\section{Conclusion}
+In a frozen setA-to-setB replay, a dual-lane policy preserved partial-SOFA
+threshold crossings on a passive lane while refractory and page-gate rules
+reduced interruptive emissions. The improvement in Challenge utility and lower
+volume justify further governance research, but residual burden, a partial
+score, incorporation-prone labels, and absent external or prospective
+validation preclude clinical-use claims.
 
-Second, the score is partial SOFA. Challenge data omit GCS, urine output
-windows, vasopressor dose ladders, and reliable mechanical-ventilation
-context.
+\section*{Author contributions}
+Satya Venkata Ranga Janaki Sriram Mentey: Conceptualization, Methodology,
+Software, Formal analysis, Investigation, Data curation, Visualization, Writing
+-- original draft, Writing -- review and editing, and Project administration.
 
-Third, setB is a holdout within one public challenge, not an external clinical
-cohort. The study does not estimate transportability, site calibration,
-distribution shift, subgroup fairness, or prospective performance.
-
-Fourth, interruptive outputs are emission-level page candidates. They were
-not episode arbitrated, delivered, or reviewed by clinicians. NNA therefore
-measures retrospective emissions per detected positive stay, not pages
-required for a useful clinical action.
-
-Finally, fixture and demo-schema checks prove implementation behavior only.
-They do not provide a second clinical cohort.
-
-\section{Claim boundary}
-\label{sec:claims}
-
-This manuscript supports a retrospective alert-governance claim on PhysioNet
-Challenge 2019. It does not support any statement that Curie diagnoses sepsis;
-improves mortality, organ failure, treatment time, or length of stay; works on
-MIMIC-IV, eICU, FHIR demo, SYN-ICU, Synthea, or a hospital feed; is clinically
-validated, production-ready, FDA-cleared, or suitable for patient care; or
-outperforms a clinical score, commercial product, or deployed workflow.
-
-\section{Reproducibility}
-\label{sec:repro}
-
-Tables regenerate with \texttt{make paper-tables}. The supplementary
-reproducibility package rebuilds with \texttt{make manuscript}. The freeze
-checklist and sidecar pins are in this directory's reproducibility note.
-Patient-level source files remain outside version control.
-
-\section*{Data and code availability}
-
-The PhysioNet/Computing in Cardiology Challenge 2019 dataset version 1.0.0 is
-publicly available from PhysioNet under the Creative Commons Attribution 4.0
-International license. Patient-level source files and replay outputs are not
-redistributed. All frozen operating points, timing policies, resolved rule
-bundles, comparator, ablation, miss-attribution, and bootstrap sidecars, content
-hashes, and the reproducibility manifest are included in the project repository;
-every table regenerates with \texttt{make paper-tables} and the supplementary
-reproducibility package with \texttt{make manuscript}.
+\section*{Data availability}
+PhysioNet Challenge 2019 version 1.0.0 is available at
+\url{https://doi.org/10.13026/v64v-d857} under CC BY 4.0. Patient-level inputs
+and replay outputs are not redistributed. Frozen aggregate sidecars, rule
+bundles, hashes, table-generation code, and the reproducibility manifest are at
+\url{https://github.com/sreeram843/curie-prediction-pipeline}. Manuscript values
+are pinned to commit \texttt{1d8a1117151619e2d34822e365d17a00e30e5233}; later
+scorer revisions are outside this frozen study. Tables regenerate with
+\texttt{make paper-tables}.
 
 \section*{Ethics approval}
-
-This study used only the publicly available, fully de-identified
-PhysioNet/Computing in Cardiology Challenge 2019 dataset and involved no new
-human-subjects data collection; institutional review board approval was
-therefore not required.
-% AUTHOR: confirm this wording against your institution's policy before submission.
+This analysis used only the publicly available, de-identified PhysioNet
+Challenge 2019 dataset and involved no new data collection or participant
+contact. The author has no institutional affiliation that requires ethics-board
+review of this secondary analysis; institutional ethics review was not required.
 
 \section*{Funding}
-
-This research received no external funding and was conducted by the author on a
-self-funded basis.
+This research received no external funding and was conducted on a self-funded basis.
 
 \section*{Competing interests}
-
 The author declares no competing interests.
 
 \section*{Acknowledgements}
+The author thanks the PhysioNet/Computing in Cardiology Challenge 2019
+organizers and data contributors.
 
-% AUTHOR: add acknowledgements (data providers, colleagues, compute), or delete
-% this section.
+\section*{Declaration of generative AI and AI-assisted technologies in the
+manuscript preparation process}
+During the preparation of this work, the author used OpenAI Codex / GPT-5 and
+related assistants for software implementation support, manuscript organization,
+language editing, code review, and \LaTeX{} formatting. The author reviewed and
+edited the output as needed and takes full responsibility for the content of the
+published article. These tools are not authors. Reported analyses use
+deterministic scoring and rule-based governance; an optional language-model
+narrative component is outside the alert path and is not part of any reported
+metric.
 
-\bibliographystyle{unsrtnat}
-\bibliography{references}
-
+\begin{thebibliography}{9}
+\bibitem{embi2012} Embi PJ, Leonard AC. Evaluating alert fatigue over time to
+EHR-based clinical trial alerts: findings from a randomized controlled study.
+\textit{J Am Med Inform Assoc} 2012;19:e145--8. doi:10.1136/amiajnl-2011-000743.
+\bibitem{elias2019} Elias P, Peterson E, Wachter B, et al. Evaluating the impact
+of interruptive alerts within a health system: use, response time, and cumulative
+time burden. \textit{Appl Clin Inform} 2019;10:909--17.
+doi:10.1055/s-0039-1700869.
+\bibitem{downing2019} Downing NL, Rolnick J, Poole SF, et al. Electronic health
+record-based clinical decision support alert for severe sepsis: a randomised
+evaluation. \textit{BMJ Qual Saf} 2019;28:762--8. doi:10.1136/bmjqs-2018-008765.
+\bibitem{reyna2020ccm} Reyna MA, Josef CS, Jeter R, et al. Early prediction of
+sepsis from clinical data: the PhysioNet/Computing in Cardiology Challenge.
+\textit{Crit Care Med} 2020;48:210--17. doi:10.1097/CCM.0000000000004145.
+\bibitem{reyna2019physionet} Reyna M, Josef C, Jeter R, et al. [dataset] Early
+prediction of sepsis from clinical data: the PhysioNet/Computing in Cardiology
+Challenge 2019. Version 1.0.0. PhysioNet 2019.
+doi:10.13026/v64v-d857.
+\bibitem{vincent1996sofa} Vincent JL, Moreno R, Takala J, et al. The SOFA
+(Sepsis-related Organ Failure Assessment) score to describe organ
+dysfunction/failure. \textit{Intensive Care Med} 1996;22:707--10.
+doi:10.1007/BF01709751.
+\bibitem{bone1992} Bone RC, Balk RA, Cerra FB, et al. Definitions for sepsis and
+organ failure and guidelines for the use of innovative therapies in sepsis.
+\textit{Chest} 1992;101:1644--55. doi:10.1378/chest.101.6.1644.
+\bibitem{rcp2017news2} Royal College of Physicians. \textit{National Early
+Warning Score (NEWS) 2: Standardising the Assessment of Acute-Illness Severity
+in the NHS}. London: Royal College of Physicians, 2017.
+\bibitem{seymour2016sepsis3} Seymour CW, Liu VX, Iwashyna TJ, et al. Assessment
+of clinical criteria for sepsis: for the Third International Consensus
+Definitions for Sepsis and Septic Shock (Sepsis-3). \textit{JAMA}
+2016;315:762--74. doi:10.1001/jama.2016.0288.
+\end{thebibliography}
 \end{document}

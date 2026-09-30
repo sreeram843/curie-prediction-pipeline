@@ -1,0 +1,712 @@
+{
+  "schema_version": "1.0.0",
+  "artifact_id": "mimic_publication_aggregates.v1",
+  "protocol_id": "mimic-iv-governance-study.v2",
+  "disclosure": "aggregates only; cells < 11 stays suppressed (null)",
+  "provenance": {
+    "index_hash": "4ef44072b26d1d56f4791eaee0fb6198706c7e5cf23d119e874da183899dfd1b",
+    "labels_content_hash": "9ed575051f881442f1c8fc8b70a1cc4f3e8635fac6a0c95ee6bf41faf5aa6769",
+    "study_manifest": {
+      "path": "eval/mimic_study/frozen/study_manifest.v3.json",
+      "content_hash": "f744672a50641eaa3b7a046720b9bde9cd1cd052fb9ba01c5afa489be1258869"
+    },
+    "operating_point": {
+      "path": "eval/mimic_study/frozen/operating_point.v2.json",
+      "sha256": "9caaee77f7f56b0b7e99df131eb7fbeec58bf6a31d2779d1624468661f996e6c"
+    },
+    "test_replay_rows_sha256": "886027477d0d09f559cd76b467670dfb399bfc241c13e4187c713244a45778d6",
+    "regenerate_command": "make mimic-publication-aggregates"
+  },
+  "cohort_flow": {
+    "selection": "v2: adult -> valid times -> LOS>=4h -> earliest eligible stay per hadm",
+    "icustays_source": 94458,
+    "excluded_age_under_18_or_unknown": 0,
+    "excluded_invalid_intime_outtime": 14,
+    "excluded_los_under_4h": 714,
+    "excluded_later_stay_same_admission": 8689,
+    "protocol_cohort_stays": 85041,
+    "split_counts": {
+      "development": 44755,
+      "calibration": 16313,
+      "test": 14407,
+      "outside_protocol_anchor_groups": 9566
+    },
+    "study_stays_all_splits": 75475,
+    "reconciliation_with_v1_audit": {
+      "v1_rule": "first ICU stay per admission selected before the LOS/valid-time filters",
+      "v1_rule_replicated_stays": 84855,
+      "stays_in_both": 84855,
+      "stays_selected_only_under_v2_rule": 186,
+      "stays_selected_only_under_v1_rule": 0,
+      "explanation": "v2 keeps a later ICU stay when the admission's first stay is invalid or shorter than 4 h; v1 dropped the whole admission."
+    }
+  },
+  "characteristics": {
+    "development": {
+      "stays": 44755,
+      "patients": 31223,
+      "age_years": {
+        "median": 64.0,
+        "q1": 52.0,
+        "q3": 75.0
+      },
+      "female": 20305,
+      "female_rate": 0.4536923248799017,
+      "icu_los_days": {
+        "median": 1.851261574074074,
+        "q1": 1.051267361111111,
+        "q3": 3.426724537037037
+      },
+      "sepsis3_positive": 21484,
+      "sepsis3_rate": 0.48003575019550887
+    },
+    "test": {
+      "stays": 14407,
+      "patients": 12165,
+      "age_years": {
+        "median": 66.0,
+        "q1": 54.0,
+        "q3": 76.0
+      },
+      "female": 6228,
+      "female_rate": 0.43228985909627266,
+      "icu_los_days": {
+        "median": 2.0271875,
+        "q1": 1.1437210648148146,
+        "q3": 4.008923611111111
+      },
+      "sepsis3_positive": 5315,
+      "sepsis3_rate": 0.36891788713819673
+    },
+    "calibration": {
+      "stays": 16313,
+      "patients": 13157,
+      "age_years": {
+        "median": 65.0,
+        "q1": 53.0,
+        "q3": 76.0
+      },
+      "female": 7123,
+      "female_rate": 0.43664562005762275,
+      "icu_los_days": {
+        "median": 1.9240277777777777,
+        "q1": 1.1148726851851851,
+        "q3": 3.6931481481481483
+      },
+      "sepsis3_positive": 7426,
+      "sepsis3_rate": 0.45521976337890024
+    }
+  },
+  "completeness": {
+    "mimic_cohort_wide": {
+      "source": {
+        "path": "data/audit/mimic_completeness_audit.v1.json",
+        "sha256": "da2c702d88ca16eb19e54706c1aedc5df14db5b8b4ee8193203e69a5eb5ed4e0"
+      },
+      "cohort": "v1 audit selection",
+      "stays": 84855,
+      "input_observation": {
+        "respiration_fio2": {
+          "stays_with_observation": 41831,
+          "observation_rate": 0.4929703612044075,
+          "first_day_rate": 0.4571798951151965
+        },
+        "respiration_pao2": {
+          "stays_with_observation": 59926,
+          "observation_rate": 0.7062164869483236,
+          "first_day_rate": 0.5383183077013729
+        },
+        "respiration_spo2": {
+          "stays_with_observation": 84769,
+          "observation_rate": 0.9989865063932591,
+          "first_day_rate": 0.9980790760709446
+        },
+        "renal_creatinine": {
+          "stays_with_observation": 84665,
+          "observation_rate": 0.9977608862176655,
+          "first_day_rate": 0.9719757232926758
+        },
+        "renal_urine_output": {
+          "stays_with_observation": 81875,
+          "observation_rate": 0.9648812680454893,
+          "first_day_rate": 0.9550527370219787
+        },
+        "cns_gcs": {
+          "stays_with_observation": 84698,
+          "observation_rate": 0.9981497849272288,
+          "first_day_rate": 0.9966766837546402
+        },
+        "coagulation_platelets": {
+          "stays_with_observation": 84591,
+          "observation_rate": 0.996888810323493,
+          "first_day_rate": 0.9647634199516822
+        },
+        "liver_bilirubin": {
+          "stays_with_observation": 68677,
+          "observation_rate": 0.8093453538389016,
+          "first_day_rate": 0.43956160509103764
+        },
+        "cardiovascular_map": {
+          "stays_with_observation": 84716,
+          "observation_rate": 0.9983619114960816,
+          "first_day_rate": 0.9950975192976254
+        },
+        "cardiovascular_pressor": {
+          "stays_with_observation": 25510,
+          "observation_rate": 0.30063048730186787,
+          "first_day_rate": 0.269400742442991
+        }
+      },
+      "pressor_rows_known": 685045,
+      "pressor_rows_unknown": 31020,
+      "pressor_rows_unknown_units_per_hour": 30559,
+      "reconciliation_sample_stays": 25,
+      "reconciliation_all_match": true
+    },
+    "scored_samples": {
+      "sample": {
+        "limit": 8000,
+        "seed": 42
+      },
+      "mimic": {
+        "source": {
+          "path": "data/audit/mimic_completeness_audit.v1.json",
+          "sha256": "da2c702d88ca16eb19e54706c1aedc5df14db5b8b4ee8193203e69a5eb5ed4e0"
+        },
+        "completeness": {
+          "partial": 5585,
+          "complete": 2415
+        },
+        "component_missing_rate": {
+          "respiration": 0.664125,
+          "coagulation": 0.001125,
+          "liver": 0.134375,
+          "cardiovascular": 0.001625,
+          "cns": 0.002125,
+          "renal": 0.00025
+        }
+      },
+      "eicu": {
+        "source": {
+          "path": "data/audit/eicu_completeness_check.v1.json",
+          "sha256": "e2f303fff11c868b88f0e5f2ea171e0286220f62cc04dc07dc766207d900fe2a"
+        },
+        "dataset": "eICU-CRD 2.0",
+        "completeness": {
+          "complete": 2387,
+          "partial": 5608,
+          "unknown": 3,
+          "insufficient_data": 2
+        },
+        "component_missing_rate": {
+          "respiration": 0.59725,
+          "coagulation": 0.041,
+          "liver": 0.275625,
+          "cardiovascular": 0.017,
+          "cns": 0.009,
+          "renal": 0.018125
+        }
+      }
+    }
+  },
+  "test_timing_and_labels": {
+    "role": "post_hoc_secondary",
+    "note": "Specified after the locked test evaluation; not used for operating-point selection. ICD codes are discharge diagnoses, not onset times or features.",
+    "labeled_positive": 5315,
+    "lead_time_governed": {
+      "detected": 5235,
+      "quantiles_hours": {
+        "median": 2.683333333333333,
+        "q1": 0.85,
+        "q3": 7.233333333333333
+      },
+      "first_alert_after_onset": 120,
+      "lead_ge_2h": 2893,
+      "lead_ge_4h": 2245,
+      "lead_ge_6h": 1662,
+      "histogram_hours": [
+        {
+          "lo": -6,
+          "hi": -4,
+          "count": 14
+        },
+        {
+          "lo": -4,
+          "hi": -2,
+          "count": 18
+        },
+        {
+          "lo": -2,
+          "hi": 0,
+          "count": 88
+        },
+        {
+          "lo": 0,
+          "hi": 2,
+          "count": 2222
+        },
+        {
+          "lo": 2,
+          "hi": 4,
+          "count": 648
+        },
+        {
+          "lo": 4,
+          "hi": 6,
+          "count": 583
+        },
+        {
+          "lo": 6,
+          "hi": 8,
+          "count": 495
+        },
+        {
+          "lo": 8,
+          "hi": 10,
+          "count": 357
+        },
+        {
+          "lo": 10,
+          "hi": 12,
+          "count": 810
+        }
+      ]
+    },
+    "lead_gated_min_2h": {
+      "rule": "alert in [onset-12h, onset-2h]",
+      "governed_sensitivity": {
+        "point": 0.5443085606773284,
+        "lo_2p5": 0.5301635031009209,
+        "hi_97p5": 0.5579382994732882,
+        "n_units": 14407,
+        "n_replicates": 1000,
+        "seed": 42
+      },
+      "interruptive_sensitivity": {
+        "point": 0.10893697083725305,
+        "lo_2p5": 0.10076045627376426,
+        "hi_97p5": 0.11755636924262863,
+        "n_units": 14407,
+        "n_replicates": 1000,
+        "seed": 42
+      }
+    },
+    "icd_label_sensitivity": {
+      "pin": {
+        "path": "eval/mimic_study/labels/frozen/icd_sepsis_codes.v1.json",
+        "sha256": "1e31cc847f2d67318dc63081af26e407e98bb15fc7b7854cdb59eca5aad31251"
+      },
+      "icd_positive": 2249,
+      "icd_and_sepsis3": 1843,
+      "icd_only": 406,
+      "sepsis3_only": 3472,
+      "any_governed_alert_during_stay": {
+        "point": 0.976878612716763,
+        "lo_2p5": 0.970522554711925,
+        "hi_97p5": 0.982573726541555,
+        "n_units": 14407,
+        "n_replicates": 1000,
+        "seed": 42
+      },
+      "any_interruptive_alert_during_stay": {
+        "point": 0.8212538906180524,
+        "lo_2p5": 0.8046448087431693,
+        "hi_97p5": 0.8359718557607739,
+        "n_units": 14407,
+        "n_replicates": 1000,
+        "seed": 42
+      },
+      "overlap_primary_window_governed": 0.9962018448182312,
+      "overlap_lead_ge_2h_governed": 0.588171459576777
+    },
+    "label_negative_alert_rates": {
+      "icd_negative": {
+        "stays": 12158,
+        "any_governed_alert": 0.8045731205790426,
+        "any_interruptive_alert": 0.5176838295772331
+      },
+      "sepsis3_negative": {
+        "stays": 9092,
+        "any_governed_alert": 0.7358117025956885,
+        "any_interruptive_alert": 0.40541135063792344
+      }
+    }
+  },
+  "test_subgroups": {
+    "role": "descriptive; not powered for between-group inference",
+    "min_cell": 11,
+    "overall": {
+      "stays": 14407,
+      "sepsis3_positive": 5315,
+      "governed_sensitivity": 0.9849482596425212,
+      "lead_ge_2h_governed_sensitivity": 0.5443085606773284,
+      "interruptive_sensitivity": 0.7136406396989652,
+      "interruptions_per_100_patient_days": 400.3192600710592
+    },
+    "sex": {
+      "female": {
+        "stays": 6228,
+        "sepsis3_positive": 2210,
+        "governed_sensitivity": 0.9787330316742081,
+        "lead_ge_2h_governed_sensitivity": 0.5167420814479639,
+        "interruptive_sensitivity": 0.6728506787330317,
+        "interruptions_per_100_patient_days": 372.5485965739535
+      },
+      "male": {
+        "stays": 8179,
+        "sepsis3_positive": 3105,
+        "governed_sensitivity": 0.9893719806763285,
+        "lead_ge_2h_governed_sensitivity": 0.5639291465378422,
+        "interruptive_sensitivity": 0.7426731078904992,
+        "interruptions_per_100_patient_days": 420.41455744638614
+      }
+    },
+    "age_band": {
+      "18-44": {
+        "stays": 2038,
+        "sepsis3_positive": 641,
+        "governed_sensitivity": 0.9797191887675507,
+        "lead_ge_2h_governed_sensitivity": 0.6021840873634945,
+        "interruptive_sensitivity": 0.7160686427457098,
+        "interruptions_per_100_patient_days": 346.04832108713805
+      },
+      "45-64": {
+        "stays": 4772,
+        "sepsis3_positive": 1718,
+        "governed_sensitivity": 0.9871944121071012,
+        "lead_ge_2h_governed_sensitivity": 0.5814901047729919,
+        "interruptive_sensitivity": 0.7479627473806753,
+        "interruptions_per_100_patient_days": 392.03841000133815
+      },
+      "65-79": {
+        "stays": 5113,
+        "sepsis3_positive": 1877,
+        "governed_sensitivity": 0.9877464038359084,
+        "lead_ge_2h_governed_sensitivity": 0.5082578582844965,
+        "interruptive_sensitivity": 0.7213638785295685,
+        "interruptions_per_100_patient_days": 423.60866934254506
+      },
+      "80+": {
+        "stays": 2484,
+        "sepsis3_positive": 1079,
+        "governed_sensitivity": 0.9796107506950881,
+        "lead_ge_2h_governed_sensitivity": 0.5134383688600556,
+        "interruptive_sensitivity": 0.644114921223355,
+        "interruptions_per_100_patient_days": 413.5948717376304
+      }
+    }
+  },
+  "test_ablations": {
+    "threshold_only_naive": {
+      "stays": 14407,
+      "labeled_positive": 5315,
+      "unknown_label_stays": 0,
+      "naive_sensitivity": 0.9851364063969896,
+      "governed_sensitivity": 0.9851364063969896,
+      "interruptive_sensitivity": 0.8030103480714957,
+      "naive_alerts": 4351252,
+      "governed_alerts": 4351252,
+      "interruptive_alerts": 2840825,
+      "naive_interruptive_alerts": 2840825,
+      "interruptive_reduction_ratio": 1.0,
+      "alerts_per_100_patient_days": 7998.466240955092,
+      "interruptive_per_100_patient_days": 5222.001129551047,
+      "episodes": 4351252,
+      "false_episodes_label_negative": 6690,
+      "false_episode_rate_per_100_patient_days": 12.29755002743798,
+      "episode_per_100_patient_days": 7998.466240955092,
+      "interruptive_nna": 665.6103561387066,
+      "interruptive_precision": 0.05393257240414316,
+      "mean_in_window_lead_hours": 4.255509931245225,
+      "partial_completeness_stays": 14407,
+      "patient_days": 54401.079768518466,
+      "meets_pe1": true,
+      "meets_pe2": false,
+      "detection_window": {
+        "before_hours": 12.0,
+        "after_hours": 6.0
+      },
+      "split_id": "test"
+    },
+    "full_governance": {
+      "stays": 14407,
+      "labeled_positive": 5315,
+      "unknown_label_stays": 0,
+      "naive_sensitivity": 0.9851364063969896,
+      "governed_sensitivity": 0.9849482596425212,
+      "interruptive_sensitivity": 0.7136406396989652,
+      "naive_alerts": 4351252,
+      "governed_alerts": 784548,
+      "interruptive_alerts": 217778,
+      "naive_interruptive_alerts": 2840825,
+      "interruptive_reduction_ratio": 0.07666012513970413,
+      "alerts_per_100_patient_days": 1442.155198643709,
+      "interruptive_per_100_patient_days": 400.31926007105955,
+      "episodes": 221237,
+      "false_episodes_label_negative": 6690,
+      "false_episode_rate_per_100_patient_days": 12.29755002743798,
+      "episode_per_100_patient_days": 406.6775897489232,
+      "interruptive_nna": 57.41576588452412,
+      "interruptive_precision": 0.06081422365895545,
+      "mean_in_window_lead_hours": 4.156077682266794,
+      "partial_completeness_stays": 14407,
+      "patient_days": 54401.079768518466,
+      "meets_pe1": true,
+      "meets_pe2": true,
+      "detection_window": {
+        "before_hours": 12.0,
+        "after_hours": 6.0
+      },
+      "split_id": "test"
+    },
+    "drop_persistence": {
+      "stays": 14407,
+      "labeled_positive": 5315,
+      "unknown_label_stays": 0,
+      "naive_sensitivity": 0.9851364063969896,
+      "governed_sensitivity": 0.9849482596425212,
+      "interruptive_sensitivity": 0.7136406396989652,
+      "naive_alerts": 4351252,
+      "governed_alerts": 784548,
+      "interruptive_alerts": 217778,
+      "naive_interruptive_alerts": 2840825,
+      "interruptive_reduction_ratio": 0.07666012513970413,
+      "alerts_per_100_patient_days": 1442.155198643709,
+      "interruptive_per_100_patient_days": 400.31926007105955,
+      "episodes": 221237,
+      "false_episodes_label_negative": 6690,
+      "false_episode_rate_per_100_patient_days": 12.29755002743798,
+      "episode_per_100_patient_days": 406.6775897489232,
+      "interruptive_nna": 57.41576588452412,
+      "interruptive_precision": 0.06081422365895545,
+      "mean_in_window_lead_hours": 4.156077682266794,
+      "partial_completeness_stays": 14407,
+      "patient_days": 54401.079768518466,
+      "meets_pe1": true,
+      "meets_pe2": true,
+      "detection_window": {
+        "before_hours": 12.0,
+        "after_hours": 6.0
+      },
+      "split_id": "test"
+    },
+    "drop_crossings": {
+      "stays": 14407,
+      "labeled_positive": 5315,
+      "unknown_label_stays": 0,
+      "naive_sensitivity": 0.9851364063969896,
+      "governed_sensitivity": 0.9849482596425212,
+      "interruptive_sensitivity": 0.7136406396989652,
+      "naive_alerts": 4351252,
+      "governed_alerts": 784548,
+      "interruptive_alerts": 217778,
+      "naive_interruptive_alerts": 2840825,
+      "interruptive_reduction_ratio": 0.07666012513970413,
+      "alerts_per_100_patient_days": 1442.155198643709,
+      "interruptive_per_100_patient_days": 400.31926007105955,
+      "episodes": 221237,
+      "false_episodes_label_negative": 6690,
+      "false_episode_rate_per_100_patient_days": 12.29755002743798,
+      "episode_per_100_patient_days": 406.6775897489232,
+      "interruptive_nna": 57.41576588452412,
+      "interruptive_precision": 0.06081422365895545,
+      "mean_in_window_lead_hours": 4.156077682266794,
+      "partial_completeness_stays": 14407,
+      "patient_days": 54401.079768518466,
+      "meets_pe1": true,
+      "meets_pe2": true,
+      "detection_window": {
+        "before_hours": 12.0,
+        "after_hours": 6.0
+      },
+      "split_id": "test"
+    },
+    "drop_baseline": {
+      "stays": 14407,
+      "labeled_positive": 5315,
+      "unknown_label_stays": 0,
+      "naive_sensitivity": 0.9851364063969896,
+      "governed_sensitivity": 0.9849482596425212,
+      "interruptive_sensitivity": 0.7136406396989652,
+      "naive_alerts": 4351252,
+      "governed_alerts": 784548,
+      "interruptive_alerts": 217778,
+      "naive_interruptive_alerts": 2840825,
+      "interruptive_reduction_ratio": 0.07666012513970413,
+      "alerts_per_100_patient_days": 1442.155198643709,
+      "interruptive_per_100_patient_days": 400.31926007105955,
+      "episodes": 221237,
+      "false_episodes_label_negative": 6690,
+      "false_episode_rate_per_100_patient_days": 12.29755002743798,
+      "episode_per_100_patient_days": 406.6775897489232,
+      "interruptive_nna": 57.41576588452412,
+      "interruptive_precision": 0.06081422365895545,
+      "mean_in_window_lead_hours": 4.156077682266794,
+      "partial_completeness_stays": 14407,
+      "patient_days": 54401.079768518466,
+      "meets_pe1": true,
+      "meets_pe2": true,
+      "detection_window": {
+        "before_hours": 12.0,
+        "after_hours": 6.0
+      },
+      "split_id": "test"
+    },
+    "drop_refractory": {
+      "stays": 14407,
+      "labeled_positive": 5315,
+      "unknown_label_stays": 0,
+      "naive_sensitivity": 0.9851364063969896,
+      "governed_sensitivity": 0.9851364063969896,
+      "interruptive_sensitivity": 0.7497648165569144,
+      "naive_alerts": 4351252,
+      "governed_alerts": 4351252,
+      "interruptive_alerts": 1555348,
+      "naive_interruptive_alerts": 2840825,
+      "interruptive_reduction_ratio": 0.547498701961578,
+      "alerts_per_100_patient_days": 7998.466240955092,
+      "interruptive_per_100_patient_days": 2859.038840071092,
+      "episodes": 151442,
+      "false_episodes_label_negative": 6690,
+      "false_episode_rate_per_100_patient_days": 12.29755002743798,
+      "episode_per_100_patient_days": 278.38050392455347,
+      "interruptive_nna": 390.3006273525721,
+      "interruptive_precision": 0.07093074990291562,
+      "mean_in_window_lead_hours": 4.255509931245225,
+      "partial_completeness_stays": 14407,
+      "patient_days": 54401.079768518466,
+      "meets_pe1": true,
+      "meets_pe2": false,
+      "detection_window": {
+        "before_hours": 12.0,
+        "after_hours": 6.0
+      },
+      "split_id": "test"
+    },
+    "drop_context_suppression": {
+      "stays": 14407,
+      "labeled_positive": 5315,
+      "unknown_label_stays": 0,
+      "naive_sensitivity": 0.9851364063969896,
+      "governed_sensitivity": 0.9849482596425212,
+      "interruptive_sensitivity": 0.7136406396989652,
+      "naive_alerts": 4351252,
+      "governed_alerts": 784548,
+      "interruptive_alerts": 217778,
+      "naive_interruptive_alerts": 2840825,
+      "interruptive_reduction_ratio": 0.07666012513970413,
+      "alerts_per_100_patient_days": 1442.155198643709,
+      "interruptive_per_100_patient_days": 400.31926007105955,
+      "episodes": 221237,
+      "false_episodes_label_negative": 6690,
+      "false_episode_rate_per_100_patient_days": 12.29755002743798,
+      "episode_per_100_patient_days": 406.6775897489232,
+      "interruptive_nna": 57.41576588452412,
+      "interruptive_precision": 0.06081422365895545,
+      "mean_in_window_lead_hours": 4.156077682266794,
+      "partial_completeness_stays": 14407,
+      "patient_days": 54401.079768518466,
+      "meets_pe1": true,
+      "meets_pe2": true,
+      "detection_window": {
+        "before_hours": 12.0,
+        "after_hours": 6.0
+      },
+      "split_id": "test"
+    },
+    "drop_page_gate": {
+      "stays": 14407,
+      "labeled_positive": 5315,
+      "unknown_label_stays": 0,
+      "naive_sensitivity": 0.9851364063969896,
+      "governed_sensitivity": 0.9849482596425212,
+      "interruptive_sensitivity": 0.7853245531514581,
+      "naive_alerts": 4351252,
+      "governed_alerts": 784548,
+      "interruptive_alerts": 469718,
+      "naive_interruptive_alerts": 2840825,
+      "interruptive_reduction_ratio": 0.16534563023065482,
+      "alerts_per_100_patient_days": 1442.155198643709,
+      "interruptive_per_100_patient_days": 863.4350678308091,
+      "episodes": 221237,
+      "false_episodes_label_negative": 6690,
+      "false_episode_rate_per_100_patient_days": 12.29755002743798,
+      "episode_per_100_patient_days": 406.6775897489232,
+      "interruptive_nna": 112.53425970292285,
+      "interruptive_precision": 0.04451181347106136,
+      "mean_in_window_lead_hours": 4.156077682266794,
+      "partial_completeness_stays": 14407,
+      "patient_days": 54401.079768518466,
+      "meets_pe1": true,
+      "meets_pe2": true,
+      "detection_window": {
+        "before_hours": 12.0,
+        "after_hours": 6.0
+      },
+      "split_id": "test"
+    },
+    "drop_episode_arbitration": {
+      "stays": 14407,
+      "labeled_positive": 5315,
+      "unknown_label_stays": 0,
+      "naive_sensitivity": 0.9851364063969896,
+      "governed_sensitivity": 0.9849482596425212,
+      "interruptive_sensitivity": 0.7136406396989652,
+      "naive_alerts": 4351252,
+      "governed_alerts": 784548,
+      "interruptive_alerts": 217778,
+      "naive_interruptive_alerts": 2840825,
+      "interruptive_reduction_ratio": 0.07666012513970413,
+      "alerts_per_100_patient_days": 1442.155198643709,
+      "interruptive_per_100_patient_days": 400.31926007105955,
+      "episodes": 784548,
+      "false_episodes_label_negative": 6690,
+      "false_episode_rate_per_100_patient_days": 12.29755002743798,
+      "episode_per_100_patient_days": 1442.155198643709,
+      "interruptive_nna": 57.41576588452412,
+      "interruptive_precision": 0.06081422365895545,
+      "mean_in_window_lead_hours": 4.156077682266794,
+      "partial_completeness_stays": 14407,
+      "patient_days": 54401.079768518466,
+      "meets_pe1": true,
+      "meets_pe2": true,
+      "detection_window": {
+        "before_hours": 12.0,
+        "after_hours": 6.0
+      },
+      "split_id": "test"
+    },
+    "drop_late_event_buffer": {
+      "stays": 14407,
+      "labeled_positive": 5315,
+      "unknown_label_stays": 0,
+      "naive_sensitivity": 0.9851364063969896,
+      "governed_sensitivity": 0.9849482596425212,
+      "interruptive_sensitivity": 0.7136406396989652,
+      "naive_alerts": 4351252,
+      "governed_alerts": 784548,
+      "interruptive_alerts": 217778,
+      "naive_interruptive_alerts": 2840825,
+      "interruptive_reduction_ratio": 0.07666012513970413,
+      "alerts_per_100_patient_days": 1442.155198643709,
+      "interruptive_per_100_patient_days": 400.31926007105955,
+      "episodes": 221237,
+      "false_episodes_label_negative": 6690,
+      "false_episode_rate_per_100_patient_days": 12.29755002743798,
+      "episode_per_100_patient_days": 406.6775897489232,
+      "interruptive_nna": 57.41576588452412,
+      "interruptive_precision": 0.06081422365895545,
+      "mean_in_window_lead_hours": 4.156077682266794,
+      "partial_completeness_stays": 14407,
+      "patient_days": 54401.079768518466,
+      "meets_pe1": true,
+      "meets_pe2": true,
+      "detection_window": {
+        "before_hours": 12.0,
+        "after_hours": 6.0
+      },
+      "split_id": "test"
+    }
+  },
+  "content_hash": "290f06d1f9e29f4abfcba83143409097e7c2646d1268519be65444d5bdb2a104"
+}

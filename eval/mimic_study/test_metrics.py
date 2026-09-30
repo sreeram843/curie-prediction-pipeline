@@ -1,9 +1,13 @@
 from __future__ import annotations
 
+from datetime import datetime
+
 from eval.mimic_study.metrics import (
     decision_curve,
     fixed_lead_time_discrimination,
+    in_detection_window,
     ranking_metrics,
+    stay_detection,
     summarize_cohort,
 )
 
@@ -79,3 +83,75 @@ def test_explicit_unknown_label_is_not_counted_as_negative() -> None:
     assert result["unknown_label_stays"] == 1
     assert result["labeled_positive"] == 0
     assert result["false_episodes_label_negative"] == 0
+
+
+def test_min_lead_hours_excludes_near_onset_and_post_onset_alerts() -> None:
+    onset = datetime(2020, 1, 1, 12, 0, 0)
+    # 1h before onset: inside primary window, but fails 2h lead gate.
+    assert in_detection_window(
+        datetime(2020, 1, 1, 11, 0, 0),
+        onset,
+        before_hours=12,
+        after_hours=6,
+        min_lead_hours=0,
+    )
+    assert not in_detection_window(
+        datetime(2020, 1, 1, 11, 0, 0),
+        onset,
+        before_hours=12,
+        after_hours=6,
+        min_lead_hours=2,
+    )
+    # 3h before onset: passes lead gate.
+    assert in_detection_window(
+        datetime(2020, 1, 1, 9, 0, 0),
+        onset,
+        before_hours=12,
+        after_hours=6,
+        min_lead_hours=2,
+    )
+
+
+def test_stay_detection_lead_gate_requires_alert_at_least_min_lead_before_onset() -> None:
+    labels = {"sepsis3_onset": "2020-01-01T12:00:00"}
+    near = [datetime(2020, 1, 1, 11, 0, 0)]  # 1h lead
+    early = [datetime(2020, 1, 1, 8, 0, 0)]  # 4h lead
+    assert stay_detection(labels=labels, alert_times=near, min_lead_hours=0)["detected"]
+    assert not stay_detection(labels=labels, alert_times=near, min_lead_hours=2)["detected"]
+    gated = stay_detection(labels=labels, alert_times=early, min_lead_hours=2)
+    assert gated["detected"] is True
+    assert gated["lead_hours"] == 4.0
+
+
+def test_summarize_cohort_reports_lead_gated_sensitivity() -> None:
+    rows = [
+        {
+            "labels": {"sepsis3_onset": "2020-01-01T12:00:00"},
+            "patient_days": 1,
+            "naive_alert_count": 1,
+            "governed_alert_count": 1,
+            "interruptive_alert_count": 0,
+            "naive_alert_times": ["2020-01-01T11:00:00"],
+            "governed_alert_times": ["2020-01-01T11:00:00"],
+            "interruptive_alert_times": [],
+            "episode_count": 0,
+        },
+        {
+            "labels": {"sepsis3_onset": "2020-01-02T12:00:00"},
+            "patient_days": 1,
+            "naive_alert_count": 1,
+            "governed_alert_count": 1,
+            "interruptive_alert_count": 0,
+            "naive_alert_times": ["2020-01-02T08:00:00"],
+            "governed_alert_times": ["2020-01-02T08:00:00"],
+            "interruptive_alert_times": [],
+            "episode_count": 0,
+        },
+    ]
+    primary = summarize_cohort(rows, min_lead_hours=0)
+    gated = summarize_cohort(rows, min_lead_hours=2)
+    assert primary["labeled_positive"] == 2
+    assert primary["governed_sensitivity"] == 1.0
+    assert gated["labeled_positive"] == 2
+    assert gated["governed_sensitivity"] == 0.5
+    assert gated["detection_window"]["min_lead_hours"] == 2.0

@@ -104,6 +104,12 @@ def test_manifest_is_json_serializable() -> None:
     json.dumps(manifest, sort_keys=True, default=str)
 
 
-def test_labels_pin_status_not_pinned() -> None:
+def test_labels_pin_status_pinned() -> None:
+    """The mimic-code label pin was generated for real (CURIE-014 Stage B
+    label pipeline); the manifest should report it as pinned, not the
+    pre-pinning default."""
     manifest = _call()
-    assert manifest["labels"]["status"] == "not_pinned"
+    assert manifest["labels"]["status"] == "pinned"
+    assert manifest["labels"]["pin"]["mimic_code"]["resolved_commit"] == (
+        "303d26c623dcc9c49cc0f204468d4acc2f063797"
+    )
