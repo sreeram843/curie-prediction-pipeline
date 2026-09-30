@@ -24,6 +24,11 @@ pandoc "$JB/cover_letter.md" -o "$SUB/01_cover_letter.pdf" \
   --pdf-engine=pdflatex -V geometry:margin=0.8in -V fontsize=10pt -V pagestyle=empty
 cp "$JB/main.pdf" "$SUB/02_manuscript.pdf"
 
+(cd "$JB" && pdflatex -interaction=nonstopmode -halt-on-error -output-directory "$SUB" \
+  competing_interests.tex >/dev/null)
+mv "$SUB/competing_interests.pdf" "$SUB/04_conflict_of_interest.pdf"
+rm -f "$SUB"/competing_interests.{aux,log,out}
+
 cp "$JB/figures/lead_time_distribution.pdf" "$SUB/figures/Figure2_lead_time_distribution.pdf"
 cp "$JB/figures/lead_time_distribution.png" "$SUB/figures/Figure2_lead_time_distribution.png"
 
