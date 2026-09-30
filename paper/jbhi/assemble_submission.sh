@@ -24,6 +24,17 @@ pandoc "$JB/cover_letter.md" -o "$SUB/01_cover_letter.pdf" \
   --pdf-engine=pdflatex -V geometry:margin=0.8in -V fontsize=10pt -V pagestyle=empty
 cp "$JB/main.pdf" "$SUB/02_manuscript.pdf"
 
+(cd "$JB" && pdflatex -interaction=nonstopmode -halt-on-error -output-directory "$SUB" \
+  competing_interests.tex >/dev/null)
+mv "$SUB/competing_interests.pdf" "$SUB/04_conflict_of_interest.pdf"
+rm -f "$SUB"/competing_interests.{aux,log,out}
+
+need "$JB/figures/graphical_abstract.png"
+need "$JB/author_consent_prefilled.pdf"
+cp "$JB/figures/graphical_abstract.png" "$SUB/05_graphical_abstract.png"
+# Unsigned: the author must add a handwritten signature and date before upload.
+cp "$JB/author_consent_prefilled.pdf" "$SUB/06_author_consent_UNSIGNED.pdf"
+
 cp "$JB/figures/lead_time_distribution.pdf" "$SUB/figures/Figure2_lead_time_distribution.pdf"
 cp "$JB/figures/lead_time_distribution.png" "$SUB/figures/Figure2_lead_time_distribution.png"
 
@@ -69,6 +80,7 @@ awk '/\\section\*\{Data and Code Availability\}/{f=1;next} /\\section\*/{f=0} f'
   | tr '\n' ' ' | sed -e 's/\\url{\([^}]*\)}/\1/g' -e 's/  */ /g' -e 's/^ //' \
   > "$SUB/portal_metadata/data_code_availability.txt"
 echo >> "$SUB/portal_metadata/data_code_availability.txt"
+cp "$JB/graphical_abstract_text.txt" "$SUB/portal_metadata/graphical_abstract_text.txt"
 
 echo "Assembled $SUB"
 find "$SUB" -type f | sort

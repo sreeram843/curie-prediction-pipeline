@@ -208,6 +208,17 @@ def test_jbhi_ablation_rows_match_publication_aggregates() -> None:
         assert f"{a['governed_alerts']:,} & {a['interruptive_alerts']:,}" in tex, key
 
 
+def test_jbhi_graphical_abstract_text_matches_frozen_numbers() -> None:
+    text = (ROOT / "paper" / "jbhi" / "graphical_abstract_text.txt").read_text()
+    primary = json.loads(MANIFEST_PATH.read_text())["test_primary"]
+    lead = _aggregates()["test_timing_and_labels"]["lead_gated_min_2h"]
+    assert f"{primary['stays']:,} stays" in text
+    assert f"{100 * primary['governed_sensitivity']:.1f}% loose-window detection" in text
+    assert f"{100 * primary['interruptive_reduction_ratio']:.1f}% of naive interruptions" in text
+    assert f"{100 * lead['governed_sensitivity']['point']:.1f}% of positive stays" in text
+    assert f"interruptive precision was {100 * primary['interruptive_precision']:.1f}%" in text
+
+
 def test_jbhi_cover_letter_has_no_placeholders_and_names_companion() -> None:
     letter = COVER_LETTER_PATH.read_text()
     assert "[INSERT" not in letter

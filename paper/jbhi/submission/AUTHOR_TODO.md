@@ -1,4 +1,4 @@
-# Author actions before IEEE JBHI (ScholarOne) submit
+# Author actions before IEEE JBHI (IEEE Author Portal) submit
 
 Confirmations recorded 2026-09-29 from the corresponding author.
 
@@ -20,10 +20,12 @@ Confirmations recorded 2026-09-29 from the corresponding author.
 - [ ] Recheck live JBHI instructions and page charges:
   <https://www.embs.org/jbhi/> and the IEEE Author Portal fee schedule.
 
-## In the portal
+## In the portal (https://ieee.atyponrex.com/journal/jbhi-embs)
 
 - [ ] Manuscript type: Regular Paper. Paste title, abstract, keywords from `portal_metadata/`.
-- [ ] Upload `02_manuscript.pdf` (review PDF) and `01_cover_letter.pdf`; upload
+- [ ] Paste the cover letter (`cover_letter.md`) into the portal's cover-letter text box (required);
+  `01_cover_letter.pdf` can also be attached if a file slot is offered.
+- [ ] Upload `02_manuscript.pdf` (review PDF); upload
   `03_latex_source.zip` if source files are requested (required at final acceptance).
 - [ ] Fig. 1 is drawn in TikZ inside `main.tex`; Fig. 2 is also provided separately under
   `figures/`.
