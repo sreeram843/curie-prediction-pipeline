@@ -26,19 +26,21 @@ With a Locked Alert-Governance Evaluation in MIMIC-IV}
 Electronic-health-record implementations of deterministic severity scores
 must distinguish an observed normal value from a value that was never
 observed, and alert evaluations must distinguish score generation from
-clinician interruption. We implemented availability-time SOFA reconstruction
+clinician interruption. We implemented availability-time Sequential Organ Failure Assessment
+reconstruction
 with explicit partial and insufficient-data states, versioned rules, evidence
 provenance, and a separate alert-governance layer. Component observability was
 audited in MIMIC-IV 3.1 and a seeded 8,000-stay eICU-CRD 2.0 sample.
 Governance was selected on development and calibration anchor-year groups and
 evaluated once on a locked MIMIC-IV test set (14,407 stays; 5,315 labeled
 positive). Respiratory and hepatic inputs were the least observable components
-in both sources. Governed sensitivity was 98.49\% (95\% CI, 98.15--98.81\%)
+in both sources. Governed sensitivity was 98.49\% (95\% confidence interval,
+98.15--98.81\%)
 versus 98.51\% for threshold-only scoring, and interruptive emissions were
-7.67\% of the naive interruptive baseline (95\% CI, 7.54--7.79\%). However,
+7.67\% of the naive interruptive baseline (95\% confidence interval, 7.54--7.79\%). However,
 interruptive sensitivity was 71.36\%, precision was 6.08\%, and 57.4
 interruptions were emitted per positive stay reached by an interruption. Post hoc analyses
-showed that requiring an alert at least 2 h before onset reduced governed
+showed that requiring an alert at least 2 hours before onset reduced governed
 sensitivity to 54.43\% and interruptive sensitivity to 10.89\%. Against
 discharge sepsis codes, 97.69\% of code-positive stays had a governed alert,
 but so did 80.46\% of code-negative stays. These results characterize a
