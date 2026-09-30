@@ -54,6 +54,8 @@ SET=training_setB LIMIT=0 make challenge-2019
 | `timing_primary.v1.json` | Primary timing policy |
 | `holdout_primary_window_m12_p6.v1.json` | SetB point estimates |
 | `holdout_primary_window_m12_p6.v2.json` | Stay-level bootstrap 95% CIs |
+| `holdout_primary_window_m12_p6.v3.json` | Reporting-complete holdout metrics reproduced at the pinned study revision |
+| `selection_grid_setA_grace6.v1.json` | Complete aggregate 23-candidate selection grid and objectives |
 | `comparators_setB_window_m12_p6.v1.json` | Hourly SIRS / NEWS2 / qSOFA |
 | `ablation_setB_window_m12_p6.v1.json` | Drop-one governance on setB |
 | `miss_analysis.v2.json` | Aggregated governed FNs (no stay IDs) |
@@ -61,6 +63,10 @@ SET=training_setB LIMIT=0 make challenge-2019
 | `robustness_summary.v1.json` | Secondary timing definitions |
 | `sepsis-sofa.challenge2019-p1.v1.json` | Resolved study rule bundle |
 
-The reproducibility manifest is `eval/manuscript/frozen/reproducibility_manifest.v2.json`.
+The current reproducibility manifest is
+`eval/manuscript/frozen/reproducibility_manifest.v3.json`; v1 and v2 remain
+unchanged as historical frozen artifacts. Manuscript results are tied to commit
+`1d8a1117151619e2d34822e365d17a00e30e5233`, not to later scorer behavior on
+the repository's current branch.
 
 Patient-level Challenge files remain under gitignored `data/archive/`.

@@ -1,0 +1,7 @@
+What was already known on the topic
+• Deterioration scores are often treated as alerts, conflating scoring with clinician interruption and contributing to alert burden.
+• Challenge-style sepsis evaluations emphasize detection utility, while interruptive CDS design needs separable governance rules that can be frozen and ablated.
+
+What this study added to our knowledge
+• A frozen dual-lane governance policy retained threshold-only partial-SOFA detection on locked Challenge 2019 setB while emitting 13.2% as many interruptive alerts.
+• Drop-one ablations attributed most interruptive-volume reduction to a 90-minute refractory interval and a page gate, with residual burden remaining an open design target.

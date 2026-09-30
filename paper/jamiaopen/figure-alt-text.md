@@ -1,0 +1,13 @@
+# Figure alt text
+
+## Figure 1
+
+Left-to-right system diagram. Hourly clinical events flow into an event envelope and then a deterministic partial-SOFA scorer supplied by a versioned rule bundle. The score flows to shared alert governance, which branches upward to a passive watch lane and downward to an interruptive page lane. A dashed arrow from the page lane reaches an optional language-model narrative labeled post-alert only, emphasizing that the language model is outside the alert path.
+
+## Figure 2
+
+Scatter plot of setB sensitivity against emissions per detected positive stay for hourly SIRS, incomplete NEWS2, partial qSOFA, threshold-only partial SOFA, any governed partial-SOFA emission, and the interruptive governed lane. The interruptive lane has lower burden and lower sensitivity than any governed emission; comparator points are descriptive because missing score components and routing policies are unmatched.
+
+## Figure 3
+
+Grouped comparison of threshold-only and governed sensitivity across secondary timing definitions on setB. The paired values are equal for every displayed definition. A dashed horizontal reference marks the 79.5 percent governed sensitivity under the primary minus-12 to plus-6-hour window.

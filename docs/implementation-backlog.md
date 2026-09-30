@@ -915,19 +915,40 @@ research and commercial artifact.
 
 ## Milestone 10 — Evidence requiring external access
 
-### CURIE-041 — Execute the locked MIMIC-IV Stage B study [P0 · ACCESS]
+### CURIE-041 — Execute the locked MIMIC-IV Stage B study [P0 · DONE]
 
-Do not begin test-set evaluation until CURIE-026 through CURIE-035 pass and the extract/version
-manifest is frozen.
+Reliability tasks CURIE-026–040 are complete in git. Credentialed MIMIC-IV 3.1 concepts are loaded
+in local Postgres (`mimiciv_derived`, 26/26 tables). Operator artifacts live under gitignored
+`data/stage_b/` (not frozen publication evidence).
+
+**Operator progress (completed 2026-09-09)**
+
+- [x] Protocol cohort export (adult / first-stay / LOS≥4h): **85,041** stays.
+- [x] Pinned-label materialization (`mimic_labels.v2.json`, hash `9ed57505…`): sepsis onset
+  **37,575**, KDIGO≥1 **54,916**; pin `eval/mimic_study/labels/frozen/mimic_code_pin.v1.json`.
+- [x] Full stay index already present (`data/index/mimic-iv`, 94,458 stays).
+- [x] End-to-end v2 study smoke on seeded protocol sample **n=3000** (dev/cal/test); selection
+  did not use test; report at `data/stage_b/study_report.protocol_sample_3000.json`.
+- [x] Full-cohort locked once-only test eval with bootstrap CIs / miss analysis
+  (`data/stage_b/study_report.full_cohort.json`, miss
+  `data/stage_b/miss_analysis.full_cohort.json`).
+- [x] Freeze immutable `operating_point.v2.json` / `study_manifest.v2.json`
+  (winner `full_p90_gate`; `selection_used_test: false`; PE1/PE2 met on test).
+
+**Locked test headline (n=14,407; 1,000 stay-level bootstrap, seed 42)**
+
+- Governed sensitivity **98.5%** (95% CI 98.2–98.8); interruptive reduction ratio **0.077**
+  (CI 0.075–0.078); interruptive NNA **57.4** (CI 55.6–59.4); miss rate **1.5%** (80/5,315).
 
 **Acceptance criteria**
 
-- [ ] Cohort, availability-time timeline, Sepsis-3 labels, complete SOFA inputs, KDIGO labels,
-  exclusions, and missingness match the frozen protocol and pinned `mimic-code` concepts.
-- [ ] Development sweep and calibration selection produce a new immutable operating-point artifact.
-- [ ] The temporal test split is evaluated once, with stay-level confidence intervals, subgroups,
-  miss analysis, and all pre-specified ablations.
-- [ ] No protected row-level data or identifiers enter git, logs, manuscript artifacts, or demos.
+- [x] Cohort, availability-time timeline, Sepsis-3 labels, complete SOFA inputs, KDIGO labels,
+  exclusions, and missingness match the frozen protocol and pinned `mimic-code` concepts
+  (local operator artifacts).
+- [x] Development/calibration selection produced immutable `operating_point.v2.json`.
+- [x] The temporal test split was evaluated once, with stay-level confidence intervals,
+  miss analysis, and pre-specified ablations.
+- [x] No protected row-level data or identifiers enter git, logs, manuscript artifacts, or demos.
 
 ### CURIE-042 — Conduct silent prospective validation [P0 · PARTNER]
 
@@ -1213,27 +1234,22 @@ eICU ml/hr without concentration, eICU mcg/min without row weight, MIMIC ng/kg/m
 
 ## Current recommended Cursor sequence
 
-Use one branch/PR per task. The recommended order is:
+CURIE-026 through CURIE-040 are complete in git. Remaining priority:
 
-1. **CURIE-026** — SOFA event-time completion.
-2. **CURIE-027** — AKI event-time determinism.
-3. **CURIE-028** — replay-stable episode identity.
-4. **CURIE-029** — respiratory parity and runtime dispatch.
-5. **CURIE-030** — benchmark semantics and false-negative attribution.
-6. **CURIE-031** — CSP-safe dashboard.
-7. **CURIE-032** — component-delta paging.
-8. **CURIE-033** — deterministic page-quality gates.
-9. **CURIE-034** — shadow-mode harness.
-10. **CURIE-035** — site drift and calibration infrastructure.
-
-CURIE-036 through CURIE-040 can follow or run in parallel after the P0 reliability tasks. Keep
-CURIE-041 and CURIE-043 remain blocked until their stated access/evidence dependency is satisfied.
+1. **CURIE-043** — manuscript / claims refresh from full-cohort CURIE-041 evidence
+   (`operating_point.v2.json` / `study_manifest.v2.json` frozen 2026-09-09).
+2. **CURIE-045** — close or re-scope under the corrected Rice S/F scoring policy (docs/policy).
+3. **CURIE-042** — silent prospective validation (partner / site access).
 
 Milestone 11 completeness extraction is implemented, and the protocol n=8000 respiration
 remeasure is now recorded as an audit result. CURIE-045 remains open because the corrected
 scorer does not improve on the historical raw-S/F number. Re-quote completeness only from the
 current regenerated table and always name the scoring policy. Liver remains a frequency limit
 (CURIE-048); eICU respiration at **59.725%** remains the highest missing component.
+
+Stage B full-cohort freeze is complete under `eval/mimic_study/frozen/`
+(`operating_point.v2.json`, `study_manifest.v2.json`); operator report/miss files remain
+gitignored under `data/stage_b/`. Next hard gate for claims promotion is CURIE-043.
 
 After every code task, run:
 

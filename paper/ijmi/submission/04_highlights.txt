@@ -1,0 +1,5 @@
+• Dual-lane governance cut interruptive alerts to 13.2% of threshold-only volume
+• Governed sensitivity matched raw partial SOFA at 79.5% on locked setB
+• Refractory interval and page gate drove most burden reduction in ablations
+• Frozen hashes and public code make the alert-policy evaluation reproducible
+• Residual interruptive NNA remained high; not ready for clinical use

@@ -1,0 +1,5 @@
+Dataset: PhysioNet/Computing in Cardiology Challenge 2019 v1.0.0 — https://doi.org/10.13026/v64v-d857 (CC BY 4.0).
+
+Code and frozen reproducibility artifacts: https://github.com/sreeram843/curie-prediction-pipeline
+
+Pinned commit cited in the manuscript: 1d8a1117151619e2d34822e365d17a00e30e5233
